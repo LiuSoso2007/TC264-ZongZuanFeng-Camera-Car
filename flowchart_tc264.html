@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TC264 Dual-Core Smart Car Flowchart</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root { color-scheme: light; }
+  body {
+    font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+    background: #f8f9fa;
+    margin: 0;
+    padding: 24px 16px;
+    color: #333;
+  }
+  h1 {
+    text-align: center;
+    font-size: 22px;
+    margin: 0 0 4px 0;
+    color: #1a1a2e;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 13px;
+    color: #888;
+    margin: 0 0 28px 0;
+  }
+  .mermaid {
+    display: flex;
+    justify-content: center;
+    overflow-x: auto;
+    padding: 0 8px;
+  }
+  .legend {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-top: 24px;
+    font-size: 13px;
+    color: #555;
+  }
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #fff;
+    padding: 4px 12px;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+  .notes {
+    max-width: 720px;
+    margin: 28px auto 0;
+    padding: 16px 20px;
+    background: #fffbe6;
+    border: 1px solid #ffe58f;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #8c6d00;
+    line-height: 1.6;
+  }
+  .notes strong { color: #d48806; }
+</style>
+</head>
+<body>
+<h1>TC264 Dual-Core Smart Car System Flowchart</h1>
+<p class="subtitle">CPU0: Image Processing &nbsp;|&nbsp; CPU1: Control + Display + Keys + IMU &nbsp;|&nbsp; Seekfree Open Library</p>
+
+<div class="mermaid">
+flowchart TB
+    subgraph CPU0["CPU0 - Image Processing Core"]
+        direction TB
+        S0(["Power On"]) --> SYS0["System Init<br/>clock_init / debug_init<br/>Camera Config"]
+        SYS0 --> CAM_INIT["MT9V03X Camera Init<br/>UART Config + ERU VSYNC<br/>+ DMA CH5 Data Transfer"]
+        CAM_INIT --> WAIT0["cpu_wait_event_ready<br/>Wait for CPU1 Ready"]
+        WAIT0 --> L0{"CPU0 Main Loop<br/>while(TRUE)"}
+        L0 --> CAM_POLL{"mt9v03x_finish_flag?<br/>Frame Complete?"}
+        CAM_POLL -->|"Yes"| IMG["Image Processing Pipeline<br/>Image_Process()<br/>Get_BinaryImage - Otsu<br/>Get_BaseLine - Bottom Search<br/>Get_AllLine - Full Search<br/>Scan_Element - Elements<br/>Element_Handle - Repair<br/>Output: Err = ImageStatus.Det_True"]
+        CAM_POLL -->|"No"| L0
+        IMG --> L0
+    end
+
+    subgraph CPU1["CPU1 - Control Core"]
+        direction TB
+        S1(["Power On"]) --> SYS1["System Init<br/>disable_Watchdog<br/>Peripheral Init"]
+        SYS1 --> ENC_INIT["Encoder Init<br/>TIM6 Left / TIM4 Right"]
+        SYS1 --> MOTOR_INIT["Motor Init<br/>ATOM0 10kHz Dual-Pole PWM<br/>P21_2/3 Left P21_4/5 Right"]
+        SYS1 --> SERVO_INIT["Servo Init<br/>ATOM0 50Hz PWM"]
+        SYS1 --> LCD_INIT["IPS200 LCD Init"]
+        SYS1 --> KEY_INIT["Key Init<br/>4-Key Button<br/>PIT 5ms Scan"]
+        SYS1 --> IMU_INIT["IMU Init<br/>ICM20602/IMU660RC<br/>ERU Interrupt + Kalman"]
+        SYS1 --> PI_INIT["PI Controller Init<br/>Left/Right Motor PI"]
+        SYS1 --> PIT_INIT["PIT Init<br/>CCU61_CH0 10ms Control Tick"]
+        ENC_INIT --> WAIT1["cpu_wait_event_ready<br/>Wait for CPU0 Ready"]
+        MOTOR_INIT --> WAIT1
+        SERVO_INIT --> WAIT1
+        LCD_INIT --> WAIT1
+        KEY_INIT --> WAIT1
+        IMU_INIT --> WAIT1
+        PI_INIT --> WAIT1
+        PIT_INIT --> WAIT1
+        WAIT1 --> L1{"CPU1 Main Loop<br/>while(TRUE)"}
+        L1 --> PIT_WAIT{"Wait PID_Flag<br/>CCU61_CH0 PIT 10ms?"}
+        PIT_WAIT -->|"10ms Tick"| CTRL["Control Cycle 10ms"]
+        CTRL --> ENC_READ["Encoder Read<br/>Encoder_Get_Left/Right<br/>g_EncLeft / g_EncRight"]
+        ENC_READ --> ERR_READ["Read Track Error<br/>Err from Shared Memory<br/>CPU0 Image Output"]
+        ERR_READ --> DIFF["Differential Compensation<br/>Adjust L/R Target Speed<br/>Based on Err Value"]
+        DIFF --> PI["Speed PI Closed-Loop<br/>Incremental PI<br/>Kp=0.55 Ki=0.2<br/>Output Limit -100..100"]
+        PI --> SERVO["Servo Output<br/>Servo_SetAngleDeg<br/>PD_Update via Err"]
+        SERVO --> MOTOR_OUT["Motor PWM Output<br/>Left P21_2/3 Right P21_4/5<br/>10kHz Dual-Pole"]
+        PIT_WAIT -->|"No"| LCD["IPS200 LCD Display<br/>EncLeft/Right, Speed<br/>Angle, Err Values"]
+        L1 --> LCD
+        L1 --> KEY["Key Scan Placeholder<br/>Key_Tick 5ms PIT<br/>Functions TBD<br/>(Angle/Speed bind later)"]
+        L1 --> IMU["IMU Data Processing<br/>Kalman Filter<br/>Yaw Angle / Pitch Angle<br/>Acc+Gyro Fusion"]
+        L1 --> DBG["Serial printf Debug<br/>Encoder/Speed/Angle/Err"]
+    end
+
+    subgraph SHARED["Shared Memory - IPC"]
+        direction LR
+        V1["Err<br/>CPU0 Image -> CPU1 Control"]
+        V2["g_EncLeft / g_EncRight<br/>CPU1 Encoder -> CPU1 Display<br/>(Local to CPU1)"]
+        V3["ImageStatus Flags<br/>CPU0 Image -> CPU1 Control<br/>(Bend Road, Ramp, Ring, etc.)"]
+    end
+
+    CPU0 -.->|"Write Err<br/>ImageStatus Flags"| SHARED
+    SHARED -.->|"Read Err<br/>Image Flags"| CPU1
+</div>
+
+<div class="legend">
+  <span class="legend-item"><span class="dot" style="background:#3498db"></span> CPU0 &mdash; Image Processing Core</span>
+  <span class="legend-item"><span class="dot" style="background:#e74c3c"></span> CPU1 &mdash; Control Core</span>
+  <span class="legend-item"><span class="dot" style="background:#2ecc71"></span> Shared Memory (IPC)</span>
+</div>
+
+<div class="notes">
+  <strong>Architecture Notes:</strong><br/>
+  &bull; CPU0 is dedicated to image processing only: camera init, DMA capture, Otsu binarization, line search, element detection (roundabout/zebra/ramp/roadblock), line repair. Outputs <code>Err</code> and <code>ImageStatus</code> flags to shared memory.<br/>
+  &bull; CPU1 handles all real-time control (encoder, motor PI, servo PD, differential compensation) plus LCD display, key scanning (placeholder only - functions TBD), IMU/gyroscope (Kalman filter, yaw/pitch), and serial debug.<br/>
+  &bull; Keys are on CPU1 but <strong>not yet bound</strong> to servo angle or speed control. Key functionality will be implemented later.<br/>
+  &bull; Cross-core IPC: CPU0 writes <code>Err</code> and image status flags; CPU1 reads them for control decisions.
+</div>
+
+<script>
+mermaid.initialize({
+  startOnLoad: true,
+  theme: 'default',
+  securityLevel: 'loose',
+  flowchart: {
+    useMaxWidth: true,
+    htmlLabels: true,
+    curve: 'basis'
+  }
+});
+</script>
+</body>
+</html>

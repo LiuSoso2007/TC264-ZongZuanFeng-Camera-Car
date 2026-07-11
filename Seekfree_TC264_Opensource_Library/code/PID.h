@@ -1,0 +1,31 @@
+#ifndef __PID_H__
+#define __PID_H__
+
+#include <stdint.h>
+extern volatile float Err;
+
+/* ---- 参数 ---- */
+#define PI_KP          0.55f
+#define PI_KI          0.2f
+#define CURVE_SPEED    0
+#define PI_OUT_MIN    -100
+#define PI_OUT_MAX     100
+
+/* PD位置式 -- 舵机 */
+void PD_Update(float Kp, float Kd);
+
+/* PI增量式 -- 电机 */
+typedef struct {
+    float   Kp;
+    float   Ki;
+    int16_t MinSpeed;
+    int16_t LastSpdErr;
+    float   Output;
+    int16_t TargetSpeed;
+    int16_t TargetBias;
+} PI_t;
+
+void PI_Init(PI_t *pi, float kp, float ki, int16_t min_speed);
+int8_t PI_Update(PI_t *pi, float pos_err, int16_t act_spd, int16_t str_spd);
+
+#endif

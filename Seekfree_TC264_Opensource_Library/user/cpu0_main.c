@@ -23,8 +23,9 @@ int core0_main(void)
 
     interrupt_global_enable(1);
 
+    IPS200_Init();                   /* IPS200 必须初始化 (软件SPI GPIO配置) */
     Camera_Init();
-    Camera_CompressInit();            /* 图像压缩初始化 (仅一次) */
+    Camera_CompressInit();           /* 图像压缩初始化 (仅一次) */
 
     cpu_wait_event_ready();
 

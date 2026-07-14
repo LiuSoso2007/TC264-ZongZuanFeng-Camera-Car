@@ -1,13 +1,23 @@
 /******************************************************************************
  * IPS200.c - TC264 IPS200屏幕驱动 (基于逐飞库 zf_device_ips200)
- * ??SPI: SCL=P15_4, SDA=P15_2, RST=P15_0, DC=P15_1, CS=P15_5, BLK=P15_3
+ *
+ * 接口: 软件SPI
+ * 引脚: SCL=P15_4, SDA=P15_2, RST=P15_0, DC=P15_1, CS=P15_5, BLK=P15_3
+ * 分辨率: 320x240
+ *
+ * 此文件仅提供轻量封装, 所有底层驱动在 zf_device_ips200 库中。
+ * 严禁修改逐飞设备库函数。
  ******************************************************************************/
 #include "IPS200.h"
 
+/*
+ * IPS200_Init - 初始化IPS200显示屏
+ * 配置: SPI接口, 竖屏模式, 8x16字体, 清屏
+ */
 void IPS200_Init(void)
 {
-    ips200_init(IPS200_TYPE_SPI);          // ?????????????
-    ips200_clear();
-    ips200_set_dir(IPS200_PORTAIT);
-    ips200_set_font(IPS200_8X16_FONT);
+    ips200_init(IPS200_TYPE_SPI);          /* 软件SPI接口初始化 */
+    ips200_clear();                         /* 清屏 */
+    ips200_set_dir(IPS200_PORTAIT);        /* 竖屏模式 */
+    ips200_set_font(IPS200_8X16_FONT);     /* 8x16字体 */
 }

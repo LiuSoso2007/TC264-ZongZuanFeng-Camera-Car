@@ -6,59 +6,59 @@
 #include "zf_device_ips200.h"
 
 /*
- * Camera.h --- MT9V03X ?????? + ???? + OTSU??? + IPS200????
+ * Camera.h --- MT9V03X 摄像头驱动 + 图像压缩 + OTSU二值化 + IPS200调试显示
  *
- * ?????? zf_device_mt9v03x ??, ????:
- *   1. ???????? (UART ?? + ERU ??? + DMA ????)
- *   2. ???? - ?? 188x120 ????????? 94x60
- *   3. OTSU ??????? - ??????????, ????
- *   4. IPS200???? - ??????+?????+??????
+ * 基于逐飞 zf_device_mt9v03x 库, 扩展功能:
+ *   1. 摄像头初始化 (UART 配置 + ERU 外部中断 + DMA 数据搬运)
+ *   2. 图像压缩 - 将 188x120 原始灰度图等比压缩至 94x60
+ *   3. OTSU 大津法二值化 - 自适应计算最优阈值, 灰度转黑白
+ *   4. IPS200调试显示 - 原始图+压缩图+阈值叠加显示
  *
- * ????????? (??/??/????) ??? Image_Process() ???
+ * 更多图像处理功能 (搜线/补线/元素识别) 另行在 Image_Process() 中实现
  *
- * ????:
+ * 接线定义:
  *   TXD   -> P02_3 (UART1 RX)        VCC  -> 3.3V
  *   RXD   -> P02_2 (UART1 TX)        GND  -> GND
- *   PCLK  -> P02_1 (ERU_CH2)         ????
+ *   PCLK  -> P02_1 (ERU_CH2)         其余引脚悬空
  *   VSY   -> P02_0 (ERU_CH3)
  *   D0-D7 -> P00_0 ~ P00_7
  */
 
-/* ---- ?????? (?????) ---- */
+/* ---- 原始图像尺寸 (来自逐飞库) ---- */
 #define CAMERA_W       MT9V03X_W        // 188
 #define CAMERA_H       MT9V03X_H        // 120
 #define CAMERA_SIZE    (CAMERA_W * CAMERA_H)
 
-/* ---- ???????? (2:1 ????) ---- */
-#define LCDW           94               // ???? (?) = 188/2
-#define LCDH           60               // ???? (?) = 120/2
+/* ---- 压缩后图像尺寸 (2:1 等比压缩) ---- */
+#define LCDW           94               // 压缩后宽度 (列) = 188/2
+#define LCDH           60               // 压缩后高度 (行) = 120/2
 
 /*
- * ?????????????
- *   188x120 ??? -> ???? 188x120
- *   94x60  ??? -> ???? 94x60 (????)
- *   ???? 120 + 10(??) + 60 = 190 < 240 ??????
+ * 屏幕布局说明:
+ *   188x120 原始图 -> 显示区域 188x120
+ *   94x60  压缩图 -> 显示区域 94x60 (居中)
+ *   总高度 120 + 10(间隔) + 60 = 190 < 240 屏幕高度
  */
 
-/* ---- ?????? ---- */
-extern uint8  Pixle[LCDH][LCDW];                // ???? (0=?, 1=?)
-extern uint8 *Image_Use[LCDH][LCDW];            // ????????????
-extern uint8  Camera_Threshold;                 // ??OTSU??? (0~255)
+/* ---- 全局图像数组 ---- */
+extern uint8  Pixle[LCDH][LCDW];                // 二值化图像 (0=黑, 1=白)
+extern uint8 *Image_Use[LCDH][LCDW];            // 压缩后灰度图像指针数组
+extern uint8  Camera_Threshold;                 // 当前OTSU阈值 (0~255)
 
-/* ---- ?? ---- */
+/* ---- 初始化 ---- */
 void Camera_Init(void);
-void Camera_CompressInit(void);                  // ??????? (???????)
+void Camera_CompressInit(void);                  // 图像压缩初始化 (仅需调用一次)
 
-/* ---- ???? ---- */
-uint8 Camera_IsFrameReady(void);                 // ?? mt9v03x_finish_flag ???
-uint8 (*Camera_GetImage(void))[CAMERA_W];        // ?? mt9v03x_image ??????
+/* ---- 图像采集 ---- */
+uint8 Camera_IsFrameReady(void);                 // 检查 mt9v03x_finish_flag 标志位
+uint8 (*Camera_GetImage(void))[CAMERA_W];        // 返回 mt9v03x_image 原始图像指针
 
-/* ---- ???? ---- */
+/* ---- 图像处理 ---- */
 uint8 Camera_OTSU_GetThreshold(uint8 *image[][LCDW], uint16 col, uint16 row);
-                                                 // ?????????
-void  Camera_GetBinaryImage(void);               // ??? -> ??? (????OTSU)
+                                                 // 大津法求最佳二值化阈值
+void  Camera_GetBinaryImage(void);               // 灰度图 -> 二值化 (自动调用OTSU)
 
-/* ---- IPS200???? ---- */
-void  Camera_ShowDebug(void);                    // IPS200 ??????+?????+????
+/* ---- IPS200调试显示 ---- */
+void  Camera_ShowDebug(void);                    // IPS200 显示原始图+压缩图+阈值
 
 #endif

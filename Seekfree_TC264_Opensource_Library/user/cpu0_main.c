@@ -33,6 +33,13 @@ int core0_main(void)
      */
     cpu_wait_event_ready();
 
+    /* 启动时显示初始信息, 即使摄像头未产生帧也能看到屏幕 */
+    ips200_full(RGB565_BLACK);
+    ips200_set_color(RGB565_GREEN, RGB565_BLACK);
+    ips200_show_string(2, 2,  "Camera Init OK");
+    ips200_set_color(RGB565_WHITE, RGB565_BLACK);
+    ips200_show_string(2, 20, "Waiting frame...");
+
     while (TRUE)
     {
         if (Camera_IsFrameReady())
@@ -40,7 +47,7 @@ int core0_main(void)
             /* 二值化 (OTSU 自适应阈值, 限幅 30~220) */
             Camera_GetBinaryImage();
 
-            /* 全量显示: 上部原始灰度图 / 中部阈值 / 下部二值图 */
+            /* 全量显示: 清黑屏 / 上部原始灰度图 / 中部阈值 / 下部二值图 */
             Camera_ShowDebug();
         }
     }

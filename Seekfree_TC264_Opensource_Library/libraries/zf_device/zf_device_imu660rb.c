@@ -239,7 +239,7 @@ uint8 imu660rb_init (void)
         imu660rb_write_acc_gyro_register(IMU660RB_FUNC_CFG_ACCESS, 0x00);       // ¹Ø±ÕHUB¼Ä´æÆ÷·ÃÎÊ
         if(imu660rb_acc_gyro_self_check())
         {
-            zf_log(0, "IMU660RB acc and gyro self check error.");
+            //zf_log(0, "IMU660RB acc and gyro self check error.");
             return_state = 1;
             break;
         }

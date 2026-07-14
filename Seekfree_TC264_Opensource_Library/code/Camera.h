@@ -116,4 +116,55 @@ void  Get_Border_And_SideType(uint8* p, uint8 type, int L, int H, JumpPointtyped
                                                // ?????????
 void  Get_AllLine(void);                       // ????: ??51??????0
 
+/* ---- ??????? ---- */
+typedef struct {
+    int16 Bend_Road;                           /* ??: 0=?? 1=?? 2=?? */
+    int16 image_element_rings;                 /* ??: 0=? 1=??? 2=??? */
+    int16 ring_big_small;                      /* ????: 0=?? 1=??? 2=??? */
+    int16 image_element_rings_flag;            /* ?????? */
+    int16 straight_long;                       /* ????? */
+    int16 straight_xie;                        /* ?????? */
+    int16 Zebra_Flag;                          /* ???: 0=? 1=??? 2=??? */
+    int16 Ramp;                                /* ??: 0=? 1=??? */
+    int16 Out_Road;                            /* ??: 0=? 1=?? */
+} ImageFlagtypedef;
+
+/* ---- ?????? ---- */
+// ????: WhiteLine(????), OFFLineBoundary(????), Det_True(????)
+// ??: OFFLine/Miss_Left_lines/Miss_Right_lines ??????
+#define IMAGESTATUS_EXTRA \
+    int16 WhiteLine;                           /* ??????(????) */ \
+    int16 OFFLineBoundary;                     /* ????? */ \
+    int16 Det_True;                            /* ?????? */ \
+    int16 WhiteLine_L;                         /* ????? */ \
+    int16 WhiteLine_R;                         /* ????? */
+
+extern ImageFlagtypedef ImageFlag;             /* ???????? */
+
+/* ---- ????? (TC264??, AnCai?x1.175??) ---- */
+extern const uint8 Half_Road_Wide[60];         /* ????: ???~??? */
+extern const uint8 Half_Bend_Wide[60];         /* ???? */
+
+/* ---- ?????? ---- */
+float Straight_Judge(uint8 dir, uint8 start, uint8 end);     // ?????(S<1???)
+void  Straight_long_judge(void);                             // ?????
+void  Straight_long_handle(void);                            // ?????
+void  Straight_xie_judge(void);                              // ??????
+void  Element_Judgment_Bend(void);                           // ????
+void  Element_Handle_Bend(void);                             // ????
+void  Element_Judgment_Left_Rings(void);                     // ?????
+void  Element_Handle_Left_Rings(void);                       // ?????
+void  Element_Judgment_Right_Rings(void);                    // ?????
+void  Element_Handle_Right_Rings(void);                      // ?????
+void  Element_Judgment_Zebra(void);                          // ?????
+void  Element_Handle_Zebra(void);                            // ?????
+void  Element_Judgment_Ramp(void);                           // ????
+void  Element_Handle_Ramp(void);                             // ????
+void  Element_Judgment_OutRoad(void);                        // ????
+void  Element_Handle_OutRoad(void);                          // ????
+void  Get_ExtensionLine(void);                               // ?????
+void  Scan_Element(void);                                    // ??????
+void  Element_Handle(void);                                  // ??????
+void  Flag_init(void);                                       // ?????
+
 #endif

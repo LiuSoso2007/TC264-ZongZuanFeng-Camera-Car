@@ -1,10 +1,7 @@
 /**
  * cpu0_main.c  ---  CPU0: 摄像头图像采集 + 图像处理 + IPS200调试显示
  *
- * 帧率优化: 每帧只调用 Camera_ShowBinaryFast() (仅二值图, SPI传输量最小),
- *           每5帧调用一次 Camera_ShowDebug() (全量: 原始图+阈值+二值图)
- *
- * CPU0 -> CPU1 通信: 通过共享变量 Err (Shared.h 中定义)
+ * 每帧: 二值化 + 全量显示 (原始图 + OTSU阈值 + 二值图)
  */
 
 #include "zf_common_headfile.h"
@@ -14,14 +11,12 @@
 #include "Shared.h"
 #include "isr.h"
 
-volatile float    Err             = 0.0f;    /* 图像偏差 (CPU0 -> CPU1) */
+volatile float    Err             = 0.0f;
 
 #pragma section all "cpu0_dsram"
 
 int core0_main(void)
 {
-    uint8 frame_cnt = 0;             /* 帧计数器: 每5帧全量显示一次 */
-
     clock_init();
     debug_init();
     system_delay_ms(100);
@@ -37,22 +32,11 @@ int core0_main(void)
     {
         if (Camera_IsFrameReady())
         {
-            /*
-             * 每帧都做二值化 (算阈值, 更新 Pixle)
-             */
+            /* 二值化 (OTSU 自适应阈值, 限幅 30~220) */
             Camera_GetBinaryImage();
 
-            /*
-             * 显示策略:
-             *   每5帧: 全量调试 (原始图+阈值+二值图) —— 慢但信息全
-             *   其余帧: 仅二值图 —— 快, 帧率优先
-             */
-            if (++frame_cnt >= 5) {
-                frame_cnt = 0;
-                Camera_ShowDebug();
-            } else {
-                Camera_ShowBinaryFast();
-            }
+            /* 全量显示: 上部原始灰度图 / 中部阈值 / 下部二值图 */
+            Camera_ShowDebug();
         }
     }
 }

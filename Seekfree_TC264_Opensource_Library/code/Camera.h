@@ -39,11 +39,40 @@
  *   94x60  压缩图 -> 显示区域 94x60 (居中)
  *   总高度 120 + 10(间隔) + 60 = 190 < 240 屏幕高度
  */
+/* ---- ??????? (Camera) ---- */
+// TC264: 94???, ??? = 94/2 = 47
+#define ImageSensorMid    (LCDW / 2)           // ?????????: 47
+
+// ????: ???59~57, ??56????????5?(56->52)
+// ?????(ImageSensorMid=47)????, ?????
+// 5???????, ??????
+#define SCAN_BASE_START_ROW    56              // ?????
+#define SCAN_BASE_END_ROW      52              // ????? (5?)
+#define SCAN_VALIDATE_COUNT    5               // ??????
+
+// ?????, ??????????[0, LCDW-1]?
+#define LimitL(L)  ((L) = ((L) < 0)  ? 0  : (L))
+#define LimitH(H)  ((H) = ((H) > (LCDW - 1)) ? (LCDW - 1) : (H))
+
+/* ---- ?????? ---- */
+typedef struct {
+    uint8 IsRightFind;
+    uint8 IsLeftFind;
+    int   Wide;
+    int   LeftBorder;
+    int   RightBorder;
+    int   Center;
+} ImageDealDatatypedef;
+
 
 /* ---- 全局图像数组 ---- */
 extern uint8  Pixle[LCDH][LCDW];                // 二值化图像 (0=黑, 1=白)
 extern uint8 *Image_Use[LCDH][LCDW];            // 压缩后灰度图像指针数组
 extern uint8  Camera_Threshold;                 // 当前OTSU阈值 (0~255)
+
+/* ---- ???? ---- */
+extern ImageDealDatatypedef ImageDeal[LCDH];   // ??????
+
 
 /* ---- 初始化 ---- */
 void Camera_Init(void);
@@ -61,4 +90,7 @@ void  Camera_GetBinaryImage(void);               // 灰度图 -> 二值化 (自动调用OT
 /* ---- IPS200调试显示 ---- */
 void  Camera_ShowDebug(void);                    // IPS200 显示原始图+压缩图+阈值
 
+
+/* ---- ???? ---- */
+void  Get_BaseLine(void);                       // ????: ?56->52, 5?????
 #endif

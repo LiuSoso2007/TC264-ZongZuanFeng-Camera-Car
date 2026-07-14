@@ -8,6 +8,7 @@
 uint8  Pixle[LCDH][LCDW];
 uint8 *Image_Use[LCDH][LCDW];
 uint8  Camera_Threshold = 128;
+ImageDealDatatypedef ImageDeal[LCDH];        // ??????
 #define COMPRESS_STEP_H (MT9V03X_H/LCDH)
 #define COMPRESS_STEP_W (MT9V03X_W/LCDW)
 
@@ -118,4 +119,109 @@ void Camera_ShowDebug(void) {
     ips200_set_color(RGB565_WHITE, RGB565_BLACK);
     ips200_show_string(2, 215, "[0=ºÚ 1=°×]");
     ips200_set_color(RGB565_RED, RGB565_BLACK);
+}
+
+
+//-------------------------------------------------------------------------------
+//  @brief          Get_BaseLine - ??????
+//  ??: ???59~57, ??56????????5?(56->52)
+//  ?????(ImageSensorMid=47)????, ???????(0,0)????
+//  5???????, ??????
+//  ?? Pixle[][] ????? (0=?/??, 1=?/??)
+//-------------------------------------------------------------------------------
+void Get_BaseLine(void)
+{
+    uint8 *PicTemp;                             // ???????
+    int   Xsite;                                // ?????
+    int   row;                                  // ?????
+
+    /* ---- ?1?: ???56? (???) ---- */
+    PicTemp = Pixle[SCAN_BASE_START_ROW];       // ???56?
+
+    // ????, ????
+    for (Xsite = ImageSensorMid; Xsite < (LCDW - 1); Xsite++)
+    {
+        if (*(PicTemp + Xsite) == 0 && *(PicTemp + Xsite + 1) == 0)
+        {
+            ImageDeal[SCAN_BASE_START_ROW].RightBorder = Xsite;
+            break;
+        }
+        else if (Xsite == (LCDW - 2))
+        {
+            ImageDeal[SCAN_BASE_START_ROW].RightBorder = LCDW - 1;
+            break;
+        }
+    }
+
+    // ????, ????
+    for (Xsite = ImageSensorMid; Xsite > 0; Xsite--)
+    {
+        if (*(PicTemp + Xsite) == 0 && *(PicTemp + Xsite - 1) == 0)
+        {
+            ImageDeal[SCAN_BASE_START_ROW].LeftBorder = Xsite;
+            break;
+        }
+        else if (Xsite == 1)
+        {
+            ImageDeal[SCAN_BASE_START_ROW].LeftBorder = 0;
+            break;
+        }
+    }
+
+    // ???56???????
+    ImageDeal[SCAN_BASE_START_ROW].Center
+        = (ImageDeal[SCAN_BASE_START_ROW].LeftBorder
+         + ImageDeal[SCAN_BASE_START_ROW].RightBorder) / 2;
+    ImageDeal[SCAN_BASE_START_ROW].Wide
+        = ImageDeal[SCAN_BASE_START_ROW].RightBorder
+        - ImageDeal[SCAN_BASE_START_ROW].LeftBorder;
+    ImageDeal[SCAN_BASE_START_ROW].IsLeftFind  = 'T';
+    ImageDeal[SCAN_BASE_START_ROW].IsRightFind = 'T';
+
+    /* ---- ?2?: ?????55->52? ---- */
+    for (row = SCAN_BASE_START_ROW - 1; row >= SCAN_BASE_END_ROW; row--)
+    {
+        PicTemp = Pixle[row];
+
+        // ????
+        for (Xsite = ImageDeal[row + 1].Center; Xsite < (LCDW - 1); Xsite++)
+        {
+            if (*(PicTemp + Xsite) == 0 && *(PicTemp + Xsite + 1) == 0)
+            {
+                ImageDeal[row].RightBorder = Xsite;
+                break;
+            }
+            else if (Xsite == (LCDW - 2))
+            {
+                ImageDeal[row].RightBorder = LCDW - 1;
+                break;
+            }
+        }
+
+        // ????
+        for (Xsite = ImageDeal[row + 1].Center; Xsite > 0; Xsite--)
+        {
+            if (*(PicTemp + Xsite) == 0 && *(PicTemp + Xsite - 1) == 0)
+            {
+                ImageDeal[row].LeftBorder = Xsite;
+                break;
+            }
+            else if (Xsite == 1)
+            {
+                ImageDeal[row].LeftBorder = 0;
+                break;
+            }
+        }
+
+        // ??????????
+        ImageDeal[row].Center
+            = (ImageDeal[row].LeftBorder + ImageDeal[row].RightBorder) / 2;
+        ImageDeal[row].Wide
+            = ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder;
+        ImageDeal[row].IsLeftFind  = 'T';
+        ImageDeal[row].IsRightFind = 'T';
+    }
+
+    /* ---- ?3?: 5??????? (?????) ---- */
+    // TODO: ????????????????????????
 }

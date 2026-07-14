@@ -9,6 +9,7 @@ uint8  Pixle[LCDH][LCDW];
 uint8 *Image_Use[LCDH][LCDW];
 uint8  Camera_Threshold = 128;
 ImageDealDatatypedef ImageDeal[LCDH];        // ??????
+ImageStatustypedef ImageStatus;              // ????(OFFLine/????)
 #define COMPRESS_STEP_H (MT9V03X_H/LCDH)
 #define COMPRESS_STEP_W (MT9V03X_W/LCDW)
 
@@ -225,3 +226,216 @@ void Get_BaseLine(void)
     /* ---- ?3?: 5??????? (?????) ---- */
     // TODO: ????????????????????????
 }
+
+//-------------------------------------------------------------------------------
+//  @brief          Get_Border_And_SideType - ?????????
+//  @brief          ???[L, H]???, ??->?????????
+//  @brief          ??: 'T'=????, 'W'=??(??), 'H'=???
+//  @parameter      p    ???????
+//  @parameter      type ????: 'L'=???, 'R'=???
+//  @parameter      L, H ???????
+//  @parameter      Q    ?????
+//  @return         void
+//  Sample usage:   Get_Border_And_SideType(PicTemp, 'R', low, high, &jp);
+//-------------------------------------------------------------------------------
+void Get_Border_And_SideType(uint8* p, uint8 type, int L, int H, JumpPointtypedef* Q)
+{
+    int i;
+    /* ---- ????: ??L/H???????[0, LCDW-1] ---- */
+    LimitL(L);
+    LimitH(H);
+
+    if (type == 'L')                            // ?????: ?????
+    {
+        for (i = H; i >= L; i--)
+        {
+            // ?(1)->?(0)??: ???, ???
+            if (*(p + i) == 1 && *(p + i - 1) != 1)
+            {
+                Q->point = i;                   // ?????????
+                Q->type  = 'T';                 // ????
+                break;
+            }
+            else if (i == (L + 1))              // ????????
+            {
+                if (*(p + (L + H) / 2) != 0)    // ??????
+                {
+                    Q->point = (L + H) / 2;     // ?????
+                    Q->type  = 'W';             // ???(??)
+                }
+                else                            // ??????
+                {
+                    Q->point = H;               // ?????
+                    Q->type  = 'H';             // ????
+                }
+                break;
+            }
+        }
+    }
+    else if (type == 'R')                       // ?????: ?????
+    {
+        for (i = L; i <= H; i++)
+        {
+            // ?(1)->?(0)??: ???, ???
+            if (*(p + i) == 1 && *(p + i + 1) != 1)
+            {
+                Q->point = i;                   // ?????????
+                Q->type  = 'T';                 // ????
+                break;
+            }
+            else if (i == (H - 1))              // ????????
+            {
+                if (*(p + (L + H) / 2) != 0)    // ??????
+                {
+                    Q->point = (L + H) / 2;     // ?????
+                    Q->type  = 'W';             // ???(??)
+                }
+                else                            // ??????
+                {
+                    Q->point = L;               // ?????
+                    Q->type  = 'H';             // ????
+                }
+                break;
+            }
+        }
+    }
+}
+
+
+//-------------------------------------------------------------------------------
+//  @brief          Get_AllLine - ????????
+//  @brief          Get_BaseLine(56->52)?, ??51????52?????????????0
+//  @brief          ??????: ???????????+/-ImageScanInterval????
+//  @brief          ????: ????????????????; ????????OFFLine??
+//  @parameter      void
+//  @return         void
+//  @note           ?? ImageDeal[52] (??????) ? Pixle[][] (?????)
+//  @note           OFFLine: ?????????????, ?????????????
+//  Sample usage:   Get_AllLine();
+//-------------------------------------------------------------------------------
+void Get_AllLine(void)
+{
+    uint8 *PicTemp;                             // ???????
+    int   row;                                  // ?????
+    int   IntervalLow, IntervalHigh;            // ???????
+    int   i;                                    // ????
+
+    /* ---- ??????? ---- */
+    ImageStatus.OFFLine          = 2;           // ?????(???2?)
+    ImageStatus.Miss_Left_lines  = 0;           // ?????
+    ImageStatus.Miss_Right_lines = 0;           // ?????
+
+    /*
+     * ??51??, ??52(??????)??????
+     * ?????????0?OFFLine??
+     */
+    for (row = SCAN_BASE_END_ROW - 1; row > ImageStatus.OFFLine; row--)
+    {
+        JumpPointtypedef JumpPoint[2];          // [0]=?, [1]=?
+        PicTemp = Pixle[row];
+
+        /* ============================================================
+         * ?????: ??????? +/- ImageScanInterval ????
+         * ============================================================ */
+        IntervalLow  = ImageDeal[row + 1].RightBorder - ImageScanInterval;
+        IntervalHigh = ImageDeal[row + 1].RightBorder + ImageScanInterval;
+        LimitL(IntervalLow);                    // ???[0, 93]
+        LimitH(IntervalHigh);
+
+        Get_Border_And_SideType(PicTemp, 'R', IntervalLow, IntervalHigh, &JumpPoint[1]);
+
+        /* ============================================================
+         * ?????: ??????? +/- ImageScanInterval ????
+         * ============================================================ */
+        IntervalLow  = ImageDeal[row + 1].LeftBorder - ImageScanInterval;
+        IntervalHigh = ImageDeal[row + 1].LeftBorder + ImageScanInterval;
+        LimitL(IntervalLow);
+        LimitH(IntervalHigh);
+
+        Get_Border_And_SideType(PicTemp, 'L', IntervalLow, IntervalHigh, &JumpPoint[0]);
+
+        /* ============================================================
+         * ????????????
+         * 'T'=??: ??????
+         * 'W'=??: ??????? (??+1)
+         * 'H'=???: ?????????, ?????
+         * ============================================================ */
+        if (JumpPoint[0].type == 'W')           // ??????
+        {
+            ImageDeal[row].LeftBorder = ImageDeal[row + 1].LeftBorder;  // ????
+            ImageStatus.Miss_Left_lines++;      // ?????
+        }
+        else                                    // 'T' ? 'H'
+        {
+            ImageDeal[row].LeftBorder = JumpPoint[0].point;
+        }
+
+        if (JumpPoint[1].type == 'W')           // ??????
+        {
+            ImageDeal[row].RightBorder = ImageDeal[row + 1].RightBorder; // ????
+            ImageStatus.Miss_Right_lines++;     // ?????
+        }
+        else                                    // 'T' ? 'H'
+        {
+            ImageDeal[row].RightBorder = JumpPoint[1].point;
+        }
+
+        /* ---- ???????? ---- */
+        ImageDeal[row].IsLeftFind  = JumpPoint[0].type;
+        ImageDeal[row].IsRightFind = JumpPoint[1].type;
+
+        /* ---- ?????????? ---- */
+        ImageDeal[row].Center = (ImageDeal[row].LeftBorder + ImageDeal[row].RightBorder) / 2;
+        ImageDeal[row].Wide   = ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder;
+
+        /*
+         * H?????: ????????????
+         * ????????H?, ???????????
+         */
+        if (ImageDeal[row].IsLeftFind == 'H' || ImageDeal[row].IsRightFind == 'H')
+        {
+            /* ---- ?H?: ????+1??????????????? ---- */
+            if (ImageDeal[row].IsLeftFind == 'H')
+            {
+                for (i = ImageDeal[row].LeftBorder + 1; i <= ImageDeal[row].RightBorder; i++)
+                {
+                    if (*(PicTemp + i) == 0)    // ????
+                    {
+                        ImageDeal[row].LeftBorder = i;
+                        ImageDeal[row].IsLeftFind = 'T';
+                        break;
+                    }
+                }
+            }
+
+            /* ---- ?H?: ????-1??????????????? ---- */
+            if (ImageDeal[row].IsRightFind == 'H')
+            {
+                for (i = ImageDeal[row].RightBorder - 1; i >= ImageDeal[row].LeftBorder; i--)
+                {
+                    if (*(PicTemp + i) == 0)    // ????
+                    {
+                        ImageDeal[row].RightBorder = i;
+                        ImageDeal[row].IsRightFind = 'T';
+                        break;
+                    }
+                }
+            }
+
+            /* ---- ????????? ---- */
+            ImageDeal[row].Center = (ImageDeal[row].LeftBorder + ImageDeal[row].RightBorder) / 2;
+            ImageDeal[row].Wide   = ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder;
+        }
+
+        /* ============================================================
+         * OFFLine????: ???????????????
+         * ????????????, ??????????
+         * ============================================================ */
+        if (ImageStatus.Miss_Left_lines > 3 && ImageStatus.Miss_Right_lines > 3)
+        {
+            ImageStatus.OFFLine = row;          // ????
+            break;
+        }
+    }
+}
+

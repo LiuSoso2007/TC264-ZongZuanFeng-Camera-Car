@@ -195,6 +195,7 @@ void Get_BaseLine(void)
             else if (Xsite == (LCDW - 2))
             {
                 ImageDeal[row].RightBorder = LCDW - 1;
+                ImageDeal[row].IsRightFind = 'F';   // ?????????
                 break;
             }
         }
@@ -210,6 +211,7 @@ void Get_BaseLine(void)
             else if (Xsite == 1)
             {
                 ImageDeal[row].LeftBorder = 0;
+                ImageDeal[row].IsLeftFind = 'F';    // ?????????
                 break;
             }
         }
@@ -368,6 +370,7 @@ void Get_AllLine(void)
         else                                    // 'T' ? 'H'
         {
             ImageDeal[row].LeftBorder = JumpPoint[0].point;
+            ImageStatus.Miss_Left_lines = 0;    // ????, ??????
         }
 
         if (JumpPoint[1].type == 'W')           // ??????
@@ -378,6 +381,7 @@ void Get_AllLine(void)
         else                                    // 'T' ? 'H'
         {
             ImageDeal[row].RightBorder = JumpPoint[1].point;
+            ImageStatus.Miss_Right_lines = 0;   // ????, ??????
         }
 
         /* ---- ???????? ---- */

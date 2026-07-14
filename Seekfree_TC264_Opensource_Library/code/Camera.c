@@ -1065,3 +1065,74 @@ void Flag_init(void)
     ImageFlag.Out_Road               = 0;
 }
 
+
+//-------------------------------------------------------------------------------
+//  @brief          Camera_ShowElementStatus - ????????
+//  @brief          ?IPS200???????????(????????)
+//  @brief          zhi=?? wan_L/R=?? shi=?? huan_L/R=?? banma=??? po=?? duan=??
+//  @parameter      void
+//  @return         void
+//  Sample usage:   Camera_ShowElementStatus();
+//-------------------------------------------------------------------------------
+void Camera_ShowElementStatus(void)
+{
+    /* ???: ????, ?? */
+    ips200_set_color(RGB565_WHITE, RGB565_BLUE);
+
+    /*
+     * ????????????, ???????
+     * ??: y=225 (??240??, ??15px??)
+     */
+    if (ImageFlag.Out_Road != 0)
+    {
+        ips200_show_string(2, 225, "ELEM: duan   ");     /* ?? */
+    }
+    else if (ImageFlag.image_element_rings == 1)
+    {
+        ips200_show_string(2, 225, "ELEM: huan_L ");     /* ??? */
+    }
+    else if (ImageFlag.image_element_rings == 2)
+    {
+        ips200_show_string(2, 225, "ELEM: huan_R ");     /* ??? */
+    }
+    else if (ImageFlag.Zebra_Flag == 1)
+    {
+        ips200_show_string(2, 225, "ELEM: banma_L");     /* ???-??? */
+    }
+    else if (ImageFlag.Zebra_Flag == 2)
+    {
+        ips200_show_string(2, 225, "ELEM: banma_R");     /* ???-??? */
+    }
+    else if (ImageFlag.Ramp != 0)
+    {
+        ips200_show_string(2, 225, "ELEM: po     ");     /* ?? */
+    }
+    else if (ImageFlag.Bend_Road == 1)
+    {
+        ips200_show_string(2, 225, "ELEM: wan_L  ");     /* ?? */
+    }
+    else if (ImageFlag.Bend_Road == 2)
+    {
+        ips200_show_string(2, 225, "ELEM: wan_R  ");     /* ?? */
+    }
+    else if (ImageFlag.straight_long)
+    {
+        ips200_show_string(2, 225, "ELEM: zhi    ");     /* ??? */
+    }
+    else if (ImageFlag.straight_xie)
+    {
+        ips200_show_string(2, 225, "ELEM: xie    ");     /* ???? */
+    }
+    else if (ImageStatus.WhiteLine >= 8)
+    {
+        ips200_show_string(2, 225, "ELEM: shi    ");     /* ?? */
+    }
+    else
+    {
+        ips200_show_string(2, 225, "ELEM: ---    ");     /* ??? */
+    }
+
+    /* ?????? */
+    ips200_set_color(RGB565_RED, RGB565_BLACK);
+}
+

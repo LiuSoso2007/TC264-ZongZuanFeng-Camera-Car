@@ -167,4 +167,6 @@ void  Scan_Element(void);                                    // ??????
 void  Element_Handle(void);                                  // ??????
 void  Flag_init(void);                                       // ?????
 
+void  Camera_ShowElementStatus(void);            // ??????????(????)
+
 #endif

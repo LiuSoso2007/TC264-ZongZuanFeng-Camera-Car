@@ -97,7 +97,7 @@ void Camera_GetBinaryImage(void) {
  */
 void Camera_ShowBinaryFast(void) {
     uint16 xo = (uint16)((MT9V03X_W - LCDW) / 2);
-    ips200_show_gray_image(xo, 0, Pixle[0], LCDW, LCDH, LCDW, LCDH, 0);
+    ips200_show_gray_image(xo, 0, Pixle[0], LCDW, LCDH, LCDW, LCDH, 1);
 }
 
 /*
@@ -115,7 +115,7 @@ void Camera_ShowDebug(void) {
     ips200_show_uint(82, 125, Camera_Threshold, 3);
     /* ¶þÖµ»¯Í¼Ïñ */
     xo = (uint16)((MT9V03X_W - LCDW) / 2);
-    ips200_show_gray_image(xo, 150, Pixle[0], LCDW, LCDH, LCDW, LCDH, 0);
+    ips200_show_gray_image(xo, 150, Pixle[0], LCDW, LCDH, LCDW, LCDH, 1);
     /* Í¼Àý */
     ips200_set_color(RGB565_WHITE, RGB565_BLACK);
     ips200_show_string(2, 215, "[0=ºÚ 1=°×]");

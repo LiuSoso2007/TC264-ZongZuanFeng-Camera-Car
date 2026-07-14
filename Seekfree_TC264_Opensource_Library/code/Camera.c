@@ -176,8 +176,11 @@ void Get_BaseLine(void)
     ImageDeal[SCAN_BASE_START_ROW].Wide
         = ImageDeal[SCAN_BASE_START_ROW].RightBorder
         - ImageDeal[SCAN_BASE_START_ROW].LeftBorder;
-    ImageDeal[SCAN_BASE_START_ROW].IsLeftFind  = 'T';
-    ImageDeal[SCAN_BASE_START_ROW].IsRightFind = 'T';
+    /* ????????'T', ??????'F' */
+    if (ImageDeal[SCAN_BASE_START_ROW].IsLeftFind != 'F')
+        ImageDeal[SCAN_BASE_START_ROW].IsLeftFind  = 'T';
+    if (ImageDeal[SCAN_BASE_START_ROW].IsRightFind != 'F')
+        ImageDeal[SCAN_BASE_START_ROW].IsRightFind = 'T';
 
     /* ---- ?2?: ?????55->52? ---- */
     for (row = SCAN_BASE_START_ROW - 1; row >= SCAN_BASE_END_ROW; row--)
@@ -221,8 +224,11 @@ void Get_BaseLine(void)
             = (ImageDeal[row].LeftBorder + ImageDeal[row].RightBorder) / 2;
         ImageDeal[row].Wide
             = ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder;
-        ImageDeal[row].IsLeftFind  = 'T';
-        ImageDeal[row].IsRightFind = 'T';
+        /* ????????'T', ??????'F' */
+        if (ImageDeal[row].IsLeftFind != 'F')
+            ImageDeal[row].IsLeftFind  = 'T';
+        if (ImageDeal[row].IsRightFind != 'F')
+            ImageDeal[row].IsRightFind = 'T';
     }
 
     /* ---- ?3?: 5??????? (?????) ---- */
@@ -326,6 +332,11 @@ void Get_AllLine(void)
     ImageStatus.OFFLine          = 2;           // ?????(???2?)
     ImageStatus.Miss_Left_lines  = 0;           // ?????
     ImageStatus.Miss_Right_lines = 0;           // ?????
+    ImageStatus.WhiteLine        = 0;           // ??????
+    ImageStatus.WhiteLine_L      = 0;           // ?????
+    ImageStatus.WhiteLine_R      = 0;           // ?????
+    ImageStatus.OFFLineBoundary  = 0;           // ?????
+    ImageStatus.Det_True         = 0;           // ??????
 
     /*
      * ??51??, ??52(??????)??????
@@ -387,6 +398,25 @@ void Get_AllLine(void)
         /* ---- ???????? ---- */
         ImageDeal[row].IsLeftFind  = JumpPoint[0].type;
         ImageDeal[row].IsRightFind = JumpPoint[1].type;
+
+        /* ---- ??????(?????) ---- */
+        if (JumpPoint[0].type == 'W' && JumpPoint[1].type == 'W')
+        {
+            ImageStatus.WhiteLine++;            // ??????
+        }
+        else
+        {
+            if (ImageStatus.WhiteLine > 0) ImageStatus.WhiteLine--;
+        }
+        /* ?????? */
+        if (JumpPoint[0].type == 'W')
+            ImageStatus.WhiteLine_L++;
+        else
+            ImageStatus.WhiteLine_L = 0;
+        if (JumpPoint[1].type == 'W')
+            ImageStatus.WhiteLine_R++;
+        else
+            ImageStatus.WhiteLine_R = 0;
 
         /* ---- ?????????? ---- */
         ImageDeal[row].Center = (ImageDeal[row].LeftBorder + ImageDeal[row].RightBorder) / 2;
@@ -613,7 +643,7 @@ void Element_Handle_Bend(void)
 
     if (ImageFlag.Bend_Road == 1)             /* ??: center=???+???? */
     {
-        for (row = 59; row > ImageStatus.OFFLine; row--)
+        for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
         {
             ImageDeal[row].Center = ImageDeal[row].LeftBorder + Half_Bend_Wide[row];
             LimitH(ImageDeal[row].Center);    /* ?? <= 93 */
@@ -621,7 +651,7 @@ void Element_Handle_Bend(void)
     }
     else if (ImageFlag.Bend_Road == 2)        /* ??: center=???-???? */
     {
-        for (row = 59; row > ImageStatus.OFFLine; row--)
+        for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
         {
             ImageDeal[row].Center = ImageDeal[row].RightBorder - Half_Bend_Wide[row];
             LimitL(ImageDeal[row].Center);    /* ?? >= 0 */
@@ -717,7 +747,7 @@ void Element_Handle_Left_Rings(void)
     if (ImageFlag.image_element_rings_flag == 1)
     {
         /* ???: ???? (LeftBorder + ????) */
-        for (row = 59; row > ImageStatus.OFFLine; row--)
+        for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
         {
             ImageDeal[row].Center = ImageDeal[row].LeftBorder + Half_Bend_Wide[row];
             LimitH(ImageDeal[row].Center);
@@ -742,7 +772,7 @@ void Element_Handle_Right_Rings(void)
 
     if (ImageFlag.image_element_rings_flag == 2)
     {
-        for (row = 59; row > ImageStatus.OFFLine; row--)
+        for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
         {
             ImageDeal[row].Center = ImageDeal[row].RightBorder - Half_Bend_Wide[row];
             LimitL(ImageDeal[row].Center);
@@ -786,7 +816,7 @@ void Element_Judgment_Zebra(void)
 
     if (NUM > 8)                              /* ?????: ?????? */
     {
-        if (ImageDeal[59].Center > 47)        /* ???? -> ??? */
+        if (ImageDeal[SCAN_BASE_START_ROW].Center > 47)  /* TC264: ??????56???59 */        /* ???? -> ??? */
             ImageFlag.Zebra_Flag = 1;
         else                                  /* ???? -> ??? */
             ImageFlag.Zebra_Flag = 2;
@@ -802,7 +832,7 @@ void Element_Handle_Zebra(void)
 
     if (ImageFlag.Zebra_Flag == 1)            /* ???: ???? */
     {
-        for (row = 59; row > ImageStatus.OFFLineBoundary + 1; row--)
+        for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLineBoundary + 1; row--)
         {
             ImageDeal[row].Center = ImageDeal[row].RightBorder - Half_Road_Wide[row];
             LimitL(ImageDeal[row].Center);
@@ -810,7 +840,7 @@ void Element_Handle_Zebra(void)
     }
     else if (ImageFlag.Zebra_Flag == 2)       /* ???: ???? */
     {
-        for (row = 59; row > ImageStatus.OFFLineBoundary + 1; row--)
+        for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLineBoundary + 1; row--)
         {
             ImageDeal[row].Center = ImageDeal[row].LeftBorder + Half_Road_Wide[row];
             LimitH(ImageDeal[row].Center);
@@ -824,6 +854,7 @@ void Element_Handle_Zebra(void)
 void Element_Judgment_Ramp(void)
 {
     int Ysite;
+    int i = 0;                           /* ??????? */
 
     if (ImageStatus.WhiteLine >= 3) return;
 

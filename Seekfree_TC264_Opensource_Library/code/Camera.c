@@ -35,48 +35,8 @@ void Camera_CompressInit(void) {
  * 完整遍历0~255, 输出限幅OTSU_MIN~OTSU_MAX
  */
 uint8 Camera_OTSU_GetThreshold(uint8 *image[][LCDW], uint16 col, uint16 row) {
-    #define GRAY_SCALE 256
-    #define OTSU_MIN   30    /* 阈值下限: 低于此值赛道全白, 无意义 */
-    #define OTSU_MAX   220   /* 阈值上限: 高于此值赛道全黑, 无意义 */
-    uint16 w = col, h = row;
-    uint32 ps = (uint32)w * h, pc[GRAY_SCALE], gs = 0;
-    float  pp[GRAY_SCALE];
-    uint8  thr = 128;
-    uint16 i, j;
-
-    if (ps == 0) return thr;
-
-    /* 初始化直方图 */
-    for (i = 0; i < GRAY_SCALE; i++) { pc[i] = 0; pp[i] = 0.0f; }
-
-    /* 统计直方图 + 灰度总和 */
-    for (i = 0; i < h; i++)
-        for (j = 0; j < w; j++) {
-            uint8 g = *image[i][j]; pc[g]++; gs += g; }
-
-    /* 灰度比例 */
-    for (i = 0; i < GRAY_SCALE; i++)
-        pp[i] = (float)pc[i] / (float)ps;
-
-    /* OTSU 完整遍历 0~255 (不做提前退出) */
-    {
-        float w0 = 0.0f, ut = 0.0f, ga = (float)gs / (float)ps, dm = 0.0f;
-        uint8 jj;
-        for (jj = 0; jj < GRAY_SCALE; jj++) {
-            w0 += pp[jj];
-            ut += (float)jj * pp[jj];
-            if (w0 < 1e-6f || (1.0f - w0) < 1e-6f) continue;
-            float w1 = 1.0f - w0, u1t = ga - ut;
-            float u0 = ut / w0, u1 = u1t / w1;
-            float dt = w0 * (u0 - ga) * (u0 - ga) + w1 * (u1 - ga) * (u1 - ga);
-            if (dt > dm) { dm = dt; thr = jj; }
-        }
-    }
-
-    /* 输出限幅 */
-    if (thr < OTSU_MIN) thr = OTSU_MIN;
-    if (thr > OTSU_MAX) thr = OTSU_MAX;
-    return thr;
+    /* DEBUG: ??OTSU????, ??????128 */
+    return 128;
 }
 
 /*
@@ -91,10 +51,6 @@ void Camera_GetBinaryImage(void) {
             Pixle[i][j] = (*Image_Use[i][j] > thr) ? 1 : 0;
 }
 
-/*
- * Camera_ShowBinaryFast - 仅显示二值化图像 (快, SPI传输量最小)
- * 不传原始灰度图, 不显示阈值文字, 适合帧率优先场景
- */
 void Camera_ShowBinaryFast(void) {
     uint16 xo = (uint16)((MT9V03X_W - LCDW) / 2);
     ips200_show_gray_image(xo, 0, Pixle[0], LCDW, LCDH, LCDW, LCDH, 1);

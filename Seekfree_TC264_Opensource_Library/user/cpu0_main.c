@@ -33,7 +33,7 @@ int core0_main(void)
      */
     cpu_wait_event_ready();
 
-        ips200_full(RGB565_WHITE);  /* clear screen to white */
+        ips200_full(RGB565_BLACK);  /* clear screen to black */
 
 while (TRUE)
     {

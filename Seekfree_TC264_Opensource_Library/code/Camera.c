@@ -1082,19 +1082,19 @@ void Camera_ShowElementStatus(void)
     }
     else if (ImageFlag.image_element_rings == 1)
     {
-        ips200_show_string(2, 225, "ELEM: huan_L ");     /* ??? */
+        ips200_show_string(2, 225, "ELEM: yuan_L ");     /* ??? */
     }
     else if (ImageFlag.image_element_rings == 2)
     {
-        ips200_show_string(2, 225, "ELEM: huan_R ");     /* ??? */
+        ips200_show_string(2, 225, "ELEM: yuan_R ");     /* ??? */
     }
     else if (ImageFlag.Zebra_Flag == 1)
     {
-        ips200_show_string(2, 225, "ELEM: banma_L");     /* ???-??? */
+        ips200_show_string(2, 225, "ELEM: ban_L");     /* ???-??? */
     }
     else if (ImageFlag.Zebra_Flag == 2)
     {
-        ips200_show_string(2, 225, "ELEM: banma_R");     /* ???-??? */
+        ips200_show_string(2, 225, "ELEM: ban_R");     /* ???-??? */
     }
     else if (ImageFlag.Ramp != 0)
     {

@@ -35,8 +35,72 @@ void Camera_CompressInit(void) {
  * 完整遍历0~255, 输出限幅OTSU_MIN~OTSU_MAX
  */
 uint8 Camera_OTSU_GetThreshold(uint8 *image[][LCDW], uint16 col, uint16 row) {
-    /* DEBUG: ??OTSU????, ??????128 */
-    return 128;
+    #define GRAY_SCALE  256
+    #define OTSU_MIN   30                       /* ???? */
+    #define OTSU_MAX   220                      /* ???? */
+    uint16 width  = col;
+    uint16 height = row;
+    uint32 pixelSum;
+    static uint32 pixelCount[GRAY_SCALE];        /* static: ?.bss, ?????(~1KB) */
+    static float  pixelPro[GRAY_SCALE];          /* static: ?.bss, ?????(~1KB) */
+    uint32 gray_sum = 0;
+    uint8  threshold = 128;
+    uint16 i, j;
+
+    pixelSum = (uint32)width * height;
+    if (pixelSum == 0) return threshold;
+
+    for (i = 0; i < GRAY_SCALE; i++)
+    {
+        pixelCount[i] = 0;
+        pixelPro[i]  = 0.0f;
+    }
+
+    for (i = 0; i < height; i++)
+    {
+        for (j = 0; j < width; j++)
+        {
+            uint8 gray_val = *image[i][j];
+            pixelCount[gray_val]++;
+            gray_sum += gray_val;
+        }
+    }
+
+    for (i = 0; i < GRAY_SCALE; i++)
+    {
+        pixelPro[i] = (float)pixelCount[i] / (float)pixelSum;
+    }
+
+    {
+        float w0 = 0.0f, gray_avg = (float)gray_sum / (float)pixelSum;
+        float u0tmp = 0.0f, deltaMax = 0.0f;
+        uint8  jj;
+
+        for (jj = 0; jj < GRAY_SCALE; jj++)
+        {
+            w0    += pixelPro[jj];
+            u0tmp += (float)jj * pixelPro[jj];
+
+            if (w0 < 1e-6f || (1.0f - w0) < 1e-6f) continue;
+
+            float w1    = 1.0f - w0;
+            float u1tmp = gray_avg - u0tmp;
+            float u0    = u0tmp / w0;
+            float u1    = u1tmp / w1;
+            float deltaTmp = w0 * (u0 - gray_avg) * (u0 - gray_avg)
+                           + w1 * (u1 - gray_avg) * (u1 - gray_avg);
+
+            if (deltaTmp > deltaMax)
+            {
+                deltaMax  = deltaTmp;
+                threshold = jj;
+            }
+        }
+    }
+
+    if (threshold < OTSU_MIN) threshold = OTSU_MIN;
+    if (threshold > OTSU_MAX) threshold = OTSU_MAX;
+    return threshold;
 }
 
 /*

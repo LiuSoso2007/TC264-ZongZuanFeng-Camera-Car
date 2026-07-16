@@ -33,31 +33,12 @@ int core0_main(void)
      */
     cpu_wait_event_ready();
 
-    /* 启动时显示初始信息, 即使摄像头未产生帧也能看到屏幕 */
-    ips200_full(RGB565_BLACK);
-
+    while (TRUE)
     {
-        uint32 fc = 0, lc = 0;
-        while (TRUE)
+        if (Camera_IsFrameReady())
         {
-            lc++;
-            if (Camera_IsFrameReady())
-            {
-                fc++;
-                ips200_set_color(RGB565_GREEN, RGB565_BLACK);
-                ips200_show_string(2, 2, "F:");  ips200_show_uint(25, 2, fc, 5);
-                Camera_GetBinaryImage();
-                ips200_set_color(RGB565_CYAN, RGB565_BLACK);
-                ips200_show_string(2, 18, "T="); ips200_show_uint(35, 18, Camera_Threshold, 3);
-                Camera_ShowDebug();
-                ips200_set_color(RGB565_YELLOW, RGB565_BLACK);
-                ips200_show_string(2, 34, "OK");
-            }
-            if ((lc % 5000) == 0) {
-                ips200_set_color(RGB565_WHITE, RGB565_BLACK);
-                ips200_show_string(2, 230, "L:"); ips200_show_uint(25, 230, lc/1000, 4);
-                ips200_show_string(65, 230, "K");
-            }
+            Camera_GetBinaryImage();
+            Camera_ShowDebug();
         }
     }
 }

@@ -96,6 +96,44 @@ void Camera_ShowBinaryFast(void) {
  * Camera_ShowDebug - 全量调试显示 (慢, 建议每3~5帧调用一次)
  * 上: 原始灰度 188x120 / 中: OTSU阈值 / 下: 二值图 94x60
  */
+/*
+ * Camera_DrawCenterLines - 在原始图和二值图上实时绘制双中线
+ *   红色竖线: 车体中线 (ImageSensorMid)  -- 固定不动的参考线
+ *   黄色折线: 赛道中线 (ImageDeal[].Center) -- 随赛道弯曲变化
+ * 绘制区域: 上部原始灰度图(188x120) + 下部二值图(94x60)
+ */
+void Camera_DrawCenterLines(void)
+{
+    int row;
+    uint16 xo = (uint16)((MT9V03X_W - LCDW) / 2);  /* 二值图X偏移 */
+
+    /* ---- 车体中线(红色竖线): 图像传感器物理中线 ---- */
+    /* 原始灰度图区域: y=0~119, x=ImageSensorMid*2=94 */
+    ips200_draw_line(94, 0, 94, 119, RGB565_RED);
+    /* 二值图区域: y=150~209, x=xo+ImageSensorMid */
+    ips200_draw_line(xo + ImageSensorMid, 150, xo + ImageSensorMid, 209, RGB565_RED);
+
+    /* ---- 赛道中线(黄色折线): 逐行连接ImageDeal[row].Center ---- */
+    /* 仅绘制OFFLine以上有有效数据的行, 步长2行以减轻SPI负载 */
+    for (row = ImageStatus.OFFLine + 2; row <= SCAN_BASE_START_ROW; row += 2)
+    {
+        if (ImageDeal[row].Center < 0 || ImageDeal[row].Center >= LCDW) continue;
+        if (ImageDeal[row-2].Center < 0 || ImageDeal[row-2].Center >= LCDW) continue;
+
+        /* 原始灰度图 (188x120): Center值*2映射, 行号*2映射 */
+        ips200_draw_line(
+            (uint16)ImageDeal[row].Center * 2, (uint16)row * 2,
+            (uint16)ImageDeal[row-2].Center * 2, (uint16)(row-2) * 2,
+            RGB565_YELLOW);
+
+        /* 二值图 (94x60, 偏移xo,150): 使用原始94x60坐标 */
+        ips200_draw_line(
+            xo + (uint16)ImageDeal[row].Center, 150 + (uint16)row,
+            xo + (uint16)ImageDeal[row-2].Center, 150 + (uint16)(row-2),
+            RGB565_YELLOW);
+    }
+}
+
 void Camera_ShowDebug(void) {
     uint16 xo;
     /* 原始灰度图 */
@@ -112,6 +150,8 @@ void Camera_ShowDebug(void) {
     ips200_set_color(RGB565_WHITE, RGB565_BLACK);
     /* legend removed */
     Camera_ShowElementStatus();
+    
+    Camera_DrawCenterLines();
     ips200_set_color(RGB565_RED, RGB565_BLACK);
 }
 

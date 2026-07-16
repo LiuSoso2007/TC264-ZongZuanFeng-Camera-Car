@@ -608,7 +608,7 @@ void Element_Judgment_Bend(void)
         return;
 
     /* ??: ?????(>30), ????, ?????? */
-    if (ImageDeal[ImageStatus.OFFLine + 1].LeftBorder > 30
+    if (ImageDeal[ImageStatus.OFFLine + 1].LeftBorder > 35  /* ponytail: 30*94/80=35, 80?->94??? */
      && ImageStatus.Miss_Left_lines < 4
      && ImageStatus.Miss_Right_lines > 8
      && Straight_Judge(1, ImageStatus.OFFLine + 2, SCAN_BASE_START_ROW - 1) > 1.0f)
@@ -617,7 +617,7 @@ void Element_Judgment_Bend(void)
     }
 
     /* ??: ?????(<50), ????, ?????? */
-    if (ImageDeal[ImageStatus.OFFLine + 1].RightBorder < 50
+    if (ImageDeal[ImageStatus.OFFLine + 1].RightBorder < 59  /* ponytail: 50*94/80=59, 80?->94??? */
      && ImageStatus.Miss_Right_lines < 4
      && ImageStatus.Miss_Left_lines > 8
      && Straight_Judge(2, ImageStatus.OFFLine + 2, SCAN_BASE_START_ROW - 1) > 1.0f)
@@ -952,7 +952,7 @@ void Get_ExtensionLine(void)
     {
         if (ImageDeal[Ysite].IsLeftFind == 'W')
         {
-            if (ImageDeal[Ysite + 1].LeftBorder >= 70)
+            if (ImageDeal[Ysite + 1].LeftBorder >= 82  /* ponytail: 70*94/80=82, 80?->94??? */)
             {
                 ImageStatus.OFFLine = Ysite + 1;
                 break;

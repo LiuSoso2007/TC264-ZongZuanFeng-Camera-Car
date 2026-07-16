@@ -846,6 +846,7 @@ void Element_Handle_Zebra(void)
  * ================================================================ */
 void Element_Judgment_Ramp(void)
 {
+    return;                              /* ponytail: ???????, ??????????? */
     int Ysite;
     int i = 0;                           /* ??????? */
 

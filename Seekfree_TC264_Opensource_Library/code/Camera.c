@@ -45,7 +45,7 @@ uint8 Camera_OTSU_GetThreshold(uint8 *image[][LCDW], uint16 col, uint16 row) {
     float maxVar = 0.0f;
     uint8 bestThr = 128;
 
-    /* 第二步: 计算灰度总和 */
+    /* 第一步: 统计灰度直方图 */
     for (i = 0; i < row; i++)
         for (j = 0; j < col; j++)
             hist[*image[i][j]]++;
@@ -147,7 +147,7 @@ void Get_BaseLine(void)
         }
     }
 
-    // 从中线向右侧搜索, 找白到黑的跳变
+    // 从中线向左侧搜索, 找白到黑的跳变
     for (Xsite = ImageSensorMid; Xsite > 0; Xsite--)
     {
         if (*(PicTemp + Xsite) == 1 && *(PicTemp + Xsite - 1) == 0)
@@ -180,7 +180,7 @@ void Get_BaseLine(void)
     {
         PicTemp = Pixle[row];
 
-        // 标记为找到跳变
+        // 从上一行中心向右侧搜索右边界
         for (Xsite = ImageDeal[row + 1].Center; Xsite < (LCDW - 1); Xsite++)
         {
             if (*(PicTemp + Xsite) == 1 && *(PicTemp + Xsite + 1) == 0)
@@ -196,7 +196,7 @@ void Get_BaseLine(void)
             }
         }
 
-        // 标记为找到跳变
+        // 从上一行中心向左侧搜索左边界
         for (Xsite = ImageDeal[row + 1].Center; Xsite > 0; Xsite--)
         {
             if (*(PicTemp + Xsite) == 1 && *(PicTemp + Xsite - 1) == 0)
@@ -259,15 +259,15 @@ void Get_Border_And_SideType(uint8* p, uint8 type, int L, int H, JumpPointtypede
             }
             else if (i == (L + 1))              // 扫描到底仍未找到跳变
             {
-                if (*(p + (L + H) / 2) != 0)    // 图像处理数据结构 (每行一条)
+                if (*(p + (L + H) / 2) != 0)    // 区间中点仍是白色
                 {
                     Q->point = (L + H) / 2;     // 列扫描位置
                     Q->type  = 'W';             // 整行白(丢失边线)
                 }
                 else                            // 图像处理数据结构 (每行一条)
                 {
-                    Q->point = H;               // 列扫描位置
-                    Q->type  = 'H';             // 标记为找到跳变
+                    Q->point = (L + H) / 2;     // H型: 返回区间中点, 避免后续LeftBorder>RightBorder
+                    Q->type  = 'H';             // 整行黑
                 }
                 break;
             }
@@ -286,15 +286,15 @@ void Get_Border_And_SideType(uint8* p, uint8 type, int L, int H, JumpPointtypede
             }
             else if (i == (H - 1))              // 扫描到底仍未找到跳变
             {
-                if (*(p + (L + H) / 2) != 0)    // 图像处理数据结构 (每行一条)
+                if (*(p + (L + H) / 2) != 0)    // 区间中点仍是白色
                 {
                     Q->point = (L + H) / 2;     // 列扫描位置
                     Q->type  = 'W';             // 整行白(丢失边线)
                 }
                 else                            // 图像处理数据结构 (每行一条)
                 {
-                    Q->point = L;               // 列扫描位置
-                    Q->type  = 'H';             // 标记为找到跳变
+                    Q->point = (L + H) / 2;     // H型: 返回区间中点, 避免后续LeftBorder>RightBorder
+                    Q->type  = 'H';             // 整行黑
                 }
                 break;
             }
@@ -319,17 +319,17 @@ void Get_AllLine(void)
     uint8 *PicTemp;                             // 当前行像素指针
     int   row;                                  // 当前扫描行号
     int   IntervalLow, IntervalHigh;            // 左右搜索区间边界
-    int   i;                                    // 标记为找到跳变
+    int   i;                                    // 临时索引变量
 
     /* ---- 初始化状态变量 ---- */
     ImageStatus.OFFLine          = 2;           // 丢线行号(初始为2)
-    ImageStatus.Miss_Left_lines  = 0;           // 列扫描位置
-    ImageStatus.Miss_Right_lines = 0;           // 列扫描位置
-    ImageStatus.WhiteLine        = 0;           // 图像处理数据结构 (每行一条)
-    ImageStatus.WhiteLine_L      = 0;           // 列扫描位置
-    ImageStatus.WhiteLine_R      = 0;           // 列扫描位置
-    ImageStatus.OFFLineBoundary  = 0;           // 列扫描位置
-    ImageStatus.Det_True         = 0;           // 图像处理数据结构 (每行一条)
+    ImageStatus.Miss_Left_lines  = 0;           // 左侧连续丢失行数
+    ImageStatus.Miss_Right_lines = 0;           // 右侧连续丢失行数
+    ImageStatus.WhiteLine        = 0;           // 白色行计数(十字识别)
+    ImageStatus.WhiteLine_L      = 0;           // 左侧白行计数
+    ImageStatus.WhiteLine_R      = 0;           // 右侧白行计数
+    ImageStatus.OFFLineBoundary  = 0;           // 丢线边界行号
+    ImageStatus.Det_True         = 0;           // 有效检测标志
 
     /*
      * 从51行开始, 以52行(基准线)为参考向下扫描
@@ -337,7 +337,7 @@ void Get_AllLine(void)
      */
     for (row = SCAN_BASE_END_ROW - 1; row > ImageStatus.OFFLine; row--)
     {
-        JumpPointtypedef JumpPoint[2];          // [0]=?, [1]=?
+        JumpPointtypedef JumpPoint[2];          // [0]=左侧跳变点, [1]=右侧跳变点
         PicTemp = Pixle[row];
 
         /* ============================================================
@@ -351,7 +351,7 @@ void Get_AllLine(void)
         Get_Border_And_SideType(PicTemp, 'R', IntervalLow, IntervalHigh, &JumpPoint[1]);
 
         /* ============================================================
-         * 右侧搜索: 在上一行右边界 +/- ImageScanInterval 范围内扫描
+         * 左侧搜索: 在上一行左边界 +/- ImageScanInterval 范围内扫描
          * ============================================================ */
         IntervalLow  = ImageDeal[row + 1].LeftBorder - ImageScanInterval;
         IntervalHigh = ImageDeal[row + 1].LeftBorder + ImageScanInterval;
@@ -366,10 +366,10 @@ void Get_AllLine(void)
          * 'W'=全白: 使用上一行边线值 (补线+1)
          * 'H'=全黑: 扫描区域内没有白点, 触发丢线
          * ============================================================ */
-        if (JumpPoint[0].type == 'W')           // 图像处理数据结构 (每行一条)
+        if (JumpPoint[0].type == 'W')           // 左侧整行白(丢线)
         {
-            ImageDeal[row].LeftBorder = ImageDeal[row + 1].LeftBorder;  // 标记为找到跳变
-            ImageStatus.Miss_Left_lines++;      // 列扫描位置
+            ImageDeal[row].LeftBorder = ImageDeal[row + 1].LeftBorder;  // 沿用上一行左边界
+            ImageStatus.Miss_Left_lines++;      // 左侧丢失计数+1
         }
         else                                    // 'T' ? 'H'
         {
@@ -377,10 +377,10 @@ void Get_AllLine(void)
             ImageStatus.Miss_Left_lines = 0;    // 找到边线, 清零丢失计数
         }
 
-        if (JumpPoint[1].type == 'W')           // 图像处理数据结构 (每行一条)
+        if (JumpPoint[1].type == 'W')           // 右侧整行白(丢线)
         {
-            ImageDeal[row].RightBorder = ImageDeal[row + 1].RightBorder; // 标记为找到跳变
-            ImageStatus.Miss_Right_lines++;     // 列扫描位置
+            ImageDeal[row].RightBorder = ImageDeal[row + 1].RightBorder; // 沿用上一行右边界
+            ImageStatus.Miss_Right_lines++;     // 右侧丢失计数+1
         }
         else                                    // 'T' ? 'H'
         {
@@ -395,7 +395,7 @@ void Get_AllLine(void)
         /* ---- 白行计数(左右同时为白) ---- */
         if (JumpPoint[0].type == 'W' && JumpPoint[1].type == 'W')
         {
-            ImageStatus.WhiteLine++;            // 图像处理数据结构 (每行一条)
+            ImageStatus.WhiteLine++;            // 累计白色行计数
         }
         else
         {
@@ -421,12 +421,12 @@ void Get_AllLine(void)
          */
         if (ImageDeal[row].IsLeftFind == 'H' || ImageDeal[row].IsRightFind == 'H')
         {
-            /* ---- 左H型: 从左边界+1向内侧搜索最近的白变黑点 ---- */
+            /* ---- 左H型: 从当前左边界向内搜索, 寻找赛道(白点)重定边线 ---- */
             if (ImageDeal[row].IsLeftFind == 'H')
             {
                 for (i = ImageDeal[row].LeftBorder + 1; i <= ImageDeal[row].RightBorder; i++)
                 {
-                    if (*(PicTemp + i) == 0)    // 标记为找到跳变
+                    if (*(PicTemp + i) == 1 && *(PicTemp + i - 1) == 0)  // 黑->白跳变: 找到赛道左边界
                     {
                         ImageDeal[row].LeftBorder = i;
                         ImageDeal[row].IsLeftFind = 'T';
@@ -435,12 +435,12 @@ void Get_AllLine(void)
                 }
             }
 
-            /* ---- 右H型: 从右边界-1向内侧搜索最近的白变黑点 ---- */
+            /* ---- 右H型: 从当前右边界向内搜索, 寻找赛道(白点)重定边线 ---- */
             if (ImageDeal[row].IsRightFind == 'H')
             {
                 for (i = ImageDeal[row].RightBorder - 1; i >= ImageDeal[row].LeftBorder; i--)
                 {
-                    if (*(PicTemp + i) == 0)    // 标记为找到跳变
+                    if (*(PicTemp + i) == 1 && *(PicTemp + i + 1) == 0)  // 黑->白跳变: 找到赛道右边界
                     {
                         ImageDeal[row].RightBorder = i;
                         ImageDeal[row].IsRightFind = 'T';
@@ -460,7 +460,7 @@ void Get_AllLine(void)
          * ============================================================ */
         if (ImageStatus.Miss_Left_lines > 3 && ImageStatus.Miss_Right_lines > 3)
         {
-            ImageStatus.OFFLine = row;          // 标记为找到跳变
+            ImageStatus.OFFLine = row;          // 记录丢线起始行号
             break;
         }
     }
@@ -492,7 +492,7 @@ const uint8 Half_Bend_Wide[60] = {           /* 弯道半宽补偿 */
 /* ================================================================
  * 图像元素标志
  * ================================================================ */
-ImageFlagtypedef ImageFlag;                  /* 弯道半宽补偿 */
+ImageFlagtypedef ImageFlag;                  /* 图像元素标志 */
 
 /* ================================================================
  * Helper: Straight_Judge - 直道判别
@@ -603,9 +603,18 @@ void Straight_xie_judge(void)
  * ================================================================ */
 void Element_Judgment_Bend(void)
 {
-    if (ImageFlag.image_element_rings != 0 || ImageStatus.OFFLine < 3   /* ponytail: TC264行号48-44, OFFLine阈值调为2 */
+    /*
+     * 弯道检测守卫: 仅在无其他元素状态时尝试检测。
+     * 原 OFFLine < 3 逻辑有误: OFFLine 仅当左右同时丢线才触发,
+     * 而弯道只丢单侧, OFFLine 始终为2, 导致弯道永远无法识别。
+     * 修正: 改用双侧丢线计数器判断 — 双侧都追踪良好才是纯直道。
+     */
+    if (ImageFlag.image_element_rings != 0
         || ImageFlag.Zebra_Flag || ImageFlag.Out_Road == 1)
         return;
+    if (ImageStatus.Miss_Left_lines < 4
+        && ImageStatus.Miss_Right_lines < 4)
+        return;  /* 双侧都追踪良好 = 纯直道, 无需检测弯道 */
 
     /* 左弯: 左边线靠右(>30), 左侧未丢失, 右侧丢失多行 */
     if (ImageDeal[ImageStatus.OFFLine + 1].LeftBorder > 35  /* ponytail: 30*94/80=35, 80列->94列映射 */
@@ -632,7 +641,12 @@ void Element_Judgment_Bend(void)
 void Element_Handle_Bend(void)
 {
     int row;                                  /* 用int避免uchar溢出 */
-    if (ImageStatus.OFFLine < 3)  { ImageFlag.Bend_Road = 0; return; }  /* ponytail: TC264 OFFLine阈值2 */
+    /*
+     * 原 OFFLine < 3 守卫逻辑有误 (同 Element_Judgment_Bend 的 Bug)。
+     * 修正: 当双侧都追踪良好时清除弯道标志(已恢复直道)。
+     */
+    if (ImageStatus.Miss_Left_lines < 4 && ImageStatus.Miss_Right_lines < 4)
+        { ImageFlag.Bend_Road = 0; return; }
 
     if (ImageFlag.Bend_Road == 1)             /* 左弯: center=左边界+半宽 */
     {
@@ -660,7 +674,13 @@ void Element_Judgment_Left_Rings(void)
     int Ysite, ring_ysite = 25;
     int Left_Less_Num = 0;
 
-    if (ImageStatus.Miss_Right_lines > 3 || ImageStatus.Miss_Left_lines < 13
+    /*
+     * 圆环识别守卫: 修正 Miss_Left_lines < 13 逻辑漏洞。
+     * 原条件要求左侧丢线>=13行才检测, 但圆环外侧白线可能被追踪为左边线,
+     * 导致 Miss_Left_lines=0, 圆环永远无法识别。
+     * 修正: 放宽为 Miss_Left_lines > 30(完全丢线不检测), 主要依赖LeftBorder跳变检测。
+     */
+    if (ImageStatus.Miss_Right_lines > 3 || ImageStatus.Miss_Left_lines > 30
         || ImageStatus.OFFLine > 2 || Straight_Judge(2, 5, SCAN_BASE_END_ROW) > 1.0f   /* ponytail: TC264 OFFLine阈值2 */
         || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
         return;
@@ -702,7 +722,11 @@ void Element_Judgment_Right_Rings(void)
     int Ysite, ring_ysite = 25;
     int Right_Less_Num = 0;
 
-    if (ImageStatus.Miss_Left_lines > 3 || ImageStatus.Miss_Right_lines < 13
+    /*
+     * 圆环识别守卫: 修正 Miss_Right_lines < 13 逻辑漏洞 (同左圆环)。
+     * 修正: 放宽为 Miss_Right_lines > 30(完全丢线不检测), 主要依赖RightBorder跳变检测。
+     */
+    if (ImageStatus.Miss_Left_lines > 3 || ImageStatus.Miss_Right_lines > 30
         || ImageStatus.OFFLine > 2 || Straight_Judge(1, 5, SCAN_BASE_END_ROW) > 1.0f   /* ponytail: TC264 OFFLine阈值2 */
         || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
         return;

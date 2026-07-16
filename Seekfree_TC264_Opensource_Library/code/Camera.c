@@ -603,7 +603,7 @@ void Straight_xie_judge(void)
  * ================================================================ */
 void Element_Judgment_Bend(void)
 {
-    if (ImageFlag.image_element_rings != 0 || ImageStatus.OFFLine < 14
+    if (ImageFlag.image_element_rings != 0 || ImageStatus.OFFLine < 3   /* ponytail: TC264???48-44, OFFLine????2, 14?? */
         || ImageFlag.Zebra_Flag || ImageFlag.Out_Road == 1)
         return;
 
@@ -632,7 +632,7 @@ void Element_Judgment_Bend(void)
 void Element_Handle_Bend(void)
 {
     int row;                                  /* ??int???? */
-    if (ImageStatus.OFFLine < 10) { ImageFlag.Bend_Road = 0; return; }
+    if (ImageStatus.OFFLine < 3)  { ImageFlag.Bend_Road = 0; return; }  /* ponytail: TC264 OFFLine???2 */
 
     if (ImageFlag.Bend_Road == 1)             /* ??: center=???+???? */
     {
@@ -661,7 +661,7 @@ void Element_Judgment_Left_Rings(void)
     int Left_Less_Num = 0;
 
     if (ImageStatus.Miss_Right_lines > 3 || ImageStatus.Miss_Left_lines < 13
-        || ImageStatus.OFFLine > 5 || Straight_Judge(2, 5, SCAN_BASE_END_ROW) > 1.0f
+        || ImageStatus.OFFLine > 2 || Straight_Judge(2, 5, SCAN_BASE_END_ROW) > 1.0f   /* ponytail: TC264 OFFLine???2 */
         || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
         return;
 
@@ -703,7 +703,7 @@ void Element_Judgment_Right_Rings(void)
     int Right_Less_Num = 0;
 
     if (ImageStatus.Miss_Left_lines > 3 || ImageStatus.Miss_Right_lines < 13
-        || ImageStatus.OFFLine > 5 || Straight_Judge(1, 5, SCAN_BASE_END_ROW) > 1.0f
+        || ImageStatus.OFFLine > 2 || Straight_Judge(1, 5, SCAN_BASE_END_ROW) > 1.0f   /* ponytail: TC264 OFFLine???2 */
         || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
         return;
 
@@ -748,7 +748,7 @@ void Element_Handle_Left_Rings(void)
     }
 
     /* ????: OFFLine?? (????) */
-    if (ImageStatus.OFFLine >= 15)
+    if (ImageStatus.OFFLine >= 5)     /* ponytail: TC264?????, ?????? */
     {
         ImageFlag.image_element_rings = 0;
         ImageFlag.image_element_rings_flag = 0;
@@ -772,7 +772,7 @@ void Element_Handle_Right_Rings(void)
         }
     }
 
-    if (ImageStatus.OFFLine >= 15)
+    if (ImageStatus.OFFLine >= 5)     /* ponytail: TC264?????, ?????? */
     {
         ImageFlag.image_element_rings = 0;
         ImageFlag.image_element_rings_flag = 0;

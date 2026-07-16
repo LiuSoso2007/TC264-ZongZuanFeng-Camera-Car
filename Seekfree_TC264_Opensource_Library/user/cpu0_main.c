@@ -40,6 +40,20 @@ while (TRUE)
         if (Camera_IsFrameReady())
         {
             Camera_GetBinaryImage();
+
+            /* ---- ??????: ?? -> ???? ---- */
+            Flag_init();
+            Get_BaseLine();
+            Get_AllLine();
+            Scan_Element();
+            Element_Handle();
+
+            /* ---- ???? Err (????) ? CPU1 ???? ---- */
+            if (ImageStatus.OFFLine < 55)
+            {
+                Err = (float)(ImageDeal[SCAN_BASE_START_ROW].Center - ImageSensorMid)
+                    / (float)ImageSensorMid;
+            }
             Camera_ShowDebug();
         }
     }

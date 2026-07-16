@@ -682,7 +682,7 @@ void Element_Judgment_Left_Rings(void)
      * 修正: 放宽为 Miss_Left_lines > 30(完全丢线不检测), 主要依赖LeftBorder跳变检测。
      */
     if (ImageStatus.Miss_Right_lines > 3
-        || ImageStatus.OFFLine > 2 || Straight_Judge(2, 5, SCAN_BASE_END_ROW) > 1.0f   /* ponytail: TC264 OFFLine阈值2 */
+        || ImageStatus.OFFLine > 2 || Straight_Judge(2, 5, SCAN_BASE_END_ROW) > 3.0f   /* 放松曲率阈值: 允许对侧轻微弯曲 */
         || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
         return;  /* 移除Miss_Left_lines>30守卫: 圆环外侧白线被追踪时Miss_Left_lines=0, 不应拦截 */
 
@@ -698,7 +698,7 @@ void Element_Judgment_Left_Rings(void)
     /* 搜索左边线大幅外扩的行 */
     for (Ysite = (SCAN_BASE_START_ROW - 1); Ysite > ring_ysite; Ysite--)
     {
-        if (ImageDeal[Ysite].LeftBorder - ImageDeal[Ysite - 1].LeftBorder > 4)
+        if (abs(ImageDeal[Ysite].LeftBorder - ImageDeal[Ysite - 1].LeftBorder) > 4  /* abs: 检测任意方向大幅跳变 */)
         {
             Left_Less_Num++;
             /* 累计左边线外扩次数 */
@@ -728,7 +728,7 @@ void Element_Judgment_Right_Rings(void)
      * 修正: 放宽为 Miss_Right_lines > 30(完全丢线不检测), 主要依赖RightBorder跳变检测。
      */
     if (ImageStatus.Miss_Left_lines > 3
-        || ImageStatus.OFFLine > 2 || Straight_Judge(1, 5, SCAN_BASE_END_ROW) > 1.0f   /* ponytail: TC264 OFFLine阈值2 */
+        || ImageStatus.OFFLine > 2 || Straight_Judge(1, 5, SCAN_BASE_END_ROW) > 3.0f   /* 放松曲率阈值: 允许对侧轻微弯曲 */
         || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
         return;  /* 移除Miss_Right_lines>30守卫: 圆环外侧白线被追踪时Miss_Right_lines=0, 不应拦截 */
 
@@ -742,7 +742,7 @@ void Element_Judgment_Right_Rings(void)
 
     for (Ysite = (SCAN_BASE_START_ROW - 1); Ysite > ring_ysite; Ysite--)
     {
-        if (ImageDeal[Ysite - 1].RightBorder - ImageDeal[Ysite].RightBorder > 4)
+        if (abs(ImageDeal[Ysite].RightBorder - ImageDeal[Ysite - 1].RightBorder) > 4  /* abs: 检测任意方向大幅跳变 */)
         {
             Right_Less_Num++;
         }
@@ -1018,8 +1018,7 @@ void Scan_Element(void)
     /* 仅在无其他元素状态下进行元素识别 */
     if (ImageFlag.Out_Road == 0 && ImageFlag.Zebra_Flag == 0
      && ImageFlag.image_element_rings == 0
-     && ImageFlag.Ramp == 0 && ImageFlag.Bend_Road == 0
-     && ImageFlag.straight_long == 0)
+     && ImageFlag.Ramp == 0)  /* 直道/弯道不再阻塞元素检测 */
     {
         Element_Judgment_OutRoad();           /* 断路 */
         Element_Judgment_Left_Rings();        /* 左圆环 */
@@ -1109,30 +1108,6 @@ void Camera_ShowElementStatus(void)
     else if (ImageFlag.image_element_rings == 2)
     {
         ips200_show_string(2, 225, "ELEM: yuan_R ");     /* 右圆环 */
-    }
-    else if (ImageFlag.Zebra_Flag == 1)
-    {
-        ips200_show_string(2, 225, "ELEM: ban_L");     /* 斑马线-左侧 */
-    }
-    else if (ImageFlag.Zebra_Flag == 2)
-    {
-        ips200_show_string(2, 225, "ELEM: ban_R");     /* 斑马线-左侧 */
-    }
-    else if (ImageFlag.Ramp != 0)
-    {
-        ips200_show_string(2, 225, "ELEM: po     ");     /* 坡道 */
-    }
-    else if (ImageFlag.Bend_Road == 1)
-    {
-        ips200_show_string(2, 225, "ELEM: wan_L  ");     /* 左弯 */
-    }
-    else if (ImageFlag.Bend_Road == 2)
-    {
-        ips200_show_string(2, 225, "ELEM: wan_R  ");     /* 右弯 */
-    }
-    else if (ImageFlag.straight_long)
-    {
-        ips200_show_string(2, 225, "ELEM: zhi    ");     /* 长直道 */
     }
     else if (ImageStatus.WhiteLine >= 8)
     {

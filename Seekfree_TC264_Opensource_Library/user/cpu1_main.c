@@ -63,7 +63,7 @@ int core1_main(void)
     {
         /* IMU未连接, 显示提示 */
         ips200_set_color(RGB565_WHITE, RGB565_BLACK);
-        ips200_show_string(10, 10, "IMU not connected");
+        /* IMU????? - CPU0 Camera_ShowDebug?????? */
     }
     else
     {

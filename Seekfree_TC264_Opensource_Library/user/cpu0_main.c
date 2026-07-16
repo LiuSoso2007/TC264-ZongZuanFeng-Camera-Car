@@ -35,10 +35,6 @@ int core0_main(void)
 
     /* 启动时显示初始信息, 即使摄像头未产生帧也能看到屏幕 */
     ips200_full(RGB565_BLACK);
-    ips200_set_color(RGB565_GREEN, RGB565_BLACK);
-    ips200_show_string(2, 2,  "Camera Init OK");
-    ips200_set_color(RGB565_WHITE, RGB565_BLACK);
-    ips200_show_string(2, 20, "Waiting frame...");
 
     while (TRUE)
     {

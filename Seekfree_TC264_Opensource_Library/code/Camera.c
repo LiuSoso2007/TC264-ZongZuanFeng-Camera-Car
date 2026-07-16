@@ -35,14 +35,51 @@ void Camera_CompressInit(void) {
  * 完整遍历0~255, 输出限幅OTSU_MIN~OTSU_MAX
  */
 uint8 Camera_OTSU_GetThreshold(uint8 *image[][LCDW], uint16 col, uint16 row) {
-    return 128;  /* stub: skip float OTSU */
+    uint32 hist[256] = {0};
+    uint16 i, j;
+    uint16 t;
+    uint32 total = (uint32)col * row;
+    uint64 totalSum = 0;
+    uint32 w0 = 0;
+    uint64 sum0 = 0;
+    float maxVar = 0.0f;
+    uint8 bestThr = 128;
+
+    /* ????? */
+    for (i = 0; i < row; i++)
+        for (j = 0; j < col; j++)
+            hist[*image[i][j]]++;
+
+    /* ????? */
+    for (t = 0; t < 256; t++)
+        totalSum += (uint64)t * hist[t];
+
+    /* ????, ?????? (???????????, ?????) */
+    for (t = 0; t < 255; t++) {
+        w0 += hist[t];
+        if (w0 == 0) continue;
+        if (w0 == total) break;
+        sum0 += (uint64)t * hist[t];
+        float m0 = (float)sum0 / (float)w0;
+        float m1 = (float)(totalSum - sum0) / (float)(total - w0);
+        float var = (float)w0 * (float)(total - w0) * (m0 - m1) * (m0 - m1);
+        if (var > maxVar) {
+            maxVar = var;
+            bestThr = (uint8)t;
+        }
+    }
+
+    /* ????: ????/???????? */
+    if (bestThr < OTSU_MIN) bestThr = OTSU_MIN;
+    if (bestThr > OTSU_MAX) bestThr = OTSU_MAX;
+    return bestThr;
 }
 
 /*
  * Camera_GetBinaryImage - 灰度图二值化
  */
 void Camera_GetBinaryImage(void) {
-    uint8 thr = 128;  /* DEBUG: skip OTSU, fixed threshold */
+    uint8 thr = Camera_OTSU_GetThreshold(Image_Use, LCDW, LCDH);
     Camera_Threshold = thr;
     uint8 i, j;
     for (i = 0; i < LCDH; i++)

@@ -36,43 +36,28 @@ int core0_main(void)
     /* 启动时显示初始信息, 即使摄像头未产生帧也能看到屏幕 */
     ips200_full(RGB565_BLACK);
 
-    while (TRUE)
     {
-        if (Camera_IsFrameReady())
-            {
-                /* STEP1: ??? - ??????? */
-                static uint32 _fc = 0; _fc++;
-                ips200_set_color(RGB565_GREEN, RGB565_BLACK);
-                ips200_show_string(2, 2, "F:");
-                ips200_show_uint(25, 2, _fc, 5);
-            }
+        uint32 fc = 0, lc = 0;
+        while (TRUE)
         {
-            /* 二值化 (OTSU 自适应阈值, 限幅 30~220) */
-
-            /* ---- DEBUG: ????? ---- */
+            lc++;
+            if (Camera_IsFrameReady())
             {
-                static uint32 _fc = 0;
-                _fc++;
+                fc++;
                 ips200_set_color(RGB565_GREEN, RGB565_BLACK);
-                ips200_show_string(2, 2, "FRAME:");
-                ips200_show_uint(70, 2, _fc, 5);
+                ips200_show_string(2, 2, "F:");  ips200_show_uint(25, 2, fc, 5);
+                Camera_GetBinaryImage();
+                ips200_set_color(RGB565_CYAN, RGB565_BLACK);
+                ips200_show_string(2, 18, "T="); ips200_show_uint(35, 18, Camera_Threshold, 3);
+                Camera_ShowDebug();
                 ips200_set_color(RGB565_YELLOW, RGB565_BLACK);
-                ips200_show_string(2, 18, "Thr=");
-                ips200_show_uint(45, 18, Camera_Threshold, 3);
-                ips200_set_color(RGB565_RED, RGB565_BLACK);
+                ips200_show_string(2, 34, "OK");
             }
-
-            Camera_GetBinaryImage();
-            /* STEP2: ?????, ????? */
-            ips200_set_color(RGB565_CYAN, RGB565_BLACK);
-            ips200_show_string(2, 20, "OTSU OK Thr=");
-            ips200_show_uint(120, 20, Camera_Threshold, 3);
-
-            /* 全量显示: 清黑屏 / 上部原始灰度图 / 中部阈值 / 下部二值图 */
-            Camera_ShowDebug();
-            /* STEP3: ???? */
-            ips200_set_color(RGB565_YELLOW, RGB565_BLACK);
-            ips200_show_string(2, 38, "ShowDebug DONE");
+            if ((lc % 5000) == 0) {
+                ips200_set_color(RGB565_WHITE, RGB565_BLACK);
+                ips200_show_string(2, 230, "L:"); ips200_show_uint(25, 230, lc/1000, 4);
+                ips200_show_string(65, 230, "K");
+            }
         }
     }
 }

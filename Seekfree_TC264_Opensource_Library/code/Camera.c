@@ -540,8 +540,8 @@ void Straight_long_judge(void)
         || ImageFlag.image_element_rings)
         return;
 
-    if ((Straight_Judge(1, 10, 50) < 1.0f)
-     && (Straight_Judge(2, 10, 50) < 1.0f)
+    if ((Straight_Judge(1, 10, SCAN_BASE_START_ROW) < 1.0f)
+     && (Straight_Judge(2, 10, SCAN_BASE_START_ROW) < 1.0f)
      && ImageStatus.OFFLine < 3
      && ImageStatus.Miss_Left_lines < 2
      && ImageStatus.Miss_Right_lines < 2)
@@ -554,8 +554,8 @@ void Straight_long_handle(void)
 {
     if (!ImageFlag.straight_long) return;
 
-    if ((Straight_Judge(1, 10, 50) > 1.0f)
-     || (Straight_Judge(2, 10, 50) > 1.0f)
+    if ((Straight_Judge(1, 10, SCAN_BASE_START_ROW) > 1.0f)
+     || (Straight_Judge(2, 10, SCAN_BASE_START_ROW) > 1.0f)
      || ImageStatus.OFFLine >= 3
      || ImageStatus.Miss_Left_lines >= 2
      || ImageStatus.Miss_Right_lines >= 2)

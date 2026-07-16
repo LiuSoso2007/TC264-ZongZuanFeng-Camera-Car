@@ -1076,11 +1076,7 @@ void Camera_ShowElementStatus(void)
      * ????????????, ???????
      * ??: y=225 (??240??, ??15px??)
      */
-    if (ImageFlag.Out_Road != 0)
-    {
-        ips200_show_string(2, 225, "ELEM: duan   ");     /* ?? */
-    }
-    else if (ImageFlag.image_element_rings == 1)
+        if    (ImageFlag.image_element_rings == 1)
     {
         ips200_show_string(2, 225, "ELEM: yuan_L ");     /* ??? */
     }
@@ -1111,10 +1107,6 @@ void Camera_ShowElementStatus(void)
     else if (ImageFlag.straight_long)
     {
         ips200_show_string(2, 225, "ELEM: zhi    ");     /* ??? */
-    }
-    else if (ImageFlag.straight_xie)
-    {
-        ips200_show_string(2, 225, "ELEM: xie    ");     /* ???? */
     }
     else if (ImageStatus.WhiteLine >= 8)
     {

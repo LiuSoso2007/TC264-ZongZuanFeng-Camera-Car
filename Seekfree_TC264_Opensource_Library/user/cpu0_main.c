@@ -33,7 +33,9 @@ int core0_main(void)
      */
     cpu_wait_event_ready();
 
-    while (TRUE)
+        ips200_full(RGB565_BLACK);  /* clear screen to black */
+
+while (TRUE)
     {
         if (Camera_IsFrameReady())
         {

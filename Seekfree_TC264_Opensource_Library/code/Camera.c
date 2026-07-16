@@ -74,6 +74,7 @@ void Camera_ShowDebug(void) {
     /* Í¼Àý */
     ips200_set_color(RGB565_WHITE, RGB565_BLACK);
     /* legend removed */
+    Camera_ShowElementStatus();
     ips200_set_color(RGB565_RED, RGB565_BLACK);
 }
 

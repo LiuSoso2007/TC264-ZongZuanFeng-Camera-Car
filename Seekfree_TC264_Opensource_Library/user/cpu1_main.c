@@ -62,8 +62,7 @@ int core1_main(void)
     if (!g_IMU_Ok)
     {
         /* IMU未连接, 显示提示 */
-        ips200_set_color(RGB565_WHITE, RGB565_BLACK);
-        /* IMU????? - CPU0 Camera_ShowDebug?????? */
+        /* IMU display removed - CPU0 handles full screen */
     }
     else
     {

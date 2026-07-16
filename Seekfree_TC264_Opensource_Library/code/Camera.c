@@ -580,16 +580,16 @@ void Straight_xie_judge(void)
 
     if (ImageStatus.OFFLine >= 10) return;
 
-    midd_k = (float)(ImageDeal[55].Center - ImageDeal[ImageStatus.OFFLine + 1].Center)
-           / (float)(55 - ImageStatus.OFFLine - 1);
+    midd_k = (float)(ImageDeal[SCAN_BASE_END_ROW].Center - ImageDeal[ImageStatus.OFFLine + 1].Center)
+           / (float)(SCAN_BASE_END_ROW - ImageStatus.OFFLine - 1);
     Sum = 0.0f;
-    for (i = 0; i < 55 - ImageStatus.OFFLine - 1; i++)
+    for (i = 0; i < SCAN_BASE_END_ROW - ImageStatus.OFFLine - 1; i++)
     {
         Err = (ImageDeal[ImageStatus.OFFLine + 1].Center + midd_k * i
              - ImageDeal[i + ImageStatus.OFFLine + 1].Center);
         Sum += Err * Err;
     }
-    S = Sum / (float)(55 - ImageStatus.OFFLine - 1);
+    S = Sum / (float)(SCAN_BASE_END_ROW - ImageStatus.OFFLine - 1);
 
     if (S < 1.0f && ImageStatus.OFFLine < 10
      && (ImageStatus.Miss_Left_lines > 30 || ImageStatus.Miss_Right_lines > 30))
@@ -611,7 +611,7 @@ void Element_Judgment_Bend(void)
     if (ImageDeal[ImageStatus.OFFLine + 1].LeftBorder > 30
      && ImageStatus.Miss_Left_lines < 4
      && ImageStatus.Miss_Right_lines > 8
-     && Straight_Judge(1, ImageStatus.OFFLine + 2, 58) > 1.0f)
+     && Straight_Judge(1, ImageStatus.OFFLine + 2, SCAN_BASE_START_ROW - 1) > 1.0f)
     {
         ImageFlag.Bend_Road = 1;              /* ?? */
     }
@@ -620,7 +620,7 @@ void Element_Judgment_Bend(void)
     if (ImageDeal[ImageStatus.OFFLine + 1].RightBorder < 50
      && ImageStatus.Miss_Right_lines < 4
      && ImageStatus.Miss_Left_lines > 8
-     && Straight_Judge(2, ImageStatus.OFFLine + 2, 58) > 1.0f)
+     && Straight_Judge(2, ImageStatus.OFFLine + 2, SCAN_BASE_START_ROW - 1) > 1.0f)
     {
         ImageFlag.Bend_Road = 2;              /* ?? */
     }
@@ -661,21 +661,21 @@ void Element_Judgment_Left_Rings(void)
     int Left_Less_Num = 0;
 
     if (ImageStatus.Miss_Right_lines > 3 || ImageStatus.Miss_Left_lines < 13
-        || ImageStatus.OFFLine > 5 || Straight_Judge(2, 5, 55) > 1.0f
+        || ImageStatus.OFFLine > 5 || Straight_Judge(2, 5, SCAN_BASE_END_ROW) > 1.0f
         || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
         return;
 
     /* ????????????'W'?(??) */
     {
         int r;
-        for (r = 56; r >= 52; r--)           /* TC264: ???56->52 */
+        for (r = SCAN_BASE_START_ROW; r >= SCAN_BASE_END_ROW; r--)   /* ponytail: ??TC264????48->44 */
         {
             if (ImageDeal[r].IsLeftFind == 'W') return;
         }
     }
 
     /* ?????????? */
-    for (Ysite = 58; Ysite > ring_ysite; Ysite--)
+    for (Ysite = (SCAN_BASE_START_ROW - 1); Ysite > ring_ysite; Ysite--)
     {
         if (ImageDeal[Ysite].LeftBorder - ImageDeal[Ysite - 1].LeftBorder > 4)
         {
@@ -703,19 +703,19 @@ void Element_Judgment_Right_Rings(void)
     int Right_Less_Num = 0;
 
     if (ImageStatus.Miss_Left_lines > 3 || ImageStatus.Miss_Right_lines < 13
-        || ImageStatus.OFFLine > 5 || Straight_Judge(1, 5, 55) > 1.0f
+        || ImageStatus.OFFLine > 5 || Straight_Judge(1, 5, SCAN_BASE_END_ROW) > 1.0f
         || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
         return;
 
     {
         int r;
-        for (r = 56; r >= 52; r--)
+        for (r = SCAN_BASE_START_ROW; r >= SCAN_BASE_END_ROW; r--)   /* ponytail: ??TC264???? */
         {
             if (ImageDeal[r].IsRightFind == 'W') return;
         }
     }
 
-    for (Ysite = 58; Ysite > ring_ysite; Ysite--)
+    for (Ysite = (SCAN_BASE_START_ROW - 1); Ysite > ring_ysite; Ysite--)
     {
         if (ImageDeal[Ysite - 1].RightBorder - ImageDeal[Ysite].RightBorder > 4)
         {
@@ -941,13 +941,13 @@ void Element_Handle_OutRoad(void)
  * ================================================================ */
 void Get_ExtensionLine(void)
 {
-    int Ysite, TFSite = 55;
+    int Ysite, TFSite = SCAN_BASE_END_ROW - 1;   /* ponytail: TC264???? */
     int left_FTSite = 0, right_FTSite = 0;
 
     if (ImageStatus.WhiteLine < 8) return;
 
     /* ????? */
-    for (Ysite = 54; Ysite >= (ImageStatus.OFFLine + 4); Ysite--)
+    for (Ysite = (SCAN_BASE_END_ROW - 2); Ysite >= (ImageStatus.OFFLine + 4); Ysite--)
     {
         if (ImageDeal[Ysite].IsLeftFind == 'W')
         {
@@ -962,7 +962,7 @@ void Get_ExtensionLine(void)
     }
 
     /* ????? */
-    for (Ysite = 54; Ysite >= (ImageStatus.OFFLine + 4); Ysite--)
+    for (Ysite = (SCAN_BASE_END_ROW - 2); Ysite >= (ImageStatus.OFFLine + 4); Ysite--)
     {
         if (ImageDeal[Ysite].IsRightFind == 'W')
         {

@@ -39,6 +39,7 @@ while (TRUE)
     {
         if (Camera_IsFrameReady())
         {
+            ips200_draw_point(5, 5, RGB565_RED); /* debug dot */
             Camera_GetBinaryImage();
             Camera_ShowDebug();
         }

@@ -41,6 +41,20 @@ int core0_main(void)
         if (Camera_IsFrameReady())
         {
             /* 二值化 (OTSU 自适应阈值, 限幅 30~220) */
+
+            /* ---- DEBUG: ????? ---- */
+            {
+                static uint32 _fc = 0;
+                _fc++;
+                ips200_set_color(RGB565_GREEN, RGB565_BLACK);
+                ips200_show_string(2, 2, "FRAME:");
+                ips200_show_uint(70, 2, _fc, 5);
+                ips200_set_color(RGB565_YELLOW, RGB565_BLACK);
+                ips200_show_string(2, 18, "Thr=");
+                ips200_show_uint(45, 18, Camera_Threshold, 3);
+                ips200_set_color(RGB565_RED, RGB565_BLACK);
+            }
+
             Camera_GetBinaryImage();
 
             /* 全量显示: 清黑屏 / 上部原始灰度图 / 中部阈值 / 下部二值图 */

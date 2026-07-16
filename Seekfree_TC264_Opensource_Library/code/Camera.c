@@ -455,10 +455,11 @@ void Get_AllLine(void)
         }
 
         /* ============================================================
-         * OFFLine丢线判断: 左右同时连续丢失超过3行
-         * 根据跳变类型进行边线处理:
+         * OFFLine丢线判断: 左右同时连续丢失超过3行。
+         * 修正: 十字元素双侧全白(W)不触发OFFLine, 保证WhiteLine能累积到8触发补线。
          * ============================================================ */
-        if (ImageStatus.Miss_Left_lines > 3 && ImageStatus.Miss_Right_lines > 3)
+        if (ImageStatus.Miss_Left_lines > 3 && ImageStatus.Miss_Right_lines > 3
+            && !(JumpPoint[0].type == 'W' && JumpPoint[1].type == 'W'))  /* 双侧全白=十字, 不触发丢线 */
         {
             ImageStatus.OFFLine = row;          // 记录丢线起始行号
             break;
@@ -616,20 +617,20 @@ void Element_Judgment_Bend(void)
         && ImageStatus.Miss_Right_lines < 4)
         return;  /* 双侧都追踪良好 = 纯直道, 无需检测弯道 */
 
-    /* 左弯: 左边线靠右(>30), 左侧未丢失, 右侧丢失多行 */
-    if (ImageDeal[ImageStatus.OFFLine + 1].LeftBorder > 35  /* ponytail: 30*94/80=35, 80列->94列映射 */
-     && ImageStatus.Miss_Left_lines < 4
-     && ImageStatus.Miss_Right_lines > 8
-     && Straight_Judge(1, ImageStatus.OFFLine + 2, SCAN_BASE_START_ROW - 1) > 1.0f)
+    /* 左弯: 右边界靠左(<59), 右侧追踪良好, 左侧丢线多行 (车左转左侧溢出) */
+    if (ImageDeal[ImageStatus.OFFLine + 1].RightBorder < 59  /* ponytail: 50*94/80=59 */
+     && ImageStatus.Miss_Right_lines < 4
+     && ImageStatus.Miss_Left_lines > 8
+     && Straight_Judge(2, ImageStatus.OFFLine + 2, SCAN_BASE_START_ROW - 1) > 1.0f)
     {
         ImageFlag.Bend_Road = 1;              /* 左弯 */
     }
 
-    /* 右弯: 右边线靠左(<50), 右侧未丢失, 左侧丢失多行 */
-    if (ImageDeal[ImageStatus.OFFLine + 1].RightBorder < 59  /* ponytail: 50*94/80=59, 80列->94列映射 */
-     && ImageStatus.Miss_Right_lines < 4
-     && ImageStatus.Miss_Left_lines > 8
-     && Straight_Judge(2, ImageStatus.OFFLine + 2, SCAN_BASE_START_ROW - 1) > 1.0f)
+    /* 右弯: 左边界靠右(>35), 左侧追踪良好, 右侧丢线多行 (车右转右侧溢出) */
+    if (ImageDeal[ImageStatus.OFFLine + 1].LeftBorder > 35  /* ponytail: 30*94/80=35 */
+     && ImageStatus.Miss_Left_lines < 4
+     && ImageStatus.Miss_Right_lines > 8
+     && Straight_Judge(1, ImageStatus.OFFLine + 2, SCAN_BASE_START_ROW - 1) > 1.0f)
     {
         ImageFlag.Bend_Road = 2;              /* 右弯 */
     }
@@ -648,20 +649,20 @@ void Element_Handle_Bend(void)
     if (ImageStatus.Miss_Left_lines < 4 && ImageStatus.Miss_Right_lines < 4)
         { ImageFlag.Bend_Road = 0; return; }
 
-    if (ImageFlag.Bend_Road == 1)             /* 左弯: center=左边界+半宽 */
-    {
-        for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
-        {
-            ImageDeal[row].Center = ImageDeal[row].LeftBorder + Half_Bend_Wide[row];
-            LimitH(ImageDeal[row].Center);    /* 限幅 <= 93 */
-        }
-    }
-    else if (ImageFlag.Bend_Road == 2)        /* 右弯: center=右边界-半宽 */
+    if (ImageFlag.Bend_Road == 1)             /* 左弯: 只有右边线可见, center=右边界-半宽(左推定) */
     {
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
         {
             ImageDeal[row].Center = ImageDeal[row].RightBorder - Half_Bend_Wide[row];
             LimitL(ImageDeal[row].Center);    /* 限幅 >= 0 */
+        }
+    }
+    else if (ImageFlag.Bend_Road == 2)        /* 右弯: 只有左边线可见, center=左边界+半宽(右推定) */
+    {
+        for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
+        {
+            ImageDeal[row].Center = ImageDeal[row].LeftBorder + Half_Bend_Wide[row];
+            LimitH(ImageDeal[row].Center);    /* 限幅 <= 93 */
         }
     }
 }
@@ -680,10 +681,10 @@ void Element_Judgment_Left_Rings(void)
      * 导致 Miss_Left_lines=0, 圆环永远无法识别。
      * 修正: 放宽为 Miss_Left_lines > 30(完全丢线不检测), 主要依赖LeftBorder跳变检测。
      */
-    if (ImageStatus.Miss_Right_lines > 3 || ImageStatus.Miss_Left_lines > 30
+    if (ImageStatus.Miss_Right_lines > 3
         || ImageStatus.OFFLine > 2 || Straight_Judge(2, 5, SCAN_BASE_END_ROW) > 1.0f   /* ponytail: TC264 OFFLine阈值2 */
         || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
-        return;
+        return;  /* 移除Miss_Left_lines>30守卫: 圆环外侧白线被追踪时Miss_Left_lines=0, 不应拦截 */
 
     /* 检查是否所有行的左边线都是'W'(全白) */
     {
@@ -726,10 +727,10 @@ void Element_Judgment_Right_Rings(void)
      * 圆环识别守卫: 修正 Miss_Right_lines < 13 逻辑漏洞 (同左圆环)。
      * 修正: 放宽为 Miss_Right_lines > 30(完全丢线不检测), 主要依赖RightBorder跳变检测。
      */
-    if (ImageStatus.Miss_Left_lines > 3 || ImageStatus.Miss_Right_lines > 30
+    if (ImageStatus.Miss_Left_lines > 3
         || ImageStatus.OFFLine > 2 || Straight_Judge(1, 5, SCAN_BASE_END_ROW) > 1.0f   /* ponytail: TC264 OFFLine阈值2 */
         || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
-        return;
+        return;  /* 移除Miss_Right_lines>30守卫: 圆环外侧白线被追踪时Miss_Right_lines=0, 不应拦截 */
 
     {
         int r;
@@ -833,10 +834,10 @@ void Element_Judgment_Zebra(void)
 
     if (NUM > 8)                              /* 跳变密度达标: 判定为斑马线 */
     {
-        if (ImageDeal[SCAN_BASE_START_ROW].Center > 47)  /* TC264: 图像宽94列中位47 */        /* 中心偏右 -> 左侧斑马 */
-            ImageFlag.Zebra_Flag = 1;
-        else                                  /* 中心偏右 -> 左侧斑马 */
-            ImageFlag.Zebra_Flag = 2;
+        if (ImageDeal[SCAN_BASE_START_ROW].Center > 47)  /* TC264: 图像宽94列中位47, 中心偏右=左侧被遮挡 */
+            ImageFlag.Zebra_Flag = 2;           /* 右侧可见, 左侧斑马 */
+        else                                  /* 中心偏左=右侧被遮挡 */
+            ImageFlag.Zebra_Flag = 1;           /* 左侧可见, 右侧斑马 */
     }
 }
 
@@ -847,20 +848,20 @@ void Element_Handle_Zebra(void)
 {
     int row;
 
-    if (ImageFlag.Zebra_Flag == 1)            /* 左侧斑马: 用右边线推算 */
-    {
-        for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLineBoundary + 1; row--)
-        {
-            ImageDeal[row].Center = ImageDeal[row].RightBorder - Half_Road_Wide[row];
-            LimitL(ImageDeal[row].Center);
-        }
-    }
-    else if (ImageFlag.Zebra_Flag == 2)       /* 左侧斑马: 用右边线推算 */
+    if (ImageFlag.Zebra_Flag == 1)            /* 左斑马: 左侧遮挡, 用右边线推算中心 */
     {
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLineBoundary + 1; row--)
         {
             ImageDeal[row].Center = ImageDeal[row].LeftBorder + Half_Road_Wide[row];
             LimitH(ImageDeal[row].Center);
+        }
+    }
+    else if (ImageFlag.Zebra_Flag == 2)       /* 右斑马: 右侧遮挡, 用左边线推算中心 */
+    {
+        for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLineBoundary + 1; row--)
+        {
+            ImageDeal[row].Center = ImageDeal[row].RightBorder - Half_Road_Wide[row];
+            LimitL(ImageDeal[row].Center);
         }
     }
 }

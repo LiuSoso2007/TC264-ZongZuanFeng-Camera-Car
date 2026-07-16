@@ -65,27 +65,25 @@ uint8 Camera_OTSU_GetThreshold(uint8 *image[][LCDW], uint16 col, uint16 row) {
 
     for (T = 0; T < GRAY_SCALE; T++)
     {
-        n0 += pixelCount[T];
-        m0 += (uint64)T * pixelCount[T];
+    uint32 total, graySum;
+    uint8  avg;
+    uint16 i, j;
 
-        if (n0 == 0 || n0 == total) continue;
+    total = (uint32)col * row;
+    if (total == 0) return 128;
 
-        n1 = total - n0;
-        m1 = graySum - m0;
+    graySum = 0;
+    for (i = 0; i < row; i++)
+        for (j = 0; j < col; j++)
+            graySum += *image[i][j];
 
-        if (m0 * n1 >= m1 * n0)
-            cur_diff = m0 * n1 - m1 * n0;
-        else
-            cur_diff = m1 * n0 - m0 * n1;
+    avg = (uint8)(graySum / total);
 
-        cur_denom = (uint64)n0 * n1;
+    if (avg < 30)  avg = 30;
+    if (avg > 200) avg = 200;
+    return avg;
+}
 
-        if (cur_diff * best_denom > best_diff * cur_denom)
-        {
-            best_diff = cur_diff;
-            best_denom = cur_denom;
-            threshold = T;
-        }
     }
 
     if (threshold < OTSU_MIN) threshold = OTSU_MIN;

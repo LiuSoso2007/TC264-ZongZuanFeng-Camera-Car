@@ -70,7 +70,7 @@ typedef struct {
 
 
 /* ---- 全局图像数组 ---- */
-extern uint8  Pixle[LCDH][LCDW];                // 二值化图像 (0=黑, 1=白)
+extern uint8  Pixle[LCDH][LCDW];                // ????? (0=???/???, 1=??)
 extern uint8 *Image_Use[LCDH][LCDW];            // 压缩后灰度图像指针数组
 extern uint8  Camera_Threshold;                 // 当前OTSU阈值 (0~255)
 

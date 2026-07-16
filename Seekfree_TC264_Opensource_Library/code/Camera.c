@@ -84,7 +84,7 @@ void Camera_GetBinaryImage(void) {
     uint8 i, j;
     for (i = 0; i < LCDH; i++)
         for (j = 0; j < LCDW; j++)
-            Pixle[i][j] = (*Image_Use[i][j] > thr) ? 0 : 1;
+            Pixle[i][j] = (*Image_Use[i][j] > thr) ? 1 : 0;
 }
 
 void Camera_ShowBinaryFast(void) {

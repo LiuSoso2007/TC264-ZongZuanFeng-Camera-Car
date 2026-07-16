@@ -1095,51 +1095,51 @@ void Camera_ShowElementStatus(void)
      */
     if (ImageFlag.Out_Road != 0)
     {
-        ips200_show_string(2, 225, "ELEM: duan   ");     /* ?? */
+        ips200_show_string(2, 222, "ELEM: duan   ");     /* ?? */
     }
     else if (ImageFlag.image_element_rings == 1)
     {
-        ips200_show_string(2, 225, "ELEM: huan_L ");     /* ??? */
+        ips200_show_string(2, 222, "ELEM: huan_L ");     /* ??? */
     }
     else if (ImageFlag.image_element_rings == 2)
     {
-        ips200_show_string(2, 225, "ELEM: huan_R ");     /* ??? */
+        ips200_show_string(2, 222, "ELEM: huan_R ");     /* ??? */
     }
     else if (ImageFlag.Zebra_Flag == 1)
     {
-        ips200_show_string(2, 225, "ELEM: banma_L");     /* ???-??? */
+        ips200_show_string(2, 222, "ELEM: banma_L");     /* ???-??? */
     }
     else if (ImageFlag.Zebra_Flag == 2)
     {
-        ips200_show_string(2, 225, "ELEM: banma_R");     /* ???-??? */
+        ips200_show_string(2, 222, "ELEM: banma_R");     /* ???-??? */
     }
     else if (ImageFlag.Ramp != 0)
     {
-        ips200_show_string(2, 225, "ELEM: po     ");     /* ?? */
+        ips200_show_string(2, 222, "ELEM: po     ");     /* ?? */
     }
     else if (ImageFlag.Bend_Road == 1)
     {
-        ips200_show_string(2, 225, "ELEM: wan_L  ");     /* ?? */
+        ips200_show_string(2, 222, "ELEM: wan_L  ");     /* ?? */
     }
     else if (ImageFlag.Bend_Road == 2)
     {
-        ips200_show_string(2, 225, "ELEM: wan_R  ");     /* ?? */
+        ips200_show_string(2, 222, "ELEM: wan_R  ");     /* ?? */
     }
     else if (ImageFlag.straight_long)
     {
-        ips200_show_string(2, 225, "ELEM: zhi    ");     /* ??? */
+        ips200_show_string(2, 222, "ELEM: zhi    ");     /* ??? */
     }
     else if (ImageFlag.straight_xie)
     {
-        ips200_show_string(2, 225, "ELEM: xie    ");     /* ???? */
+        ips200_show_string(2, 222, "ELEM: xie    ");     /* ???? */
     }
     else if (ImageStatus.WhiteLine >= 8)
     {
-        ips200_show_string(2, 225, "ELEM: shi    ");     /* ?? */
+        ips200_show_string(2, 222, "ELEM: shi    ");     /* ?? */
     }
     else
     {
-        ips200_show_string(2, 225, "ELEM: ---    ");     /* ??? */
+        ips200_show_string(2, 222, "ELEM: ---    ");     /* ??? */
     }
 
     /* ?????? */

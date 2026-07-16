@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="GBK">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TC264 智能车视觉系统 - 图像处理全链路</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0d1117; color: #c9d1d9; font-family: "Microsoft YaHei", sans-serif; padding: 24px; min-height: 100vh; }
+h1 { text-align: center; font-size: 22px; color: #e6edf3; margin-bottom: 4px; letter-spacing: 2px; }
+.sub { text-align: center; font-size: 12px; color: #8b949e; margin-bottom: 24px; }
+.flow { max-width: 1300px; margin: 0 auto; }
+
+.lane { background: #161b22; border: 1px solid #21262d; border-radius: 10px; padding: 16px 20px; margin-bottom: 14px; }
+.lane-title { font-size: 13px; font-weight: 700; margin-bottom: 12px; letter-spacing: 1px; display: flex; align-items: center; gap: 8px; }
+.lane-title .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+.lane.hw     { border-left: 4px solid #6e7681; }  .lane.hw .dot     { background: #6e7681; }
+.lane.cpu0   { border-left: 4px solid #58a6ff; }  .lane.cpu0 .dot   { background: #58a6ff; }
+.lane.scan   { border-left: 4px solid #f0883e; }  .lane.scan .dot   { background: #f0883e; }
+.lane.repair { border-left: 4px solid #d2a8ff; }  .lane.repair .dot { background: #d2a8ff; }
+.lane.elem   { border-left: 4px solid #d2a8ff; }  .lane.elem .dot   { background: #d2a8ff; }
+.lane.err    { border-left: 4px solid #39d2c0; }  .lane.err .dot    { background: #39d2c0; }
+.lane.cpu1   { border-left: 4px solid #3fb950; }  .lane.cpu1 .dot   { background: #3fb950; }
+.lane.shared { border-left: 4px solid #f0883e; }  .lane.shared .dot { background: #f0883e; }
+.lane.debug  { border-left: 4px solid #f778ba; }  .lane.debug .dot  { background: #f778ba; }
+
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
+
+.box { background: #21262d; border: 1px solid #30363d; border-radius: 8px; padding: 10px 14px; font-size: 12px; line-height: 1.55; min-width: 110px; text-align: center; position: relative; flex: 1 1 0; }
+.box .tag { font-size: 10px; color: #8b949e; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 3px; text-transform: uppercase; }
+.box .main { font-size: 13px; font-weight: 700; color: #e6edf3; margin-bottom: 2px; }
+.box .sub  { font-size: 11px; color: #8b949e; }
+.box .val  { font-size: 11px; color: #7ee787; font-family: Consolas, monospace; }
+.box .warn { font-size: 10px; color: #f0883e; font-style: italic; margin-top: 3px; }
+
+.box.blue    { border-color: #1f6feb; }  .box.blue .tag    { color: #58a6ff; }
+.box.green   { border-color: #238636; }  .box.green .tag   { color: #3fb950; }
+.box.purple  { border-color: #8256d0; }  .box.purple .tag  { color: #d2a8ff; }
+.box.orange  { border-color: #bd561d; }  .box.orange .tag  { color: #f0883e; }
+.box.pink    { border-color: #bf4b8a; }  .box.pink .tag    { color: #f778ba; }
+.box.gray    { border-color: #484f58; }  .box.gray .tag    { color: #8b949e; }
+.box.cyan    { border-color: #1b7c83; }  .box.cyan .tag    { color: #39d2c0; }
+.box.yellow  { border-color: #9e6a03; }  .box.yellow .tag  { color: #d2991d; }
+
+.connector { display: flex; justify-content: center; padding: 0; margin: -6px 0; }
+.connector .line { font-size: 24px; color: #30363d; line-height: 1; }
+
+.vflow { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; min-width: 200px; }
+.vflow .vbox { width: 100%; }
+.varrow { color: #484f58; font-size: 20px; user-select: none; text-align: center; }
+.varrow.active { color: #f0883e; }
+
+.shared-box { display: flex; gap: 16px; flex-wrap: wrap; }
+.shared-item { background: #2a1f1a; border: 1px solid #bd561d; border-radius: 8px; padding: 10px 16px; font-size: 12px; flex: 1 1 200px; }
+.shared-item .key { color: #f0883e; font-weight: 700; font-family: Consolas, monospace; }
+.shared-item .desc { color: #c9d1d9; }
+.shared-item .dir { color: #8b949e; font-size: 10px; }
+
+.elem-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: 8px; }
+.step-num { font-size: 10px; color: #484f58; font-weight: 700; }
+
+.repair-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+
+.pipeline-row { display: flex; align-items: stretch; gap: 8px; }
+.pipeline-row .pstep { flex: 1; }
+
+.note { font-size: 10px; color: #8b949e; margin-top: 4px; font-style: italic; }
+
+@media (max-width: 900px) {
+  .row { flex-direction: column; }
+  .repair-grid { grid-template-columns: 1fr 1fr; }
+  .elem-grid { grid-template-columns: 1fr 1fr; }
+  .pipeline-row { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<h1>TC264 智能车视觉系统 - 图像处理全链路</h1>
+<div class="sub">MT9V03X 总钻风摄像头 188x120 灰度图 + CPU0 图像处理 + CPU1 运动控制</div>
+
+<div class="flow">
+
+<!-- ======== HARDWARE ======== -->
+<div class="lane hw">
+<div class="lane-title"><span class="dot"></span>硬件外设层</div>
+<div class="row">
+  <div class="box gray">
+    <div class="tag">摄像头</div>
+    <div class="main">MT9V03X 总钻风</div>
+    <div class="sub">188x120 灰度图<br/>DMA_CH5 + ERU_CH3</div>
+  </div>
+  <div class="box gray">
+    <div class="tag">陀螺仪</div>
+    <div class="main">IMU660RB</div>
+    <div class="sub">SPI 接口<br/>角速度 + 加速度</div>
+  </div>
+  <div class="box gray">
+    <div class="tag">编码器x2</div>
+    <div class="main">正交编码器</div>
+    <div class="sub">左: TIM6 方向编码<br/>右: TIM4 正交编码</div>
+  </div>
+  <div class="box gray">
+    <div class="tag">舵机</div>
+    <div class="main">S3010 / ATOM0_CH4</div>
+    <div class="sub">50Hz PWM, 0~180°</div>
+  </div>
+  <div class="box gray">
+    <div class="tag">电机x2</div>
+    <div class="main">直流电机 ATOM0</div>
+    <div class="sub">10kHz PWM, ±100</div>
+  </div>
+  <div class="box gray">
+    <div class="tag">显示屏</div>
+    <div class="main">IPS200</div>
+    <div class="sub">软件SPI 320x240</div>
+  </div>
+</div>
+</div>
+
+<div class="connector"><span class="line">&#x2193;</span></div>
+
+<!-- ======== STAGE 1: 预处理 ======== -->
+<div class="lane cpu0">
+<div class="lane-title"><span class="dot"></span>阶段一: 图像预处理 (当前已实现)</div>
+<div class="pipeline-row">
+  <div class="box blue pstep">
+    <div class="step-num">STEP 1</div>
+    <div class="main">图像采集</div>
+    <div class="sub">Camera_IsFrameReady()</div>
+    <div class="val">mt9v03x_image[120][188]</div>
+    <div class="warn">DMA_CH5 中断驱动</div>
+  </div>
+  <div class="box blue pstep">
+    <div class="step-num">STEP 2</div>
+    <div class="main">图像压缩</div>
+    <div class="sub">Camera_CompressInit()</div>
+    <div class="val">188x120 &#x2192; 94x60<br/>2:1 等比下采样</div>
+    <div class="warn">初始化时执行一次</div>
+  </div>
+  <div class="box blue pstep">
+    <div class="step-num">STEP 3</div>
+    <div class="main">OTSU 大津法</div>
+    <div class="sub">Camera_OTSU_GetThreshold()</div>
+    <div class="val">遍历 0~255 灰度级<br/>求最大类间方差</div>
+  </div>
+  <div class="box blue pstep">
+    <div class="step-num">STEP 4</div>
+    <div class="main">二值化</div>
+    <div class="sub">Camera_GetBinaryImage()</div>
+    <div class="val">灰度>阈值 &#x2192; 1(白)<br/>灰度<=阈值 &#x2192; 0(黑)</div>
+    <div class="warn">输出: Pixle[60][94]</div>
+  </div>
+</div>
+<div style="margin-top:8px;font-size:10px;color:#8b949e;text-align:center;">
+  输出 &#x2192; Pixle[60][94]: 二值化图像, 1=白(赛道), 0=黑(边界)
+</div>
+</div>
+
+<div class="connector"><span class="line" style="color:#f0883e;">&#x2193;</span></div>
+
+<!-- ======== STAGE 2: 扫线 ======== -->
+<div class="lane scan">
+<div class="lane-title"><span class="dot"></span>阶段二: 扫线 —— 把二值化像素变成边线坐标 (待实现)</div>
+
+<div class="row" style="align-items:stretch;">
+  <div class="vflow">
+    <div class="box orange vbox">
+      <div class="tag">扫线起点</div>
+      <div class="main">Get_BaseLine()</div>
+      <div class="sub">底5行 (59~55) 全列扫描<br/>逐列检测黑白跳变</div>
+      <div class="val">输出: 5行的 LeftBorder + RightBorder + Center</div>
+      <div class="warn">注意: 底部5行仅用于锚定起点<br/>不参与最终偏差计算</div>
+    </div>
+    <div class="varrow active">&#x2193;</div>
+    <div class="box orange vbox">
+      <div class="tag">扫线追踪</div>
+      <div class="main">Get_AllLine()</div>
+      <div class="sub">从底行边界出发<br/>逐行向上追踪边线</div>
+      <div class="val">T=正常跳变 W=无边 H=大跳变<br/>单边丢线时原位补线</div>
+      <div class="warn">动态截止行 OFFLine<br/>取决于光照/弯道/俯仰角</div>
+    </div>
+    <div class="varrow active">&#x2193;</div>
+    <div class="box orange vbox">
+      <div class="tag">输出结构体</div>
+      <div class="main">ImageDeal[60]</div>
+      <div class="sub">每行信息:</div>
+      <div class="val">
+        .LeftBorder / .RightBorder<br/>
+        .Center / .Wide<br/>
+        .IsLeftFind / .IsRightFind
+      </div>
+      <div class="warn">OOFLine 以上行不再使用<br/>(截止行位置不确定,视情况)</div>
+    </div>
+  </div>
+
+  <div style="display:flex;align-items:center;color:#f0883e;font-size:24px;flex-shrink:0;padding:0 8px;">&#x27A1;</div>
+
+  <div style="flex:1; min-width:240px; display:flex; flex-direction:column; gap:8px;">
+    <div style="background:#1a1a14; border:1px solid #9e6a03; border-radius:8px; padding:12px; font-size:11px;">
+      <div style="color:#d2991d; font-weight:700; margin-bottom:6px;">扫线原理示意 (1行)</div>
+      <div style="font-family:Consolas,monospace; color:#c9d1d9; line-height:1.2;">
+        列: 0 &nbsp;&nbsp;10 &nbsp;&nbsp;20 &nbsp;&nbsp;30 &nbsp;&nbsp;40 &nbsp;&nbsp;50 &nbsp;&nbsp;60 &nbsp;&nbsp;70 &nbsp;&nbsp;79<br/>
+        <span style="color:#484f58;">0000000</span><span style="color:#3fb950;">11111111111111111111111111111</span><span style="color:#484f58;">0000000</span><br/>
+        <span style="color:#484f58;">赛道外</span>
+        <span style="color:#d2991d;">&#x2191; 左边线(黑白跳变) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;右边线 &#x2191;</span>
+        <span style="color:#484f58;">赛道外</span><br/>
+        <span style="color:#8b949e;">LeftBorder &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RightBorder</span><br/>
+        <span style="color:#8b949e;">Center = (L+R)/2</span>
+      </div>
+    </div>
+    <div class="box orange" style="flex:1;">
+      <div class="tag">关键概念</div>
+      <div class="main">"扫线"与"补线"的区别</div>
+      <div class="sub" style="text-align:left;">
+        <span style="color:#f0883e;">扫线:</span> 从二值化像素中检测黑白跳变<br/>
+        &#x2514; 找到边界坐标 → 存入 ImageDeal[]<br/><br/>
+        <span style="color:#d2a8ff;">补线:</span> 某行找不到边界时, 推算填上空缺<br/>
+        &#x2514; 用已知边界+赛道宽度推算<br/>
+        &#x2514; 用前后行斜率线性延长<br/>
+        &#x2514; Get_AllLine() 内部也有原位补线
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="connector"><span class="line" style="color:#d2a8ff;">&#x2193;</span></div>
+
+<!-- ======== STAGE 3: 补线 ======== -->
+<div class="lane repair">
+<div class="lane-title"><span class="dot"></span>阶段三: 补线 —— 当边线找不全时填上空缺 (待实现)</div>
+
+<div class="repair-grid">
+  <div class="box purple" style="opacity:0.7;">
+    <div class="tag">第一层</div>
+    <div class="main">Get_AllLine() 内部</div>
+    <div class="sub">扫线过程中的原位补线</div>
+    <div class="val">只找到一边时<br/>用已知边 + 半宽推算</div>
+    <div class="warn">无需额外调用</div>
+  </div>
+  <div class="box purple" style="opacity:0.7;">
+    <div class="tag">第二层</div>
+    <div class="main">Get_ExtensionLine()</div>
+    <div class="sub">十字路口专用补线</div>
+    <div class="val">双边丢线时<br/>用前后斜率线性延长</div>
+    <div class="warn">触发: WhiteLine>=8</div>
+  </div>
+  <div class="box purple" style="opacity:0.7;">
+    <div class="tag">第三层</div>
+    <div class="main">圆环补线</div>
+    <div class="sub">入环/出环场景</div>
+    <div class="val">入环: 底行边线+斜率<br/>出环: 拐点向底行连线</div>
+    <div class="warn">环内/外策略不同</div>
+  </div>
+  <div class="box purple" style="opacity:0.7;">
+    <div class="tag">第三层 (续)</div>
+    <div class="main">其他场景补线</div>
+    <div class="sub">弯道/路障/断路</div>
+    <div class="val">弯道: 半宽推算中线<br/>路障: 特殊补线策略<br/>断路: 分段阈值补线</div>
+    <div class="warn">按元素类型分支</div>
+  </div>
+</div>
+<div class="note" style="text-align:center;margin-top:8px;">
+  补线策略总览: 扫线是主线(找像素中的边界), 补线是补救(推算缺失的边界), 两者共同输出完整的中线数组
+</div>
+</div>
+
+<div class="connector"><span class="line" style="color:#8256d0;">&#x2193;</span></div>
+
+<!-- ======== STAGE 4: 元素识别 --> -->
+<div class="lane elem">
+<div class="lane-title"><span class="dot"></span>阶段四: 元素识别 Scan_Element() + 处理 Element_Handle() (待实现)</div>
+
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+<div>
+  <div style="font-size:12px; color:#d2a8ff; font-weight:700; margin-bottom:6px;">&#x25B8; 元素判断 (按优先级排序)</div>
+  <div class="elem-grid">
+    <div class="box purple" style="opacity:0.5;"><div class="main">路障</div><div class="sub">Element_Judgment_RoadBlock()</div></div>
+    <div class="box purple" style="opacity:0.5;"><div class="main">断路</div><div class="sub">Element_Judgment_OutRoad()</div></div>
+    <div class="box purple" style="opacity:0.5;"><div class="main">圆环</div><div class="sub">Left/Right_Rings()<br/>大环+小环</div></div>
+    <div class="box purple" style="opacity:0.5;"><div class="main">斑马线</div><div class="sub">Element_Judgment_Zebra()</div></div>
+    <div class="box purple" style="opacity:0.5;"><div class="main">弯道</div><div class="sub">Element_Judgment_Bend()<br/>0=直 1=右 2=左</div></div>
+    <div class="box purple" style="opacity:0.5;"><div class="main">坡道</div><div class="sub">Element_Judgment_Ramp()</div></div>
+    <div class="box purple" style="opacity:0.5;"><div class="main">长直道</div><div class="sub">Straight_long_judge()</div></div>
+    <div class="box purple" style="opacity:0.5;"><div class="main">十字</div><div class="sub">WhiteLine>=8<br/>触发补线</div></div>
+  </div>
+</div>
+<div>
+  <div style="font-size:12px; color:#d2a8ff; font-weight:700; margin-bottom:6px;">&#x25B8; 元素处理 (修正中线策略)</div>
+  <div class="elem-grid">
+    <div class="box purple" style="opacity:0.5;"><div class="main">路障处理</div><div class="sub">三段绕行<br/>打角/直行/回正</div></div>
+    <div class="box purple" style="opacity:0.5;"><div class="main">断路处理</div><div class="sub">分段动态阈值<br/>独立二值化参数</div></div>
+    <div class="box purple" style="opacity:0.5;"><div class="main">圆环处理</div><div class="sub">入环/环内/出环<br/>分段补线+半宽修正</div></div>
+    <div class="box purple" style="opacity:0.5;"><div class="main">斑马线处理</div><div class="sub">锁定直行<br/>忽略条纹干扰</div></div>
+    <div class="box purple" style="opacity:0.5;"><div class="main">弯道处理</div><div class="sub">中线偏移半宽<br/>弯道半宽数组查表</div></div>
+    <div class="box purple" style="opacity:0.5;"><div class="main">坡道处理</div><div class="sub">编码器计距<br/>固定前瞻行偏差</div></div>
+    <div class="box purple" style="opacity:0.5;"><div class="main">长直道处理</div><div class="sub">退出检测<br/>PID参数可切换</div></div>
+    <div class="box purple" style="opacity:0.5;"><div class="main">十字处理</div><div class="sub">Get_ExtensionLine()<br/>斜率延长补线</div></div>
+  </div>
+</div>
+</div>
+</div>
+
+<div class="connector"><span class="line" style="color:#39d2c0;">&#x2193;</span></div>
+
+<!-- ======== STAGE 5: 偏差 ======== -->
+<div class="lane err">
+<div class="lane-title"><span class="dot"></span>阶段五: 偏差计算 → 写入共享内存 (待实现)</div>
+<div class="row">
+  <div class="box cyan" style="flex:1;">
+    <div class="tag">前瞻行选择</div>
+    <div class="main">根据速度动态选择行</div>
+    <div class="sub">速度&lt;60: 行23~25 平均<br/>速度60~65: 行22~24 平均<br/>速度>65: 行21~23 平均</div>
+    <div class="warn">OFFLine 以上时改用 OFFLine+1 行</div>
+  </div>
+  <div class="box cyan" style="flex:1;">
+    <div class="tag">偏差计算公式</div>
+    <div class="main">Det_True = Center - 39</div>
+    <div class="sub">39 = 图像中线 (79/2)<br/>正值=赛道偏右, 负值=偏左</div>
+  </div>
+  <div class="box cyan" style="flex:1;">
+    <div class="tag">写入共享变量</div>
+    <div class="main">Err = Det_True</div>
+    <div class="sub">volatile float Err<br/>CPU0 写 → CPU1 读</div>
+  </div>
+  <div class="box cyan" style="flex:1;">
+    <div class="tag">特殊元素偏差</div>
+    <div class="main">不同元素不同策略</div>
+    <div class="sub">圆环: 行24~26 平均<br/>坡道: 行45 单行<br/>弯道: 行24~26 加权</div>
+  </div>
+</div>
+</div>
+
+<div class="connector"><span class="line" style="color:#f0883e;">&#x2193;</span></div>
+
+<!-- ======== SHARED ======== -->
+<div class="lane shared">
+<div class="lane-title"><span class="dot"></span>CPU0 &#x2194; CPU1 共享内存 (volatile, Shared.h)</div>
+<div class="shared-box">
+  <div class="shared-item">
+    <div class="key">volatile float Err</div>
+    <div class="desc">图像偏差<br/>正值=右偏, 负值=左偏</div>
+    <div class="dir">CPU0 &#x2192; CPU1</div>
+  </div>
+  <div class="shared-item">
+    <div class="key">volatile uint8_t PID_Flag</div>
+    <div class="desc">PID 控制定时标志<br/>10ms 中断置位</div>
+    <div class="dir">isr.c &#x2192; cpu1_main</div>
+  </div>
+  <div class="shared-item" style="opacity:0.5;">
+    <div class="key">ImageStatus (待实现)</div>
+    <div class="desc">Det_True / OFFLine<br/>Miss_Left/Right_lines</div>
+    <div class="dir">CPU0 &#x2192; CPU1</div>
+  </div>
+  <div class="shared-item" style="opacity:0.5;">
+    <div class="key">ImageFlag (待实现)</div>
+    <div class="desc">Bend/Ramp/Zebra<br/>Rings/RoadBlock/Out</div>
+    <div class="dir">CPU0 &#x2192; CPU1</div>
+  </div>
+</div>
+</div>
+
+<div class="connector"><span class="line" style="color:#3fb950;">&#x2193;</span></div>
+
+<!-- ======== CPU1 ======== -->
+<div class="lane cpu1">
+<div class="lane-title"><span class="dot"></span>CPU1: 运动控制 (每10ms, CCU61_CH0 中断驱动)</div>
+
+<div class="row">
+  <div class="box green">
+    <div class="tag">读取偏差</div>
+    <div class="main">position_err = Err</div>
+  </div>
+  <div class="box green">
+    <div class="tag">IMU 更新</div>
+    <div class="main">IMU_Yaw = IMU_GetYawRate()</div>
+  </div>
+  <div class="box green">
+    <div class="tag">编码器</div>
+    <div class="main">Encoder_Get_Left/Right()</div>
+  </div>
+</div>
+
+<div style="display:flex; gap:12px; margin-top:12px;">
+  <div style="flex:1;">
+    <div class="box green" style="width:100%;">
+      <div class="tag">舵机 PD 双环控制</div>
+      <div class="main">PD_Update(Kp=2.0, Kd=0.5)</div>
+      <div class="sub" style="text-align:left;margin-top:4px;">
+        <span style="color:#3fb950;">位置环:</span> Err x 2.0 = 目标角速度<br/>
+        <span style="color:#3fb950;">角速度环:</span> (目标 - IMU实测) x 0.5 + 50° = 舵角<br/>
+        <span style="color:#f0883e;">限幅:</span> 9°~140°, |Err|<5 时锁定中位50°
+      </div>
+    </div>
+  </div>
+  <div style="flex:1;">
+    <div class="box green" style="width:100%;">
+      <div class="tag">电机 PI 速度闭环 (x2)</div>
+      <div class="main">PI_Update(Kp=0.55, Ki=0.2)</div>
+      <div class="sub" style="text-align:left;margin-top:4px;">
+        <span style="color:#3fb950;">弯道差速:</span> 根据 Err 调节左右 TargetBias<br/>
+        <span style="color:#3fb950;">动态调速:</span> |Err| 越大速度越低<br/>
+        <span style="color:#3fb950;">增量PI:</span> inc = Kp·&#x0394;err + Ki·err<br/>
+        <span style="color:#f0883e;">限幅:</span> ±100
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:10px; display:flex; justify-content:center; gap:20px;">
+  <div class="box gray" style="flex:0 0 auto;"><div class="main">舵机输出</div><div class="val">P02_4, 50Hz</div></div>
+  <div class="box gray" style="flex:0 0 auto;"><div class="main">左电机</div><div class="val">P21_2/3, 10kHz</div></div>
+  <div class="box gray" style="flex:0 0 auto;"><div class="main">右电机</div><div class="val">P21_4/5, 10kHz</div></div>
+</div>
+</div>
+
+<div class="connector"><span class="line" style="color:#f778ba;">&#x2193;</span></div>
+
+<!-- ======== DEBUG ======== -->
+<div class="lane debug">
+<div class="lane-title"><span class="dot"></span>IPS200 调试显示 Camera_ShowDebug()</div>
+<div class="row">
+  <div class="box pink"><div class="tag">上部 y=0~119</div><div class="main">原始灰度图</div><div class="sub">mt9v03x_image<br/>188x120 1:1</div></div>
+  <div class="box pink"><div class="tag">中部 y=125</div><div class="main">OTSU 阈值</div><div class="sub">黄色文字<br/>"OTSU Thr: XXX"</div></div>
+  <div class="box pink"><div class="tag">下部 y=150~209</div><div class="main">二值化图</div><div class="sub">Pixle[60][94]<br/>0=黑 1=白</div></div>
+  <div class="box pink"><div class="tag">底行 y=215</div><div class="main">图例说明</div><div class="sub">"[0=黑赛道,<br/>1=白赛道]"</div></div>
+</div>
+</div>
+
+<!-- ======== SUMMARY ======== -->
+<div style="background:#161b22; border:1px solid #21262d; border-radius:10px; padding:14px 20px; margin-top:14px; font-size:11px; color:#8b949e; text-align:center;">
+  <span style="color:#e6edf3; font-weight:700;">数据流摘要:</span>
+  <span style="color:#58a6ff;">MT9V03X(188x120)</span> &#x2192;
+  <span style="color:#58a6ff;">压缩(94x60)</span> &#x2192;
+  <span style="color:#58a6ff;">OTSU二值化</span> &#x2192;
+  <span style="color:#f0883e;">扫线(Get_BaseLine+Get_AllLine)</span> &#x2192;
+  <span style="color:#d2a8ff;">补线(多场景)</span> &#x2192;
+  <span style="color:#d2a8ff;">元素识别(Scan_Element)</span> &#x2192;
+  <span style="color:#39d2c0;">偏差Err</span> &#x2192;
+  <span style="color:#f0883e;">共享内存</span> &#x2192;
+  <span style="color:#3fb950;">PD舵机+PI电机</span>
+  &nbsp;&nbsp;|&nbsp;&nbsp;
+  控制周期: <span style="color:#3fb950;">10ms</span>
+</div>
+
+</div>
+</body>
+</html>

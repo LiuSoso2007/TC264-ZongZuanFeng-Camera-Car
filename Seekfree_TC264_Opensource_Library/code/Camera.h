@@ -33,9 +33,9 @@
 #define LCDW           94               // 压缩后宽度 (列) = 188/2
 #define LCDH           60               // 压缩后高度 (行) = 120/2
 
-/* ---- OTSU???? (???/???????) ---- */
-#define OTSU_MIN       30               // ????
-#define OTSU_MAX       220              // ????
+/* ---- OTSU大津法阈值 (防止过暗/过曝导致异常) ---- */
+#define OTSU_MIN       30               // 最小阈值
+#define OTSU_MAX       220              // 最大阈值
 
 /*
  * 屏幕布局说明:
@@ -43,22 +43,22 @@
  *   94x60  压缩图 -> 显示区域 94x60 (居中)
  *   总高度 120 + 10(间隔) + 60 = 190 < 240 屏幕高度
  */
-/* ---- ??????? (Camera) ---- */
-// TC264: 94???, ??? = 94/2 = 47
-#define ImageSensorMid    (LCDW / 2)           // ?????????: 47
+/* ---- 摄像头参数设置 (Camera) ---- */
+// TC264: 94列宽, 中线 = 94/2 = 47
+#define ImageSensorMid    (LCDW / 2)           // 图像传感器中线位置: 47
 
-// ????: ???59~57, ??56????????5?(56->52)
-// ?????(ImageSensorMid=47)????, ?????
-// 5???????, ??????
-#define SCAN_BASE_START_ROW    48              // ??????? (?60?????1/5???)
-#define SCAN_BASE_END_ROW      44              // ??????? (5???)
-#define SCAN_VALIDATE_COUNT    5               // ??????
+// 扫描说明: 从第59~57行预扫, 从第56行开始往下搜5行(56->52)
+// 从图像中线(ImageSensorMid=47)向两边搜索, 确定赛道
+// 5行全扫一遍, 确定基础边线
+#define SCAN_BASE_START_ROW    48              // 扫描起始行 (从60行往下约1/5处)
+#define SCAN_BASE_END_ROW      44              // 扫描结束行 (共5行)
+#define SCAN_VALIDATE_COUNT    5               // 验证行数
 
-// ?????, ??????????[0, LCDW-1]?
+// 限幅宏, 将L/H限制在[0, LCDW-1]
 #define LimitL(L)  ((L) = ((L) < 0)  ? 0  : (L))
 #define LimitH(H)  ((H) = ((H) > (LCDW - 1)) ? (LCDW - 1) : (H))
 
-/* ---- ?????? ---- */
+/* ---- 图像处理数据结构 ---- */
 typedef struct {
     uint8 IsRightFind;
     uint8 IsLeftFind;
@@ -70,12 +70,12 @@ typedef struct {
 
 
 /* ---- 全局图像数组 ---- */
-extern uint8  Pixle[LCDH][LCDW];                // ????? (0=?/???, 1=?/??)
+extern uint8  Pixle[LCDH][LCDW];                // 二值图 (0=黑/背景, 1=白/赛道)
 extern uint8 *Image_Use[LCDH][LCDW];            // 压缩后灰度图像指针数组
 extern uint8  Camera_Threshold;                 // 当前OTSU阈值 (0~255)
 
-/* ---- ???? ---- */
-extern ImageDealDatatypedef ImageDeal[LCDH];   // ??????
+/* ---- 图像数据 ---- */
+extern ImageDealDatatypedef ImageDeal[LCDH];   // 每行图像处理结果
 
 
 /* ---- 初始化 ---- */
@@ -93,85 +93,85 @@ void  Camera_GetBinaryImage(void);               // 灰度图 -> 二值化 (自动调用OT
 
 /* ---- IPS200调试显示 ---- */
 void  Camera_ShowDebug(void);                    // IPS200 显示原始图+压缩图+阈值
-void  Camera_ShowBinaryFast(void);              // ?????? (??, SPI?????)
+void  Camera_ShowBinaryFast(void);              // 快速显示二值图 (优化, SPI传输量最小)
 
 
-/* ---- ???? ---- */
-void  Camera_ShowElementStatus(void);            // ??????????(????)
-void  Get_BaseLine(void);                       // ????: ?56->52, 5?????
-// ??????: ???????????+/-ImageScanInterval????
-#define ImageScanInterval  5                   // ??????(?)
+/* ---- 图像数据 ---- */
+void  Camera_ShowElementStatus(void);            // 显示当前元素状态(缩写标识)
+void  Get_BaseLine(void);                       // 获取基准线: 从56->52, 5行
+// 搜索区间: 在当前行上一行边线位置+/-ImageScanInterval范围内
+#define ImageScanInterval  5                   // 搜索区间(像素)
 
-/* ---- ????? ---- */
+/* ---- 跳变点结构 ---- */
 typedef struct {
-    int   point;                               // ?????
-    uint8 type;                                // ??: 'T'=??, 'W'=????, 'H'=???
+    int   point;                               // 跳变点坐标
+    uint8 type;                                // 类型: 'T'=跳变, 'W'=全白丢线, 'H'=全黑
 } JumpPointtypedef;
 
-/* ---- ?????? ---- */
+/* ---- 图像处理数据结构 ---- */
 typedef struct {
-    int16 OFFLine;                             // ???: ???????????
-    int16 Miss_Left_lines;                     // ???????
-    int16 Miss_Right_lines;                    // ???????
-    int16 WhiteLine;                           /* ??????(????) */
-    int16 OFFLineBoundary;                     /* ????? */
-    int16 Det_True;                            /* ?????? */
-    int16 WhiteLine_L;                         /* ????? */
-    int16 WhiteLine_R;                         /* ????? */
+    int16 OFFLine;                             // 丢线行: 从该行开始无赛道
+    int16 Miss_Left_lines;                     // 左侧连续丢失行数
+    int16 Miss_Right_lines;                    // 右侧连续丢失行数
+    int16 WhiteLine;                           /* 白色行计数(十字) */
+    int16 OFFLineBoundary;                     /* 丢线边界 */
+    int16 Det_True;                            /* 有效检测标志 */
+    int16 WhiteLine_L;                         /* 左侧白行 */
+    int16 WhiteLine_R;                         /* 右侧白行 */
 } ImageStatustypedef;
 
-extern ImageStatustypedef ImageStatus;         // ????????
+extern ImageStatustypedef ImageStatus;         // 图像状态全局变量
 
-/* ---- ?????? ---- */
+/* ---- 图像处理数据结构 ---- */
 void  Get_Border_And_SideType(uint8* p, uint8 type, int L, int H, JumpPointtypedef* Q);
-                                               // ?????????
-void  Get_AllLine(void);                       // ????: ??51??????0
+                                               // 获取跳变点与边线类型
+void  Get_AllLine(void);                       // 全行扫描: 从51行向下扫到0
 
-/* ---- ??????? ---- */
+/* ---- 图像标志结构 ---- */
 typedef struct {
-    int16 Bend_Road;                           /* ??: 0=?? 1=?? 2=?? */
-    int16 image_element_rings;                 /* ??: 0=? 1=??? 2=??? */
-    int16 ring_big_small;                      /* ????: 0=?? 1=??? 2=??? */
-    int16 image_element_rings_flag;            /* ?????? */
-    int16 straight_long;                       /* ????? */
-    int16 straight_xie;                        /* ?????? */
-    int16 Zebra_Flag;                          /* ???: 0=? 1=??? 2=??? */
-    int16 Ramp;                                /* ??: 0=? 1=??? */
-    int16 Out_Road;                            /* ??: 0=? 1=?? */
+    int16 Bend_Road;                           /* 弯道: 0=直道 1=左弯 2=右弯 */
+    int16 image_element_rings;                 /* 圆环: 0=无 1=左圆环 2=右圆环 */
+    int16 ring_big_small;                      /* 圆环大小: 0=无 1=大环 2=小环 */
+    int16 image_element_rings_flag;            /* 圆环处理标志 */
+    int16 straight_long;                       /* 长直道标志 */
+    int16 straight_xie;                        /* 斜入直道标志 */
+    int16 Zebra_Flag;                          /* 斑马线: 0=无 1=左侧 2=右侧 */
+    int16 Ramp;                                /* 坡道: 0=无 1=检测到 */
+    int16 Out_Road;                            /* 断路: 0=无 1=断路 */
 } ImageFlagtypedef;
 
-/* ---- ?????? ---- */
-// ????: WhiteLine(????), OFFLineBoundary(????), Det_True(????)
-// ??: OFFLine/Miss_Left_lines/Miss_Right_lines ??????
+/* ---- 图像处理数据结构 ---- */
+// 其他元素: WhiteLine(十字), OFFLineBoundary(丢线边界), Det_True(有效检测)
+// 状态: OFFLine/Miss_Left_lines/Miss_Right_lines 在ImageStatus中
 
-extern ImageFlagtypedef ImageFlag;             /* ???????? */
+extern ImageFlagtypedef ImageFlag;             /* 图像标志全局变量 */
 
-/* ---- ????? (TC264??, AnCai?x1.175??) ---- */
-extern const uint8 Half_Road_Wide[60];         /* ????: ???~??? */
-extern const uint8 Half_Bend_Wide[60];         /* ???? */
+/* ---- 道路宽度常量 (TC264列宽94, AnCai原版x1.175倍映射) ---- */
+extern const uint8 Half_Road_Wide[60];         /* 半道路宽度: 近景~远景 */
+extern const uint8 Half_Bend_Wide[60];         /* 弯道半宽 */
 
-/* ---- ?????? ---- */
-float Straight_Judge(uint8 dir, uint8 start, uint8 end);     // ?????(S<1???)
-void  Straight_long_judge(void);                             // ?????
-void  Straight_long_handle(void);                            // ?????
-void  Straight_xie_judge(void);                              // ??????
-void  Element_Judgment_Bend(void);                           // ????
-void  Element_Handle_Bend(void);                             // ????
-void  Element_Judgment_Left_Rings(void);                     // ?????
-void  Element_Handle_Left_Rings(void);                       // ?????
-void  Element_Judgment_Right_Rings(void);                    // ?????
-void  Element_Handle_Right_Rings(void);                      // ?????
-void  Element_Judgment_Zebra(void);                          // ?????
-void  Element_Handle_Zebra(void);                            // ?????
-void  Element_Judgment_Ramp(void);                           // ????
-void  Element_Handle_Ramp(void);                             // ????
-void  Element_Judgment_OutRoad(void);                        // ????
-void  Element_Handle_OutRoad(void);                          // ????
-void  Get_ExtensionLine(void);                               // ?????
-void  Scan_Element(void);                                    // ??????
-void  Element_Handle(void);                                  // ??????
-void  Flag_init(void);                                       // ?????
+/* ---- 图像处理数据结构 ---- */
+float Straight_Judge(uint8 dir, uint8 start, uint8 end);     // 直道判断(S<1为直道)
+void  Straight_long_judge(void);                             // 长直道判断
+void  Straight_long_handle(void);                            // 长直道处理
+void  Straight_xie_judge(void);                              // 斜入直道判断
+void  Element_Judgment_Bend(void);                           // 弯道识别
+void  Element_Handle_Bend(void);                             // 弯道处理
+void  Element_Judgment_Left_Rings(void);                     // 左圆环识别
+void  Element_Handle_Left_Rings(void);                       // 左圆环处理
+void  Element_Judgment_Right_Rings(void);                    // 右圆环识别
+void  Element_Handle_Right_Rings(void);                      // 右圆环处理
+void  Element_Judgment_Zebra(void);                          // 斑马线识别
+void  Element_Handle_Zebra(void);                            // 斑马线处理
+void  Element_Judgment_Ramp(void);                           // 坡道识别
+void  Element_Handle_Ramp(void);                             // 坡道处理
+void  Element_Judgment_OutRoad(void);                        // 断路识别
+void  Element_Handle_OutRoad(void);                          // 断路处理
+void  Get_ExtensionLine(void);                               // 十字补线
+void  Scan_Element(void);                                    // 元素扫描入口
+void  Element_Handle(void);                                  // 元素处理入口
+void  Flag_init(void);                                       // 标志初始化
 
-void  Camera_ShowElementStatus(void);            // ??????????(????)
+void  Camera_ShowElementStatus(void);            // 显示当前元素状态(缩写标识)
 
 #endif

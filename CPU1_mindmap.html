@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TC264 CPU1 全链路 — 运动控制与车辆交互</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0f0f1a; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; }
+.container { width: 100%; max-width: 100%; overflow: auto; }
+svg { display: block; min-width: 1340px; height: auto; }
+</style>
+</head>
+<body>
+<div class="container">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1340 1960" width="100%" height="100%">
+<rect width="100%" height="100%" fill="#0f0f1a"/>
+<defs>
+<linearGradient id="g0" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#FF6B6B"/><stop offset="100%" stop-color="#FF6B6B" stop-opacity="0.7"/></linearGradient>
+<linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4ECDC4"/><stop offset="100%" stop-color="#4ECDC4" stop-opacity="0.7"/></linearGradient>
+<linearGradient id="g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#45B7D1"/><stop offset="100%" stop-color="#45B7D1" stop-opacity="0.7"/></linearGradient>
+<linearGradient id="g3" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#96CEB4"/><stop offset="100%" stop-color="#96CEB4" stop-opacity="0.7"/></linearGradient>
+<linearGradient id="g4" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#FFEAA7"/><stop offset="100%" stop-color="#FFEAA7" stop-opacity="0.7"/></linearGradient>
+<linearGradient id="g5" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#DDA0DD"/><stop offset="100%" stop-color="#DDA0DD" stop-opacity="0.7"/></linearGradient>
+<linearGradient id="g6" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#98D8C8"/><stop offset="100%" stop-color="#98D8C8" stop-opacity="0.7"/></linearGradient>
+<linearGradient id="g7" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#F7DC6F"/><stop offset="100%" stop-color="#F7DC6F" stop-opacity="0.7"/></linearGradient>
+<linearGradient id="g8" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#BB8FCE"/><stop offset="100%" stop-color="#BB8FCE" stop-opacity="0.7"/></linearGradient>
+<linearGradient id="g9" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#85C1E9"/><stop offset="100%" stop-color="#85C1E9" stop-opacity="0.7"/></linearGradient>
+<linearGradient id="g10" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#F8C471"/><stop offset="100%" stop-color="#F8C471" stop-opacity="0.7"/></linearGradient>
+<linearGradient id="g11" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#82E0AA"/><stop offset="100%" stop-color="#82E0AA" stop-opacity="0.7"/></linearGradient>
+<linearGradient id="g12" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#F1948A"/><stop offset="100%" stop-color="#F1948A" stop-opacity="0.7"/></linearGradient>
+<linearGradient id="g13" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#AED6F1"/><stop offset="100%" stop-color="#AED6F1" stop-opacity="0.7"/></linearGradient>
+<linearGradient id="g14" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#D7BDE2"/><stop offset="100%" stop-color="#D7BDE2" stop-opacity="0.7"/></linearGradient>
+</defs>
+<path d="M180,60 C220,60 300,92 340,92" fill="none" stroke="#4ECDC4" stroke-width="2" opacity="0.4"/>
+<path d="M460,92 C500,92 580,124 620,124" fill="none" stroke="#45B7D1" stroke-width="2" opacity="0.4"/>
+<path d="M460,92 C500,92 580,156 620,156" fill="none" stroke="#45B7D1" stroke-width="2" opacity="0.4"/>
+<path d="M180,60 C220,60 300,188 340,188" fill="none" stroke="#4ECDC4" stroke-width="2" opacity="0.4"/>
+<path d="M460,188 C500,188 580,220 620,220" fill="none" stroke="#45B7D1" stroke-width="2" opacity="0.4"/>
+<path d="M460,188 C500,188 580,252 620,252" fill="none" stroke="#45B7D1" stroke-width="2" opacity="0.4"/>
+<path d="M460,188 C500,188 580,284 620,284" fill="none" stroke="#45B7D1" stroke-width="2" opacity="0.4"/>
+<path d="M740,284 C780,284 860,316 900,316" fill="none" stroke="#96CEB4" stroke-width="2" opacity="0.4"/>
+<path d="M740,284 C780,284 860,348 900,348" fill="none" stroke="#96CEB4" stroke-width="2" opacity="0.4"/>
+<path d="M460,188 C500,188 580,380 620,380" fill="none" stroke="#45B7D1" stroke-width="2" opacity="0.4"/>
+<path d="M740,380 C780,380 860,412 900,412" fill="none" stroke="#96CEB4" stroke-width="2" opacity="0.4"/>
+<path d="M740,380 C780,380 860,444 900,444" fill="none" stroke="#96CEB4" stroke-width="2" opacity="0.4"/>
+<path d="M460,188 C500,188 580,476 620,476" fill="none" stroke="#45B7D1" stroke-width="2" opacity="0.4"/>
+<path d="M740,476 C780,476 860,508 900,508" fill="none" stroke="#96CEB4" stroke-width="2" opacity="0.4"/>
+<path d="M180,60 C220,60 300,540 340,540" fill="none" stroke="#4ECDC4" stroke-width="2" opacity="0.4"/>
+<path d="M460,540 C500,540 580,572 620,572" fill="none" stroke="#45B7D1" stroke-width="2" opacity="0.4"/>
+<path d="M460,540 C500,540 580,604 620,604" fill="none" stroke="#45B7D1" stroke-width="2" opacity="0.4"/>
+<path d="M460,540 C500,540 580,636 620,636" fill="none" stroke="#45B7D1" stroke-width="2" opacity="0.4"/>
+<path d="M460,540 C500,540 580,668 620,668" fill="none" stroke="#45B7D1" stroke-width="2" opacity="0.4"/>
+<path d="M460,540 C500,540 580,700 620,700" fill="none" stroke="#45B7D1" stroke-width="2" opacity="0.4"/>
+<path d="M460,540 C500,540 580,732 620,732" fill="none" stroke="#45B7D1" stroke-width="2" opacity="0.4"/>
+<path d="M180,60 C220,60 300,764 340,764" fill="none" stroke="#4ECDC4" stroke-width="2" opacity="0.4"/>
+<path d="M460,764 C500,764 580,796 620,796" fill="none" stroke="#45B7D1" stroke-width="2" opacity="0.4"/>
+<path d="M460,764 C500,764 580,828 620,828" fill="none" stroke="#45B7D1" stroke-width="2" opacity="0.4"/>
+<path d="M180,60 C220,60 300,860 340,860" fill="none" stroke="#4ECDC4" stroke-width="2" opacity="0.4"/>
+<path d="M460,860 C500,860 580,892 620,892" fill="none" stroke="#45B7D1" stroke-width="2" opacity="0.4"/>
+<path d="M740,892 C780,892 860,924 900,924" fill="none" stroke="#96CEB4" stroke-width="2" opacity="0.4"/>
+<path d="M740,892 C780,892 860,956 900,956" fill="none" stroke="#96CEB4" stroke-width="2" opacity="0.4"/>
+<path d="M740,892 C780,892 860,988 900,988" fill="none" stroke="#96CEB4" stroke-width="2" opacity="0.4"/>
+<path d="M740,892 C780,892 860,1020 900,1020" fill="none" stroke="#96CEB4" stroke-width="2" opacity="0.4"/>
+<path d="M460,860 C500,860 580,1052 620,1052" fill="none" stroke="#45B7D1" stroke-width="2" opacity="0.4"/>
+<path d="M740,1052 C780,1052 860,1084 900,1084" fill="none" stroke="#96CEB4" stroke-width="2" opacity="0.4"/>
+<path d="M460,860 C500,860 580,1116 620,1116" fill="none" stroke="#45B7D1" stroke-width="2" opacity="0.4"/>
+<path d="M740,1116 C780,1116 860,1148 900,1148" fill="none" stroke="#96CEB4" stroke-width="2" opacity="0.4"/>
+<path d="M740,1116 C780,1116 860,1180 900,1180" fill="none" stroke="#96CEB4" stroke-width="2" opacity="0.4"/>
+<path d="M740,1116 C780,1116 860,1212 900,1212" fill="none" stroke="#96CEB4" stroke-width="2" opacity="0.4"/>
+<path d="M740,1116 C780,1116 860,1244 900,1244" fill="none" stroke="#96CEB4" stroke-width="2" opacity="0.4"/>
+<path d="M740,1116 C780,1116 860,1276 900,1276" fill="none" stroke="#96CEB4" stroke-width="2" opacity="0.4"/>
+<path d="M740,1116 C780,1116 860,1308 900,1308" fill="none" stroke="#96CEB4" stroke-width="2" opacity="0.4"/>
+<path d="M460,860 C500,860 580,1340 620,1340" fill="none" stroke="#45B7D1" stroke-width="2" opacity="0.4"/>
+<path d="M740,1340 C780,1340 860,1372 900,1372" fill="none" stroke="#96CEB4" stroke-width="2" opacity="0.4"/>
+<path d="M740,1340 C780,1340 860,1404 900,1404" fill="none" stroke="#96CEB4" stroke-width="2" opacity="0.4"/>
+<path d="M740,1340 C780,1340 860,1436 900,1436" fill="none" stroke="#96CEB4" stroke-width="2" opacity="0.4"/>
+<path d="M460,860 C500,860 580,1468 620,1468" fill="none" stroke="#45B7D1" stroke-width="2" opacity="0.4"/>
+<path d="M740,1468 C780,1468 860,1500 900,1500" fill="none" stroke="#96CEB4" stroke-width="2" opacity="0.4"/>
+<path d="M740,1468 C780,1468 860,1532 900,1532" fill="none" stroke="#96CEB4" stroke-width="2" opacity="0.4"/>
+<path d="M740,1468 C780,1468 860,1564 900,1564" fill="none" stroke="#96CEB4" stroke-width="2" opacity="0.4"/>
+<path d="M180,60 C220,60 300,1596 340,1596" fill="none" stroke="#4ECDC4" stroke-width="2" opacity="0.4"/>
+<path d="M460,1596 C500,1596 580,1628 620,1628" fill="none" stroke="#45B7D1" stroke-width="2" opacity="0.4"/>
+<path d="M460,1596 C500,1596 580,1660 620,1660" fill="none" stroke="#45B7D1" stroke-width="2" opacity="0.4"/>
+<path d="M460,1596 C500,1596 580,1692 620,1692" fill="none" stroke="#45B7D1" stroke-width="2" opacity="0.4"/>
+<path d="M460,1596 C500,1596 580,1724 620,1724" fill="none" stroke="#45B7D1" stroke-width="2" opacity="0.4"/>
+<path d="M180,60 C220,60 300,1756 340,1756" fill="none" stroke="#4ECDC4" stroke-width="2" opacity="0.4"/>
+<path d="M460,1756 C500,1756 580,1788 620,1788" fill="none" stroke="#45B7D1" stroke-width="2" opacity="0.4"/>
+<path d="M460,1756 C500,1756 580,1820 620,1820" fill="none" stroke="#45B7D1" stroke-width="2" opacity="0.4"/>
+<rect x="52" y="26.0" width="131.16" height="68" rx="10" ry="10" fill="url(#g0)" opacity="0.15" stroke="#FF6B6B" stroke-width="1.5"/>
+<text x="60" y="56.0" fill="#FF6B6B" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-weight="bold" font-size="16">CPU1 全链路</text>
+<text x="60" y="74.0" fill="#FF6B6B" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-weight="bold" font-size="16">运动控制与车辆交互</text>
+<rect x="332" y="67.0" width="94.2" height="50" rx="10" ry="10" fill="url(#g1)" opacity="0.15" stroke="#4ECDC4" stroke-width="1.5"/>
+<text x="340" y="97.0" fill="#4ECDC4" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-weight="bold" font-size="14">系统初始化</text>
+<rect x="612" y="99.0" width="214.32" height="50" rx="10" ry="10" fill="url(#g2)" opacity="0.15" stroke="#45B7D1" stroke-width="1.5"/>
+<text x="620" y="129.0" fill="#45B7D1" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">disable_Watchdog()</text>
+<rect x="612" y="131.0" width="288.24" height="50" rx="10" ry="10" fill="url(#g2)" opacity="0.15" stroke="#45B7D1" stroke-width="1.5"/>
+<text x="620" y="161.0" fill="#45B7D1" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">interrupt_global_enable(0)</text>
+<rect x="332" y="163.0" width="94.2" height="50" rx="10" ry="10" fill="url(#g1)" opacity="0.15" stroke="#4ECDC4" stroke-width="1.5"/>
+<text x="340" y="193.0" fill="#4ECDC4" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-weight="bold" font-size="14">外设初始化</text>
+<rect x="612" y="195.0" width="260.52" height="50" rx="10" ry="10" fill="url(#g2)" opacity="0.15" stroke="#45B7D1" stroke-width="1.5"/>
+<text x="620" y="225.0" fill="#45B7D1" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">IPS200_Init() LCD屏幕 SPI</text>
+<rect x="612" y="227.0" width="232.8" height="50" rx="10" ry="10" fill="url(#g2)" opacity="0.15" stroke="#45B7D1" stroke-width="1.5"/>
+<text x="620" y="257.0" fill="#45B7D1" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">Key_Init() 按键 GPIO扫描</text>
+<rect x="612" y="259.0" width="297.48" height="50" rx="10" ry="10" fill="url(#g2)" opacity="0.15" stroke="#45B7D1" stroke-width="1.5"/>
+<text x="620" y="289.0" fill="#45B7D1" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">Encoder_Init() GTM_TIM 正交解码</text>
+<rect x="892" y="291.0" width="103.44" height="50" rx="10" ry="10" fill="url(#g3)" opacity="0.15" stroke="#96CEB4" stroke-width="1.5"/>
+<text x="900" y="321.0" fill="#96CEB4" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">左电机编码器</text>
+<rect x="892" y="323.0" width="103.44" height="50" rx="10" ry="10" fill="url(#g3)" opacity="0.15" stroke="#96CEB4" stroke-width="1.5"/>
+<text x="900" y="353.0" fill="#96CEB4" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">右电机编码器</text>
+<rect x="612" y="355.0" width="279.0" height="50" rx="10" ry="10" fill="url(#g2)" opacity="0.15" stroke="#45B7D1" stroke-width="1.5"/>
+<text x="620" y="385.0" fill="#45B7D1" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">Motor_Init() GTM_ATOM PWM</text>
+<rect x="892" y="387.0" width="112.68" height="50" rx="10" ry="10" fill="url(#g3)" opacity="0.15" stroke="#96CEB4" stroke-width="1.5"/>
+<text x="900" y="417.0" fill="#96CEB4" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">左电机 PWM</text>
+<rect x="892" y="419.0" width="112.68" height="50" rx="10" ry="10" fill="url(#g3)" opacity="0.15" stroke="#96CEB4" stroke-width="1.5"/>
+<text x="900" y="449.0" fill="#96CEB4" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">右电机 PWM</text>
+<rect x="612" y="451.0" width="325.2" height="50" rx="10" ry="10" fill="url(#g2)" opacity="0.15" stroke="#45B7D1" stroke-width="1.5"/>
+<text x="620" y="481.0" fill="#45B7D1" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">Servo_Init() GTM_ATOM PWM 50Hz</text>
+<rect x="892" y="483.0" width="103.44" height="50" rx="10" ry="10" fill="url(#g3)" opacity="0.15" stroke="#96CEB4" stroke-width="1.5"/>
+<text x="900" y="513.0" fill="#96CEB4" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">舵机角度控制</text>
+<rect x="332" y="515.0" width="168.12" height="50" rx="10" ry="10" fill="url(#g1)" opacity="0.15" stroke="#4ECDC4" stroke-width="1.5"/>
+<text x="340" y="545.0" fill="#4ECDC4" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-weight="bold" font-size="14">IMU660RB 姿态感知</text>
+<rect x="612" y="547.0" width="279.0" height="50" rx="10" ry="10" fill="url(#g2)" opacity="0.15" stroke="#45B7D1" stroke-width="1.5"/>
+<text x="620" y="577.0" fill="#45B7D1" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">IMU_Init() SPI+WHO_AM_I校验</text>
+<rect x="612" y="579.0" width="269.76" height="50" rx="10" ry="10" fill="url(#g2)" opacity="0.15" stroke="#45B7D1" stroke-width="1.5"/>
+<text x="620" y="609.0" fill="#45B7D1" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">IMU_Calibrate(200) 陀螺仪零偏</text>
+<rect x="612" y="611.0" width="251.28" height="50" rx="10" ry="10" fill="url(#g2)" opacity="0.15" stroke="#45B7D1" stroke-width="1.5"/>
+<text x="620" y="641.0" fill="#45B7D1" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">IMU_ClearAngleZ() 角度清零</text>
+<rect x="612" y="643.0" width="251.28" height="50" rx="10" ry="10" fill="url(#g2)" opacity="0.15" stroke="#45B7D1" stroke-width="1.5"/>
+<text x="620" y="673.0" fill="#45B7D1" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">IMU_Update() 读取角速度/加速度</text>
+<rect x="612" y="675.0" width="297.48" height="50" rx="10" ry="10" fill="url(#g2)" opacity="0.15" stroke="#45B7D1" stroke-width="1.5"/>
+<text x="620" y="705.0" fill="#45B7D1" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">IMU_GetYawRate() → Z轴角速度°/s</text>
+<rect x="612" y="707.0" width="325.2" height="50" rx="10" ry="10" fill="url(#g2)" opacity="0.15" stroke="#45B7D1" stroke-width="1.5"/>
+<text x="620" y="737.0" fill="#45B7D1" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">IMU_IntegrateZ(0.01f) → Z轴角度积分</text>
+<rect x="332" y="739.0" width="94.2" height="50" rx="10" ry="10" fill="url(#g1)" opacity="0.15" stroke="#4ECDC4" stroke-width="1.5"/>
+<text x="340" y="769.0" fill="#4ECDC4" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-weight="bold" font-size="14">定时器中断</text>
+<rect x="612" y="771.0" width="334.44" height="50" rx="10" ry="10" fill="url(#g2)" opacity="0.15" stroke="#45B7D1" stroke-width="1.5"/>
+<text x="620" y="801.0" fill="#45B7D1" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">PIT CCU61_CH0 10ms → PID_Flag=1</text>
+<rect x="612" y="803.0" width="325.2" height="50" rx="10" ry="10" fill="url(#g2)" opacity="0.15" stroke="#45B7D1" stroke-width="1.5"/>
+<text x="620" y="833.0" fill="#45B7D1" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">PIT CCU60_CH1 5ms → Key_Tick()</text>
+<rect x="332" y="835.0" width="131.16" height="50" rx="10" ry="10" fill="url(#g1)" opacity="0.15" stroke="#4ECDC4" stroke-width="1.5"/>
+<text x="340" y="865.0" fill="#4ECDC4" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-weight="bold" font-size="14">10ms 控制循环</text>
+<rect x="612" y="867.0" width="94.2" height="50" rx="10" ry="10" fill="url(#g2)" opacity="0.15" stroke="#45B7D1" stroke-width="1.5"/>
+<text x="620" y="897.0" fill="#45B7D1" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">传感器采集</text>
+<rect x="892" y="899.0" width="232.8" height="50" rx="10" ry="10" fill="url(#g3)" opacity="0.15" stroke="#96CEB4" stroke-width="1.5"/>
+<text x="900" y="929.0" fill="#96CEB4" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">IMU_Update() IMU数据刷新</text>
+<rect x="892" y="931.0" width="269.76" height="50" rx="10" ry="10" fill="url(#g3)" opacity="0.15" stroke="#96CEB4" stroke-width="1.5"/>
+<text x="900" y="961.0" fill="#96CEB4" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">IMU_GetYawRate → IMU_Yaw</text>
+<rect x="892" y="963.0" width="269.76" height="50" rx="10" ry="10" fill="url(#g3)" opacity="0.15" stroke="#96CEB4" stroke-width="1.5"/>
+<text x="900" y="993.0" fill="#96CEB4" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">IMU_IntegrateZ(0.01f) 积分</text>
+<rect x="892" y="995.0" width="288.24" height="50" rx="10" ry="10" fill="url(#g3)" opacity="0.15" stroke="#96CEB4" stroke-width="1.5"/>
+<text x="900" y="1025.0" fill="#96CEB4" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">Encoder_Get_Left/Right 编码器</text>
+<rect x="612" y="1027.0" width="84.96000000000001" height="50" rx="10" ry="10" fill="url(#g2)" opacity="0.15" stroke="#45B7D1" stroke-width="1.5"/>
+<text x="620" y="1057.0" fill="#45B7D1" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">偏差读取</text>
+<rect x="892" y="1059.0" width="297.48" height="50" rx="10" ry="10" fill="url(#g3)" opacity="0.15" stroke="#96CEB4" stroke-width="1.5"/>
+<text x="900" y="1089.0" fill="#96CEB4" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">position_err = Err (CPU0共享)</text>
+<rect x="612" y="1091.0" width="149.64" height="50" rx="10" ry="10" fill="url(#g2)" opacity="0.15" stroke="#45B7D1" stroke-width="1.5"/>
+<text x="620" y="1121.0" fill="#45B7D1" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">弯道差速策略 (6段)</text>
+<rect x="892" y="1123.0" width="279.0" height="50" rx="10" ry="10" fill="url(#g3)" opacity="0.15" stroke="#96CEB4" stroke-width="1.5"/>
+<text x="900" y="1153.0" fill="#96CEB4" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">急右弯 err≥15: 左-1.1x 右+0.5x</text>
+<rect x="892" y="1155.0" width="297.48" height="50" rx="10" ry="10" fill="url(#g3)" opacity="0.15" stroke="#96CEB4" stroke-width="1.5"/>
+<text x="900" y="1185.0" fill="#96CEB4" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">中右弯 7<err<15: 左-0.5x 右+0.1x</text>
+<rect x="892" y="1187.0" width="223.56" height="50" rx="10" ry="10" fill="url(#g3)" opacity="0.15" stroke="#96CEB4" stroke-width="1.5"/>
+<text x="900" y="1217.0" fill="#96CEB4" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">直道 -7≤err≤7: Bias=0</text>
+<rect x="892" y="1219.0" width="315.96" height="50" rx="10" ry="10" fill="url(#g3)" opacity="0.15" stroke="#96CEB4" stroke-width="1.5"/>
+<text x="900" y="1249.0" fill="#96CEB4" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">中左弯 -14<err<-7: 左+0.2x 右-0.4x</text>
+<rect x="892" y="1251.0" width="325.2" height="50" rx="10" ry="10" fill="url(#g3)" opacity="0.15" stroke="#96CEB4" stroke-width="1.5"/>
+<text x="900" y="1281.0" fill="#96CEB4" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">左弯 -20<err≤-14: 左+0.3x 右-0.55x</text>
+<rect x="892" y="1283.0" width="297.48" height="50" rx="10" ry="10" fill="url(#g3)" opacity="0.15" stroke="#96CEB4" stroke-width="1.5"/>
+<text x="900" y="1313.0" fill="#96CEB4" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">急左弯 err≤-20: 左+0.3x 右-0.65x</text>
+<rect x="612" y="1315.0" width="112.68" height="50" rx="10" ry="10" fill="url(#g2)" opacity="0.15" stroke="#45B7D1" stroke-width="1.5"/>
+<text x="620" y="1345.0" fill="#45B7D1" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">双PI速度闭环</text>
+<rect x="892" y="1347.0" width="352.92" height="50" rx="10" ry="10" fill="url(#g3)" opacity="0.15" stroke="#96CEB4" stroke-width="1.5"/>
+<text x="900" y="1377.0" fill="#96CEB4" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">PI_Left Kp=0.55 Ki=0.2 → pwm_left</text>
+<rect x="892" y="1379.0" width="371.40000000000003" height="50" rx="10" ry="10" fill="url(#g3)" opacity="0.15" stroke="#96CEB4" stroke-width="1.5"/>
+<text x="900" y="1409.0" fill="#96CEB4" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">PI_Right Kp=0.55 Ki=0.2 → pwm_right</text>
+<rect x="892" y="1411.0" width="297.48" height="50" rx="10" ry="10" fill="url(#g3)" opacity="0.15" stroke="#96CEB4" stroke-width="1.5"/>
+<text x="900" y="1441.0" fill="#96CEB4" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">Motor_SetLeftPWM/RightPWM()</text>
+<rect x="612" y="1443.0" width="103.44" height="50" rx="10" ry="10" fill="url(#g2)" opacity="0.15" stroke="#45B7D1" stroke-width="1.5"/>
+<text x="620" y="1473.0" fill="#45B7D1" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">舵机PD控制</text>
+<rect x="892" y="1475.0" width="214.32" height="50" rx="10" ry="10" fill="url(#g3)" opacity="0.15" stroke="#96CEB4" stroke-width="1.5"/>
+<text x="900" y="1505.0" fill="#96CEB4" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">Err → 目标角速度 Kp=2.0</text>
+<rect x="892" y="1507.0" width="232.8" height="50" rx="10" ry="10" fill="url(#g3)" opacity="0.15" stroke="#96CEB4" stroke-width="1.5"/>
+<text x="900" y="1537.0" fill="#96CEB4" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">IMU角速度反馈 → D项 Kd=0.5</text>
+<rect x="892" y="1539.0" width="325.2" height="50" rx="10" ry="10" fill="url(#g3)" opacity="0.15" stroke="#96CEB4" stroke-width="1.5"/>
+<text x="900" y="1569.0" fill="#96CEB4" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">Servo_SetAngleDeg() → 50Hz PWM</text>
+<rect x="332" y="1571.0" width="94.2" height="50" rx="10" ry="10" fill="url(#g1)" opacity="0.15" stroke="#4ECDC4" stroke-width="1.5"/>
+<text x="340" y="1601.0" fill="#4ECDC4" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-weight="bold" font-size="14">LCD显示</text>
+<rect x="612" y="1603.0" width="149.64" height="50" rx="10" ry="10" fill="url(#g2)" opacity="0.15" stroke="#45B7D1" stroke-width="1.5"/>
+<text x="620" y="1633.0" fill="#45B7D1" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">IPS200 黄字黑底</text>
+<rect x="612" y="1635.0" width="168.12" height="50" rx="10" ry="10" fill="url(#g2)" opacity="0.15" stroke="#45B7D1" stroke-width="1.5"/>
+<text x="620" y="1665.0" fill="#45B7D1" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">enc_left 编码器值</text>
+<rect x="612" y="1667.0" width="177.36" height="50" rx="10" ry="10" fill="url(#g2)" opacity="0.15" stroke="#45B7D1" stroke-width="1.5"/>
+<text x="620" y="1697.0" fill="#45B7D1" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">enc_right 编码器值</text>
+<rect x="612" y="1699.0" width="112.68" height="50" rx="10" ry="10" fill="url(#g2)" opacity="0.15" stroke="#45B7D1" stroke-width="1.5"/>
+<text x="620" y="1729.0" fill="#45B7D1" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">调试/状态信息</text>
+<rect x="332" y="1731.0" width="84.96000000000001" height="50" rx="10" ry="10" fill="url(#g1)" opacity="0.15" stroke="#4ECDC4" stroke-width="1.5"/>
+<text x="340" y="1761.0" fill="#4ECDC4" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-weight="bold" font-size="14">按键交互</text>
+<rect x="612" y="1763.0" width="214.32" height="50" rx="10" ry="10" fill="url(#g2)" opacity="0.15" stroke="#45B7D1" stroke-width="1.5"/>
+<text x="620" y="1793.0" fill="#45B7D1" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">Key_GetNum() 非阻塞扫描</text>
+<rect x="612" y="1795.0" width="131.16" height="50" rx="10" ry="10" fill="url(#g2)" opacity="0.15" stroke="#45B7D1" stroke-width="1.5"/>
+<text x="620" y="1825.0" fill="#45B7D1" text-anchor="middle" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="13">模式切换/参数调整</text>
+</svg>
+</div>
+</body>
+</html>

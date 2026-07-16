@@ -41,14 +41,14 @@ while (TRUE)
         {
             Camera_GetBinaryImage();
 
-            /* ---- ??????: ?? -> ???? ---- */
+            /* ---- 图像处理主流程: 二值化 -> 元素识别 ---- */
             Flag_init();
             Get_BaseLine();
             Get_AllLine();
             Scan_Element();
             Element_Handle();
 
-            /* ---- ???? Err (????) ? CPU1 ???? ---- */
+            /* ---- 计算 Err (图像偏差) 给 CPU1 使用 ---- */
             if (ImageStatus.OFFLine < 55)
             {
                 Err = (float)(ImageDeal[SCAN_BASE_START_ROW].Center - ImageSensorMid)

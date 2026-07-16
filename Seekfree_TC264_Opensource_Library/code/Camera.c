@@ -35,14 +35,70 @@ void Camera_CompressInit(void) {
  * 完整遍历0~255, 输出限幅OTSU_MIN~OTSU_MAX
  */
 uint8 Camera_OTSU_GetThreshold(uint8 *image[][LCDW], uint16 col, uint16 row) {
-    return 128;  /* stub: skip float OTSU */
+    #define GRAY_SCALE 256
+    #define OTSU_MIN   30
+    #define OTSU_MAX   220
+    static uint32 pixelCount[GRAY_SCALE];
+    uint32 total, graySum, n0, n1;
+    uint64 m0, m1;
+    uint64 best_diff, best_denom, cur_diff, cur_denom;
+    uint8  threshold;
+    uint16 i, j;
+    uint8  T;
+
+    total = (uint32)col * row;
+    if (total == 0) return 128;
+
+    for (i = 0; i < GRAY_SCALE; i++) pixelCount[i] = 0;
+
+    graySum = 0;
+    for (i = 0; i < row; i++)
+        for (j = 0; j < col; j++) {
+            uint8 g = *image[i][j];
+            pixelCount[g]++;
+            graySum += g;
+        }
+
+    n0 = 0; m0 = 0;
+    best_diff = 0; best_denom = 1;
+    threshold = 128;
+
+    for (T = 0; T < GRAY_SCALE; T++)
+    {
+        n0 += pixelCount[T];
+        m0 += (uint64)T * pixelCount[T];
+
+        if (n0 == 0 || n0 == total) continue;
+
+        n1 = total - n0;
+        m1 = graySum - m0;
+
+        if (m0 * n1 >= m1 * n0)
+            cur_diff = m0 * n1 - m1 * n0;
+        else
+            cur_diff = m1 * n0 - m0 * n1;
+
+        cur_denom = (uint64)n0 * n1;
+
+        if (cur_diff * best_denom > best_diff * cur_denom)
+        {
+            best_diff = cur_diff;
+            best_denom = cur_denom;
+            threshold = T;
+        }
+    }
+
+    if (threshold < OTSU_MIN) threshold = OTSU_MIN;
+    if (threshold > OTSU_MAX) threshold = OTSU_MAX;
+    return threshold;
 }
+
 
 /*
  * Camera_GetBinaryImage - 灰度图二值化
  */
 void Camera_GetBinaryImage(void) {
-    uint8 thr = 128;  /* DEBUG: skip OTSU, fixed threshold */
+    uint8 thr = Camera_OTSU_GetThreshold(Image_Use, (uint16)LCDW, (uint16)LCDH);
     Camera_Threshold = thr;
     uint8 i, j;
     for (i = 0; i < LCDH; i++)

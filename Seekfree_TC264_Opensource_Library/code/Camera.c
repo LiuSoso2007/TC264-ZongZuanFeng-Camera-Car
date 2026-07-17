@@ -507,6 +507,22 @@ void Get_AllLine(void)
             ImageStatus.OFFLine = row;          // 锟斤拷录锟斤拷锟斤拷锟斤拷始锟叫猴拷
             break;
         }
+
+        /*
+         * 安财同源保护: 远景宽度过窄或边线贴边时停止继续向上追线。
+         * TC264为94列, 由安财80列阈值(7/10/70)按比例映射为8/12/82。
+         */
+        if (ImageDeal[row].Wide <= 8)
+        {
+            ImageStatus.OFFLine = row + 1;
+            break;
+        }
+        else if (ImageDeal[row].RightBorder <= 12
+              || ImageDeal[row].LeftBorder >= 82)
+        {
+            ImageStatus.OFFLine = row + 1;
+            break;
+        }
     }
 }
 

@@ -115,7 +115,8 @@ void Camera_DrawCenterLines(void)
 
     /* ---- ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(ï¿½ï¿½É«ï¿½ï¿½ï¿½ï¿½): ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ImageDeal[row].Center ---- */
     /* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½OFFLineï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð§ï¿½ï¿½ï¿½Ýµï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½2ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½SPIï¿½ï¿½ï¿½ï¿½ */
-    for (row = ImageStatus.OFFLine + 2; row <= SCAN_BASE_START_ROW; row += 2)
+    /* Á½¸ö¶Ëµã¶¼±ØÐëÎ»ÓÚOFFLineÒÔÉÏµÄÓÐÐ§ËÑÏßÇøÓò¡£ */
+    for (row = SCAN_BASE_START_ROW; (row - 2) > ImageStatus.OFFLine; row -= 2)
     {
         if (ImageDeal[row].Center < 0 || ImageDeal[row].Center >= LCDW) continue;
         if (ImageDeal[row-2].Center < 0 || ImageDeal[row-2].Center >= LCDW) continue;
@@ -742,16 +743,12 @@ void Element_Judgment_Left_Rings(void)
     int Ysite, ring_ysite = 25;
     int Left_Less_Num = 0;
 
-    /*
-     * Ô²ï¿½ï¿½Ê¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½ Miss_Left_lines < 13 ï¿½ß¼ï¿½Â©ï¿½ï¿½ï¿½ï¿½
-     * Ô­ï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½à¶ªï¿½ï¿½>=13ï¿½Ð²Å¼ï¿½ï¿½, ï¿½ï¿½Ô²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ß¿ï¿½ï¿½Ü±ï¿½×·ï¿½ï¿½Îªï¿½ï¿½ï¿½ï¿½ï¿½,
-     * ï¿½ï¿½ï¿½ï¿½ Miss_Left_lines=0, Ô²ï¿½ï¿½ï¿½ï¿½Ô¶ï¿½Þ·ï¿½Ê¶ï¿½ï¿½
-     * ï¿½ï¿½ï¿½ï¿½: ï¿½Å¿ï¿½Îª Miss_Left_lines > 30(ï¿½ï¿½È«ï¿½ï¿½ï¿½ß²ï¿½ï¿½ï¿½ï¿½), ï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½LeftBorderï¿½ï¿½ï¿½ï¿½ï¿½â¡£
-     */
+    /* °²²ÆÍ¬Ô´ÃÅ¼÷£º×óÔ²»·±ØÐëÏÈ³öÏÖ×ó²àÁ¬Ðø¶ªÏß£¬Ö±µÀÔëÉù²»µÃ´¥·¢¡£ */
     if (ImageStatus.Miss_Right_lines > 3
+        || ImageStatus.Miss_Left_lines < 13
         || ImageStatus.OFFLine > 2 || Straight_Judge(2, 5, SCAN_BASE_END_ROW) > 3.0f   /* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Öµ: ï¿½ï¿½ï¿½ï¿½Ô²ï¿½ï¿½ï¿½Î¢ï¿½ï¿½ï¿½ï¿½ */
         || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
-        return;  /* ï¿½Æ³ï¿½Miss_Left_lines>30ï¿½ï¿½ï¿½ï¿½: Ô²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ß±ï¿½×·ï¿½ï¿½Ê±Miss_Left_lines=0, ï¿½ï¿½Ó¦ï¿½ï¿½ï¿½ï¿½ */
+        return;  /* Ìõ¼þ²»×ãÊ±½ûÖ¹½øÈëÔ²»·²¹Ïß£¬·ÀÖ¹¸²¸ÇÖ±µÀÖÐÐÄ¡£ */
 
     /* ï¿½ï¿½ï¿½ï¿½Ç·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ðµï¿½ï¿½ï¿½ï¿½ï¿½ß¶ï¿½ï¿½ï¿½'W'(È«ï¿½ï¿½) */
     {
@@ -790,14 +787,12 @@ void Element_Judgment_Right_Rings(void)
     int Ysite, ring_ysite = 25;
     int Right_Less_Num = 0;
 
-    /*
-     * Ô²ï¿½ï¿½Ê¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½ Miss_Right_lines < 13 ï¿½ß¼ï¿½Â©ï¿½ï¿½ (Í¬ï¿½ï¿½Ô²ï¿½ï¿½)ï¿½ï¿½
-     * ï¿½ï¿½ï¿½ï¿½: ï¿½Å¿ï¿½Îª Miss_Right_lines > 30(ï¿½ï¿½È«ï¿½ï¿½ï¿½ß²ï¿½ï¿½ï¿½ï¿½), ï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½RightBorderï¿½ï¿½ï¿½ï¿½ï¿½â¡£
-     */
+    /* °²²ÆÍ¬Ô´ÃÅ¼÷£ºÓÒÔ²»·±ØÐëÏÈ³öÏÖÓÒ²àÁ¬Ðø¶ªÏß£¬Ö±µÀÔëÉù²»µÃ´¥·¢¡£ */
     if (ImageStatus.Miss_Left_lines > 3
+        || ImageStatus.Miss_Right_lines < 15
         || ImageStatus.OFFLine > 2 || Straight_Judge(1, 5, SCAN_BASE_END_ROW) > 3.0f   /* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Öµ: ï¿½ï¿½ï¿½ï¿½Ô²ï¿½ï¿½ï¿½Î¢ï¿½ï¿½ï¿½ï¿½ */
         || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
-        return;  /* ï¿½Æ³ï¿½Miss_Right_lines>30ï¿½ï¿½ï¿½ï¿½: Ô²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ß±ï¿½×·ï¿½ï¿½Ê±Miss_Right_lines=0, ï¿½ï¿½Ó¦ï¿½ï¿½ï¿½ï¿½ */
+        return;  /* Ìõ¼þ²»×ãÊ±½ûÖ¹½øÈëÔ²»·²¹Ïß£¬·ÀÖ¹¸²¸ÇÖ±µÀÖÐÐÄ¡£ */
 
     {
         int r;

@@ -490,6 +490,9 @@ void Get_AllLine(void)
             }
 
             /* ---- 修复后重新计算中心 ---- */
+            /* H型修复失败时沿用上一行边界, 避免跳到屏幕边缘形成直角 */
+            if (ImageDeal[row].IsLeftFind == 'H')  { ImageDeal[row].LeftBorder  = ImageDeal[row + 1].LeftBorder; }
+            if (ImageDeal[row].IsRightFind == 'H') { ImageDeal[row].RightBorder = ImageDeal[row + 1].RightBorder; }
             ImageDeal[row].Center = (ImageDeal[row].LeftBorder + ImageDeal[row].RightBorder) / 2;
             ImageDeal[row].Wide   = ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder;
         }

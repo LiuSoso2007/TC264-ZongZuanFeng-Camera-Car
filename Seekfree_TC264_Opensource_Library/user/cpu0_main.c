@@ -52,10 +52,10 @@ int core0_main(void)
             Element_Handle();
 
             /* ---- 计算 Err (图像偏差) 供 CPU1 使用 ---- */
-            /* AnCai借鉴: 3行平均前瞻(行23~25), 远视场更稳定; OFFLine过高时退到OFFLine+1 */
-            if (ImageStatus.OFFLine < 22)
+            /* 诊断: 近场3行平均(行50~52), 避免远场漂移影响Err */
+            if (ImageStatus.OFFLine < 48)
             {
-                Err = (float)((ImageDeal[24].Center + ImageDeal[25].Center + ImageDeal[26].Center) / 3
+                Err = (float)((ImageDeal[52].Center + ImageDeal[51].Center + ImageDeal[50].Center) / 3
                      - ImageSensorMid)
                     / (float)ImageSensorMid;
             }

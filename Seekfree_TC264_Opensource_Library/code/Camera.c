@@ -1028,50 +1028,127 @@ void Element_Handle_OutRoad(void)
 /* ================================================================
  * Ê®ï¿½Ö²ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½È«ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð§ï¿½ï¿½ï¿½Æµï¿½ï¿½ï¿½ï¿½ï¿½
  * ================================================================ */
-void Get_ExtensionLine(void)
+#define CROSS_WHITE_LINE_MIN 8
+#define CROSS_VALID_LINE_COUNT 3
+
+/* ·Ö±ðÐÞ¸´Ê®×ÖÇøÓòµÄÒ»²à±ßÏß£¬±ÜÃâµ¥²àÊ¶±ðÒì³£Ó°ÏìÁíÒ»²à¡£ */
+static void Repair_Cross_Border(uint8 is_left)
 {
-    int Ysite, TFSite = SCAN_BASE_END_ROW - 1;   /* ponytail: TC264ï¿½ï¿½ï¿½ï¿½ */
-    int left_FTSite = 0, right_FTSite = 0;
+    int row;
+    int near_row = -1;
+    int far_row = -1;
+    int near_border;
+    int far_border = 0;
+    int border;
 
-    if (ImageStatus.WhiteLine < 8) return;
-
-    /* ï¿½Ú¶ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½Ò¶ï¿½ï¿½Üºï¿½ */
-    for (Ysite = (SCAN_BASE_END_ROW - 2); Ysite >= (ImageStatus.OFFLine + 4); Ysite--)
+    /* µÚÒ»¶Î°×ÐÐµÄÏÂÒ»½ü³¡ÐÐ×÷Îª²¹ÏßÆðµã¡£ */
+    for (row = SCAN_BASE_END_ROW - 1;
+         row >= ImageStatus.OFFLine + CROSS_VALID_LINE_COUNT - 1;
+         row--)
     {
-        if (ImageDeal[Ysite].IsLeftFind == 'W')
+        if ((is_left && ImageDeal[row].IsLeftFind == 'W')
+         || (!is_left && ImageDeal[row].IsRightFind == 'W'))
         {
-            if (ImageDeal[Ysite + 1].LeftBorder >= 82  /* ponytail: 70*94/80=82, 80ï¿½ï¿½->94ï¿½ï¿½Ó³ï¿½ï¿½ */)
-            {
-                ImageStatus.OFFLine = Ysite + 1;
-                break;
-            }
-            /* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¼ï¿½ï¿½ï¿½ */
-            ImageDeal[Ysite].LeftBorder = ImageDeal[Ysite + 1].LeftBorder;
+            near_row = row + 1;
+            break;
+        }
+    }
+    if (near_row < 0 || near_row >= LCDH) return;
+
+    near_border = is_left ? ImageDeal[near_row].LeftBorder
+                          : ImageDeal[near_row].RightBorder;
+    if (near_border < 1 || near_border > LCDW - 2) return;
+
+    /* Ê®×ÖÔ¶¶Ë±ØÐëÁ¬ÐøÈýÐÐ±ßÏßÓÐÐ§£¬·ÀÖ¹Ôëµã±»µ±×÷²¹ÏßÃªµã¡£ */
+    for (row = near_row - 2;
+         row >= ImageStatus.OFFLine + CROSS_VALID_LINE_COUNT - 1;
+         row--)
+    {
+        if (is_left
+         && ImageDeal[row].IsLeftFind == 'T'
+         && ImageDeal[row - 1].IsLeftFind == 'T'
+         && ImageDeal[row - 2].IsLeftFind == 'T')
+        {
+            far_row = row - 2;
+            break;
+        }
+        if (!is_left
+         && ImageDeal[row].IsRightFind == 'T'
+         && ImageDeal[row - 1].IsRightFind == 'T'
+         && ImageDeal[row - 2].IsRightFind == 'T')
+        {
+            far_row = row - 2;
+            break;
         }
     }
 
-    /* ï¿½Ú¶ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½Ò¶ï¿½ï¿½Üºï¿½ */
-    for (Ysite = (SCAN_BASE_END_ROW - 2); Ysite >= (ImageStatus.OFFLine + 4); Ysite--)
+    if (far_row >= 0)
     {
-        if (ImageDeal[Ysite].IsRightFind == 'W')
-        {
-            if (ImageDeal[Ysite + 1].RightBorder <= 23)   /* TC264: ï¿½ï¿½ï¿½ß½ï¿½ */
-            {
-                ImageStatus.OFFLine = Ysite + 1;
-                break;
-            }
-            ImageDeal[Ysite].RightBorder = ImageDeal[Ysite + 1].RightBorder;
-        }
+        far_border = is_left ? ImageDeal[far_row].LeftBorder
+                             : ImageDeal[far_row].RightBorder;
+        if (far_border < 1 || far_border > LCDW - 2) far_row = -1;
     }
 
-    /* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¼ï¿½ï¿½ï¿½ */
-    for (Ysite = TFSite; Ysite > ImageStatus.OFFLine; Ysite--)
+    if (far_row < 0)
     {
-        ImageDeal[Ysite].Center = (ImageDeal[Ysite].LeftBorder
-                                 + ImageDeal[Ysite].RightBorder) / 2;
+        /* Î´ÕÒµ½¿É¿¿Ô¶ÃªµãÊ±±£³ÖÈë¿Ú±ß½ç£¬³µÁ¾¼ÌÐø°´Èë¿Ú·½ÏòÖ±ÐÐ¡£ */
+        for (row = near_row - 1; row > ImageStatus.OFFLine; row--)
+        {
+            if (is_left && ImageDeal[row].IsLeftFind == 'W')
+                ImageDeal[row].LeftBorder = near_border;
+            else if (!is_left && ImageDeal[row].IsRightFind == 'W')
+                ImageDeal[row].RightBorder = near_border;
+        }
+        return;
+    }
+
+    for (row = near_row - 1; row >= far_row; row--)
+    {
+        border = near_border
+                   + (far_border - near_border) * (near_row - row)
+                   / (near_row - far_row);
+        if (is_left)
+            ImageDeal[row].LeftBorder = border;
+        else
+            ImageDeal[row].RightBorder = border;
     }
 }
 
+void Get_ExtensionLine(void)
+{
+    int row;
+
+    if (ImageStatus.WhiteLine < CROSS_WHITE_LINE_MIN) return;
+
+    Repair_Cross_Border(1);
+    Repair_Cross_Border(0);
+
+    /* ²¹ÏßºóÍ³Ò»ÏÞ·ù²¢ÖØ½¨ÖÐÏß£¬¹© CPU0 ¼ÆËã Err¡£ */
+    for (row = SCAN_BASE_END_ROW; row > ImageStatus.OFFLine; row--)
+    {
+        LimitL(ImageDeal[row].LeftBorder);
+        LimitH(ImageDeal[row].LeftBorder);
+        LimitL(ImageDeal[row].RightBorder);
+        LimitH(ImageDeal[row].RightBorder);
+
+        if (ImageDeal[row].LeftBorder >= ImageDeal[row].RightBorder)
+        {
+            if (row < SCAN_BASE_END_ROW)
+            {
+                ImageDeal[row].LeftBorder = ImageDeal[row + 1].LeftBorder;
+                ImageDeal[row].RightBorder = ImageDeal[row + 1].RightBorder;
+            }
+            else
+            {
+                ImageDeal[row].LeftBorder = ImageSensorMid - Half_Road_Wide[row];
+                ImageDeal[row].RightBorder = ImageSensorMid + Half_Road_Wide[row];
+            }
+        }
+
+        ImageDeal[row].Wide = ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder;
+        ImageDeal[row].Center = (ImageDeal[row].LeftBorder + ImageDeal[row].RightBorder) / 2;
+    }
+}
 /* ================================================================
  * Ôªï¿½ï¿½É¨ï¿½ï¿½ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½Ã¸ï¿½Ôªï¿½ï¿½Ê¶ï¿½ï¿½ï¿½ï¿½
  * ×¢ï¿½ï¿½: Ôªï¿½ï¿½Ê¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È¼ï¿½ï¿½Í»ï¿½ï¿½ï¿½ï¿½Ïµ
@@ -1122,14 +1199,13 @@ void Element_Handle(void)
         Element_Handle_Zebra();
     else if (ImageFlag.Ramp != 0)
         Element_Handle_Ramp();
+    else if (ImageStatus.WhiteLine >= CROSS_WHITE_LINE_MIN)
+        Get_ExtensionLine();                  /* Ê®×ÖÓÅÏÈÓÚÆÕÍ¨Ö±µÀºÍÍäµÀ²¹Ïß¡£ */
     else if (ImageFlag.straight_long)
         Straight_long_handle();
     else if (ImageFlag.Bend_Road != 0)
         Element_Handle_Bend();
-    else if (ImageStatus.WhiteLine >= 8)
-        Get_ExtensionLine();                  /* ï¿½Ú¶ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½Ò¶ï¿½ï¿½Üºï¿½ */
 }
-
 /* ================================================================
  * ï¿½ï¿½Ô²ï¿½ï¿½Ê¶ï¿½ï¿½
  * ================================================================ */

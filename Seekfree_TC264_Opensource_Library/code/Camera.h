@@ -55,8 +55,8 @@
 #define SCAN_VALIDATE_COUNT    5               // 验证行数
 
 // 限幅宏, 将L/H限制在[0, LCDW-1]
-#define LimitL(L)  ((L) = ((L) < 0)  ? 0  : (L))
-#define LimitH(H)  ((H) = ((H) > (LCDW - 1)) ? (LCDW - 1) : (H))
+#define LimitL(L)  ((L) = ((L) < 1)  ? 1  : (L))    // AnCai: L>=1保证p[i-1]不越界
+#define LimitH(H)  ((H) = ((H) > (LCDW - 2)) ? (LCDW - 2) : (H))  // AnCai: H<=92保证p[i+1]不越界
 
 /* ---- 图像处理数据结构 ---- */
 typedef struct {

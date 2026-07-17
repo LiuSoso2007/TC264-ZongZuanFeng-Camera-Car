@@ -297,7 +297,7 @@ void Get_Border_And_SideType(uint8* p, uint8 type, int L, int H, JumpPointtypede
                 Q->type  = 'T';                 // ���Ϊ�ҵ�����
                 break;
             }
-            else if (i == (L + 1))              // ɨ�赽����δ�ҵ�����
+            else if (i == L)                    // ɨ�赽����δ�ҵ�����
             {
                 if (*(p + (L + H) / 2) != 0)    // �����е����ǰ�ɫ
                 {
@@ -324,7 +324,7 @@ void Get_Border_And_SideType(uint8* p, uint8 type, int L, int H, JumpPointtypede
                 Q->type  = 'T';                 // ���Ϊ�ҵ�����
                 break;
             }
-            else if (i == (H - 1))              // ɨ�赽����δ�ҵ�����
+            else if (i == H)                    // ɨ�赽����δ�ҵ�����
             {
                 if (*(p + (L + H) / 2) != 0)    // �����е����ǰ�ɫ
                 {

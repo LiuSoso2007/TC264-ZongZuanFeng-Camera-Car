@@ -124,13 +124,13 @@ void Camera_DrawCenterLines(void)
         ips200_draw_line(
             (uint16)ImageDeal[row].Center * 2, (uint16)row * 2,
             (uint16)ImageDeal[row-2].Center * 2, (uint16)(row-2) * 2,
-            RGB565_YELLOW);
+            RGB565_BLUE);
 
         /* 二值图 (94x60, 偏移xo,150): 使用原始94x60坐标 */
         ips200_draw_line(
             xo + (uint16)ImageDeal[row].Center, 150 + (uint16)row,
             xo + (uint16)ImageDeal[row-2].Center, 150 + (uint16)(row-2),
-            RGB565_YELLOW);
+            RGB565_BLUE);
     }
 }
 

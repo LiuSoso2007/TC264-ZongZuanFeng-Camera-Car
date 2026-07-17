@@ -50,8 +50,8 @@
 // 扫描说明: 从第59~57行预扫, 从第56行开始往下搜5行(56->52)
 // 从图像中线(ImageSensorMid=47)向两边搜索, 确定赛道
 // 5行全扫一遍, 确定基础边线
-#define SCAN_BASE_START_ROW    48              // 扫描起始行 (从60行往下约1/5处)
-#define SCAN_BASE_END_ROW      44              // 扫描结束行 (共5行)
+#define SCAN_BASE_START_ROW    59              // 扫描起始行 (最底部,距离车最近,数据最可靠,AnCai借鉴)
+#define SCAN_BASE_END_ROW      55              // 扫描结束行 (共5行基线: 59,58,57,56,55)
 #define SCAN_VALIDATE_COUNT    5               // 验证行数
 
 // 限幅宏, 将L/H限制在[0, LCDW-1]

@@ -52,9 +52,16 @@ int core0_main(void)
             Element_Handle();
 
             /* ---- 计算 Err (图像偏差) 供 CPU1 使用 ---- */
-            if (ImageStatus.OFFLine < 55)
+            /* AnCai借鉴: 3行平均前瞻(行23~25), 远视场更稳定; OFFLine过高时退到OFFLine+1 */
+            if (ImageStatus.OFFLine < 22)
             {
-                Err = (float)(ImageDeal[SCAN_BASE_START_ROW].Center - ImageSensorMid)
+                Err = (float)((ImageDeal[24].Center + ImageDeal[25].Center + ImageDeal[26].Center) / 3
+                     - ImageSensorMid)
+                    / (float)ImageSensorMid;
+            }
+            else if (ImageStatus.OFFLine < 55)
+            {
+                Err = (float)(ImageDeal[ImageStatus.OFFLine + 1].Center - ImageSensorMid)
                     / (float)ImageSensorMid;
             }
             Camera_ShowDebug();

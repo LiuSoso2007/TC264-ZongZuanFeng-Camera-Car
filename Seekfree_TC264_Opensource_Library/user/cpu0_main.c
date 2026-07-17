@@ -52,17 +52,20 @@ int core0_main(void)
             Element_Handle();
 
             /* ---- 计算 Err (图像偏差) 供 CPU1 使用 ---- */
-            /* 诊断: 近场3行平均(行50~52), 避免远场漂移影响Err */
+            /* 近场3行平均，Err保持像素单位，与CPU1的PD参数一致。 */
             if (ImageStatus.OFFLine < 48)
             {
                 Err = (float)((ImageDeal[52].Center + ImageDeal[51].Center + ImageDeal[50].Center) / 3
-                     - ImageSensorMid)
-                    / (float)ImageSensorMid;
+                     - ImageSensorMid);
             }
-            else if (ImageStatus.OFFLine < 55)
+            else if (ImageStatus.OFFLine < SCAN_BASE_START_ROW
+                  && ImageDeal[ImageStatus.OFFLine + 1].Wide > 8)
             {
-                Err = (float)(ImageDeal[ImageStatus.OFFLine + 1].Center - ImageSensorMid)
-                    / (float)ImageSensorMid;
+                Err = (float)(ImageDeal[ImageStatus.OFFLine + 1].Center - ImageSensorMid);
+            }
+            else
+            {
+                Err = 0.0f;
             }
             Camera_ShowDebug();
         }

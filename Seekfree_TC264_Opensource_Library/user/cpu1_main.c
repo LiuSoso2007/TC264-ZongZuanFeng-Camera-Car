@@ -30,7 +30,7 @@ volatile uint8_t PID_Flag = 0;       /* PID控制定时标志 (isr.c 10ms中断置位) */
 
 /* ---- 调参区 (需根据实际车况调整) ---- */
 #define MOTOR_SPEED    50      /* 电机固定占空比 (0~100, 双轮同速驱动) */
-#define PD_KP          0.8f    /* 舵机PD: 比例系数 */
+#define PD_KP          2.5f    /* 舵机PD: 比例系数 */
 #define PD_KD          0.4f    /* 舵机PD: 微分系数 */
 
 int core1_main(void)

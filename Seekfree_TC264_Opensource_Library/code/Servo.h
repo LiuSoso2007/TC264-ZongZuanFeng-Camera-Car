@@ -3,6 +3,11 @@
 
 #include "zf_common_headfile.h"
 
+/* 实车舵机校准参数，初始化和控制必须共用。 */
+#define SERVO_CENTER_ANGLE  80U
+#define SERVO_MIN_ANGLE      9U
+#define SERVO_MAX_ANGLE    132U
+
 /*
  * Servo.h --- ?????? (50Hz PWM)
  *

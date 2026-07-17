@@ -16,13 +16,17 @@
 
 void Servo_Init(void)
 {
-    pwm_init(SERVO_PWM_CH, SERVO_FREQ, SERVO_MIN + (SERVO_MAX - SERVO_MIN) / 2);
+    pwm_init(SERVO_PWM_CH, SERVO_FREQ,
+             SERVO_MIN + ((uint32_t)SERVO_CENTER_ANGLE
+                        * (SERVO_MAX - SERVO_MIN)) / 180U);
 }
 
 void Servo_SetAngleDeg(uint8_t angle_deg)
 {
     uint32_t pulse;
-    if (angle_deg > 132U) angle_deg = 132U;
+    /* 驱动层再次执行双向限幅，防止上层异常输出。 */
+    if (angle_deg > SERVO_MAX_ANGLE) angle_deg = SERVO_MAX_ANGLE;
+    if (angle_deg < SERVO_MIN_ANGLE) angle_deg = SERVO_MIN_ANGLE;
     pulse = SERVO_MIN + ((uint32_t)angle_deg * (SERVO_MAX - SERVO_MIN)) / 180U;
     pwm_set_duty(SERVO_PWM_CH, pulse);
 }

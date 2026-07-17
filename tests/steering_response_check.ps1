@@ -19,7 +19,7 @@ Assert-Contains $Cpu1 '#define PD_KP          2.5f' 'PD proportional gain is not
 function Get-SteadyPdAngle([float]$Err) {
     $Center = 80.0
     if ($Err -ge -4.0 -and $Err -le 4.0) { return $Center }
-    $Out = 2.5 * (-$Err) + $Center
+    $Out = 2.5 * $Err + $Center
     return [Math]::Max(9.0, [Math]::Min(132.0, $Out))
 }
 
@@ -30,13 +30,13 @@ if ((Get-SteadyPdAngle -Err (-4.0)) -ne 80.0 -or
 
 $Left = Get-SteadyPdAngle -Err (-10.0)
 $Right = Get-SteadyPdAngle -Err 10.0
-if ($Left -lt 105.0 -or $Right -gt 55.0) {
+if ($Left -gt 55.0 -or $Right -lt 105.0) {
     throw 'Small track errors still produce too little steering angle'
 }
 
 $MaxLeft = Get-SteadyPdAngle -Err (-100.0)
 $MaxRight = Get-SteadyPdAngle -Err 100.0
-if ($MaxLeft -ne 132.0 -or $MaxRight -ne 9.0) {
+if ($MaxLeft -ne 9.0 -or $MaxRight -ne 132.0) {
     throw 'Steering output is not clamped in both directions'
 }
 

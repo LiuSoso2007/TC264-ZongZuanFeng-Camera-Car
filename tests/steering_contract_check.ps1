@@ -32,17 +32,17 @@ Assert-Contains $PidSource 'Servo_SetAngleDeg(SERVO_CENTER_ANGLE);' 'PDËÀÇøÎ´Ê¹Ó
 
 function Get-PdAngle([float]$Err) {
     $Center = 80.0
-    if ($Err -ge -5.0 -and $Err -le 5.0) { return $Center }
-    $Out = 0.8 * (-$Err) + 0.4 * (-$Err) + $Center
+    if ($Err -ge -4.0 -and $Err -le 4.0) { return $Center }
+    $Out = 2.5 * $Err + 0.4 * $Err + $Center
     return [Math]::Max(9.0, [Math]::Min(132.0, $Out))
 }
 
 $Negative = Get-PdAngle -Err (-10.0)
 $Zero = Get-PdAngle -Err 0.0
 $Positive = Get-PdAngle -Err 10.0
-if (-not ($Negative -gt 80.0 -and $Zero -eq 80.0 -and $Positive -lt 80.0)) {
+if (-not ($Negative -lt 80.0 -and $Zero -eq 80.0 -and $Positive -gt 80.0)) {
     throw 'PDÎ´ÔÚÖĞÎ»Á½²à²úÉúÏà·´·½ÏòÊä³ö'
 }
-if ($Negative -gt 132.0 -or $Positive -lt 9.0) { throw 'PDÊä³öÔ½½ç' }
+if ($Negative -lt 9.0 -or $Positive -gt 132.0) { throw 'PDÊä³öÔ½½ç' }
 
 Write-Output 'PASS steering contract'

@@ -15,7 +15,7 @@ void PD_Update(float Kp, float Kd)
     s_pd_cnt = 0;
 
     s_pd_err1 = s_pd_err0;
-    s_pd_err0 = -Err;
+    s_pd_err0 = Err;
     s_pd_out  = Kp * s_pd_err0 + Kd * (s_pd_err0 - s_pd_err1)
               + (float)SERVO_CENTER_ANGLE;
     if (s_pd_out > (float)SERVO_MAX_ANGLE) s_pd_out = (float)SERVO_MAX_ANGLE;

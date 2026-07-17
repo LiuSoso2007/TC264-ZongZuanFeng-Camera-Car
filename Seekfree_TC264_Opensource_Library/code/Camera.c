@@ -5,6 +5,7 @@
  * Ö¡ï¿½ï¿½ï¿½Å»ï¿½: ï¿½ï¿½ï¿½ï¿½ Camera_ShowBinaryFast() ï¿½ï¿½ï¿½ï¿½Ê¾ï¿½ï¿½ÖµÍ¼, SPIï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¡
  */
 #include "Camera.h"
+#include "Shared.h"
 uint8  Pixle[LCDH][LCDW];
 uint8 *Image_Use[LCDH][LCDW];
 uint8  Camera_Threshold = 128;
@@ -1181,6 +1182,10 @@ void Camera_ShowElementStatus(void)
     }
 
     /* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¼ï¿½ï¿½ï¿½ */
+    /* µ×À¸ÓÒ²àÏÔÊ¾µ±Ç°Í¼ÏñÆ«²î£¬ÓëÔªËØ×´Ì¬Í¬Ö¡Ë¢ÐÂ¡£ */
+    ips200_show_string(120, 225, "Err:");
+    ips200_show_float(152, 225, Err, 3, 2);
+
     ips200_set_color(RGB565_RED, RGB565_BLACK);
 }
 

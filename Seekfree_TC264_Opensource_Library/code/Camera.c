@@ -175,7 +175,7 @@ void Get_BaseLine(void)
     // ���������Ҳ�����, �Ұ׵��ڵ�����
     for (Xsite = ImageSensorMid; Xsite < (LCDW - 1); Xsite++)
     {
-        if (*(PicTemp + Xsite) == 1 && *(PicTemp + Xsite + 1) == 0)
+        if (*(PicTemp + Xsite) == 0 && *(PicTemp + Xsite + 1) == 0)
         {
             ImageDeal[SCAN_BASE_START_ROW].RightBorder = Xsite;
             break;
@@ -190,7 +190,7 @@ void Get_BaseLine(void)
     // ���������������, �Ұ׵��ڵ�����
     for (Xsite = ImageSensorMid; Xsite > 0; Xsite--)
     {
-        if (*(PicTemp + Xsite) == 1 && *(PicTemp + Xsite - 1) == 0)
+        if (*(PicTemp + Xsite) == 0 && *(PicTemp + Xsite - 1) == 0)
         {
             ImageDeal[SCAN_BASE_START_ROW].LeftBorder = Xsite;
             break;
@@ -223,7 +223,7 @@ void Get_BaseLine(void)
         // ����һ���������Ҳ������ұ߽�
         for (Xsite = ImageDeal[row + 1].Center; Xsite < (LCDW - 1); Xsite++)
         {
-            if (*(PicTemp + Xsite) == 1 && *(PicTemp + Xsite + 1) == 0)
+            if (*(PicTemp + Xsite) == 0 && *(PicTemp + Xsite + 1) == 0)
             {
                 ImageDeal[row].RightBorder = Xsite;
                 break;
@@ -239,7 +239,7 @@ void Get_BaseLine(void)
         // ����һ�����������������߽�
         for (Xsite = ImageDeal[row + 1].Center; Xsite > 0; Xsite--)
         {
-            if (*(PicTemp + Xsite) == 1 && *(PicTemp + Xsite - 1) == 0)
+            if (*(PicTemp + Xsite) == 0 && *(PicTemp + Xsite - 1) == 0)
             {
                 ImageDeal[row].LeftBorder = Xsite;
                 break;

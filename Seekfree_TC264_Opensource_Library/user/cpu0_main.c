@@ -2,7 +2,7 @@
  * cpu0_main.c  ---  CPU0: 摄像头图像采集 + 图像处理 + IPS200调试显示
  *
  * 每帧: 二值化 + 全量显示 (原始图 + OTSU阈值 + 二值图)
- * 注意: IPS200 由 CPU1 初始化, CPU0 不重复初始化 (避免 SPI GPIO 竞态)
+ * IPS200显示由CPU0独占管理, CPU1不操作显示屏
  */
 
 #include "zf_common_headfile.h"
@@ -35,9 +35,9 @@ int core0_main(void)
     cpu_wait_event_ready();
 
         ips200_full(RGB565_BLACK);  /* clear screen to black */
-
-while (TRUE)
-    {
+    /* IPS200初始化在CPU0, 与摄像头同核,避免双核SPI冲突 */
+    IPS200_Init();
+    cpu_wait_event_ready();
         if (Camera_IsFrameReady())
         {
             Camera_GetBinaryImage();

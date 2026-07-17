@@ -9,7 +9,7 @@
  *     CCU61_CH1 -- 预留
  *
  *   ERU外部中断:
- *     ERU_CH0/CH4 -- IMU660RC数据就绪 / 预留
+ *     ERU_CH0/CH4 -- 预留 / 预留
  *     ERU_CH1/CH5 -- TOF测距模块 / 预留
  *     ERU_CH3/CH7 -- 摄像头场同步VSYNC / 预留
  *
@@ -34,7 +34,7 @@
  * 中断服务函数总览
  *
  * 包含内容:
- *   CPU0: 摄像头 ERU/DMA + UART1(摄像头配置) + UART0(调试) + IMU EXT
+ *   CPU0: 摄像头 ERU/DMA + UART1(摄像头配置) + UART0(调试)
  *   CPU1: CCU60_CH1 (按键扫描 5ms) + CCU61_CH0 (PID定时 10ms)
  *
  * 摄像头 PCLK 触发为 ERU 第2通道, DMA 为第5通道。
@@ -80,7 +80,7 @@ IFX_INTERRUPT(exti_ch0_ch4_isr, 0, EXTI_CH0_CH4_INT_PRIO)
     {
         exti_flag_clear(ERU_CH0_REQ0_P15_4);
 
-        imu660rc_callback();                       /* IMU660RC 数据就绪 */
+        /* ERU_CH0: 预留, 当前无IMU设备 */
     }
 
     if(exti_flag_get(ERU_CH4_REQ13_P15_5))

@@ -12,7 +12,7 @@
  *   3. 来自逐飞设备库的回调函数引用 (extern callback_function)
  *
  * 中断分配:
- *   CPU0: 摄像头 ERU/DMA + UART1(摄像头配置) + UART0(调试) + IMU EXT
+ *   CPU0: 摄像头 ERU/DMA + UART1(摄像头配置) + UART0(调试)
  *   CPU1: CCU60_CH1 (按键扫描 5ms) + CCU61_CH0 (PID定时 10ms)
  */
 

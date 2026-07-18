@@ -29,12 +29,14 @@
 /* PID_Flag: set by isr.c cc61_pit_ch0_isr, cleared here */
 volatile uint8_t PID_Flag = 0;
 
+/* CPU1采集、CPU0只读显示，放在跨核可见的默认数据段。 */
+volatile int16_t EncLeft  = 0;
+volatile int16_t EncRight = 0;
+
 #pragma section all "cpu1_dsram"   /* ---- CPU1 private variables ---- */
 
 /* ---- CPU1 local parameters (future: key / IMU control) ---- */
 static int8_t   StraightSpeed = 40;
-static int16_t  EncLeft       = 0;
-static int16_t  EncRight      = 0;
 static int16_t  EncCount        = 0;
 
 /* ---- LCD display parameters ---- */
@@ -59,7 +61,7 @@ int core1_main(void)
     disable_Watchdog();
     interrupt_global_enable(0);
 
-    int16_t  enc_left, enc_right;
+    int16_t  enc_left = 0, enc_right = 0;
     int8_t   pwm_left,  pwm_right;
     float    position_err;
     static uint8_t lcd_cnt = 0, lcd_row = 0, lcd_dirty = 0;

@@ -17,11 +17,15 @@ volatile uint8_t StopRequest = 0U;
 
 /* 压缩图行号越小前瞻越远；40～42行兼顾弯道提前量和远场稳定性。 */
 #define STEERING_LOOKAHEAD_ROW 40
+/* 摄像头50帧时每5帧刷新一次编码器数值，避免文字刷新拖慢画面。 */
+#define ENCODER_DISPLAY_DIV 5U
 
 #pragma section all "cpu0_dsram"
 
 int core0_main(void)
 {
+    static uint8_t encoder_display_cnt = 0U;
+
     clock_init();
     debug_init();
     system_delay_ms(100);
@@ -40,6 +44,9 @@ int core0_main(void)
     cpu_wait_event_ready();
 
     ips200_full(RGB565_BLACK);  /* 清屏为黑色 */
+    ips200_set_color(RGB565_WHITE, RGB565_BLACK);
+    ips200_show_string(2U, 128U, "L_Enc:");
+    ips200_show_string(2U, 144U, "R_Enc:");
 
     while (TRUE)
     {
@@ -80,6 +87,14 @@ int core0_main(void)
             }
             /* 每帧只走QSPI2寄存器连续直刷，禁止回到逐字节等待的调试显示路径。 */
             IPS200_ShowGrayImageFast(mt9v03x_image[0], MT9V03X_W, MT9V03X_H);
+
+            /* IPS200仍由CPU0独占，顺序显示CPU1发布的左右编码器值，避免双核争用SPI。 */
+            if (++encoder_display_cnt >= ENCODER_DISPLAY_DIV)
+            {
+                encoder_display_cnt = 0U;
+                ips200_show_int(58U, 128U, (int32)EncLeft, 5U);
+                ips200_show_int(58U, 144U, (int32)EncRight, 5U);
+            }
         }
     }
 }

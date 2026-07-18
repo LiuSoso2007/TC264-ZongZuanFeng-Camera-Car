@@ -12,6 +12,7 @@
  * 当前共享变量:
  *   Err:         CPU0 图像偏差 → CPU1 用于 PD 舵机控制 / 电机差速
  *   StopRequest: CPU0 斑马线锁存 → CPU1 双电机停车
+ *   EncLeft/Right: CPU1 编码器采样 → CPU0 屏幕显示
  *
  * 后续扩展 (CAMERA.h 中的 Image_Process 完善后):
  *   ImageStatus: 图像状态 (Det_True 误差, OFFLine 丢线, 等)
@@ -21,6 +22,8 @@
 
 extern volatile float Err;
 extern volatile uint8_t StopRequest;
+extern volatile int16_t EncLeft;
+extern volatile int16_t EncRight;
 
 
 /*

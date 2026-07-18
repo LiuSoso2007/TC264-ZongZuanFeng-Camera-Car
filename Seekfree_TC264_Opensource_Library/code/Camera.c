@@ -6,6 +6,7 @@
  */
 #include "Camera.h"
 #include "Shared.h"
+static uint8 s_ring_exit_stable_count = 0U;  /* ³ö»·ºóÁ¬ÐøÎÈ¶¨Ö±µÀÖ¡Êý */
 uint8  Pixle[LCDH][LCDW];
 uint8 *Image_Use[LCDH][LCDW];
 uint8  Camera_Threshold = 128;
@@ -739,6 +740,53 @@ void Element_Handle_Bend(void)
 /* ================================================================
  * ï¿½ï¿½Ô²ï¿½ï¿½Ê¶ï¿½ï¿½
  * ================================================================ */
+static void Ring_State_Update(void)
+{
+    if (ImageFlag.image_element_rings_flag == RING_STATE_ENTRY)
+    {
+        /* ËÑÏßÌáÇ°ÖÐ¶ÏËµÃ÷³µÌåÒÑ¾­½øÈëÔ²»·Ö÷Ìå¡£ */
+        if (ImageStatus.OFFLine >= 5)
+        {
+            ImageFlag.image_element_rings_flag = RING_STATE_INSIDE;
+        }
+    }
+    else if (ImageFlag.image_element_rings_flag == RING_STATE_INSIDE)
+    {
+        /* Ë«±ßÖØÐÂÎÈ¶¨¿É¼ûºó½øÈë³ö»·Ëø¶¨£¬½ûÖ¹ÔÙ´ÎÊ¶±ðÍ¬Ò»Ô²»·¡£ */
+        if (ImageStatus.OFFLine <= 2
+            && ImageStatus.Miss_Left_lines < 4
+            && ImageStatus.Miss_Right_lines < 4)
+        {
+            ImageFlag.image_element_rings_flag = RING_STATE_EXIT;
+            s_ring_exit_stable_count = 0U;
+        }
+    }
+    else if (ImageFlag.image_element_rings_flag == RING_STATE_EXIT)
+    {
+        if (ImageStatus.OFFLine <= 2
+            && ImageStatus.Miss_Left_lines < 4
+            && ImageStatus.Miss_Right_lines < 4)
+        {
+            if (s_ring_exit_stable_count < RING_EXIT_STABLE_FRAMES)
+            {
+                s_ring_exit_stable_count++;
+            }
+            if (s_ring_exit_stable_count >= RING_EXIT_STABLE_FRAMES)
+            {
+                ImageFlag.image_element_rings = 0;
+                ImageFlag.image_element_rings_flag = RING_STATE_IDLE;
+                ImageFlag.ring_big_small = 0;
+                s_ring_exit_stable_count = 0U;
+            }
+        }
+        else
+        {
+            /* ÔÙ´Î¶ªÏßÖ»ÖØ¼ÆÎÈ¶¨Ö¡£¬²»ÔÊÐí»ØÍËµ½Èë»·×´Ì¬¡£ */
+            s_ring_exit_stable_count = 0U;
+        }
+    }
+}
+
 void Element_Judgment_Left_Rings(void)
 {
     int Ysite, ring_ysite = 25;
@@ -776,7 +824,8 @@ void Element_Judgment_Left_Rings(void)
     if (Left_Less_Num >= 2)
     {
         ImageFlag.image_element_rings = 1;    /* ï¿½ï¿½Ô²ï¿½ï¿½ */
-        ImageFlag.image_element_rings_flag = 1;
+        ImageFlag.image_element_rings_flag = RING_STATE_ENTRY;
+        s_ring_exit_stable_count = 0U;
     }
 }
 
@@ -814,7 +863,8 @@ void Element_Judgment_Right_Rings(void)
     if (Right_Less_Num >= 2)
     {
         ImageFlag.image_element_rings = 2;    /* ï¿½ï¿½Ô²ï¿½ï¿½ */
-        ImageFlag.image_element_rings_flag = 2;
+        ImageFlag.image_element_rings_flag = RING_STATE_ENTRY;
+        s_ring_exit_stable_count = 0U;
     }
 }
 
@@ -825,7 +875,10 @@ void Element_Handle_Left_Rings(void)
 {
     int row;
 
-    if (ImageFlag.image_element_rings_flag == 1)
+    Ring_State_Update();
+
+    if (ImageFlag.image_element_rings_flag == RING_STATE_ENTRY
+        || ImageFlag.image_element_rings_flag == RING_STATE_INSIDE)
     {
         /* ï¿½ï¿½ï¿½ß²ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½=ï¿½ï¿½ï¿½ï¿½ï¿½+ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
@@ -835,13 +888,6 @@ void Element_Handle_Left_Rings(void)
         }
     }
 
-    /* ï¿½Ë³ï¿½ï¿½ï¿½ï¿½ï¿½: OFFLineï¿½ïµ½ï¿½ï¿½Öµ (ï¿½Ñ¹ï¿½Ô²ï¿½ï¿½) */
-    if (ImageStatus.OFFLine >= 5)     /* ponytail: TC264ï¿½Ð·ï¿½Î§ï¿½ï¿½Ð¡, ï¿½ï¿½Öµï¿½ï¿½Ð¡ */
-    {
-        ImageFlag.image_element_rings = 0;
-        ImageFlag.image_element_rings_flag = 0;
-        ImageFlag.ring_big_small = 0;
-    }
 }
 
 /* ================================================================
@@ -851,7 +897,10 @@ void Element_Handle_Right_Rings(void)
 {
     int row;
 
-    if (ImageFlag.image_element_rings_flag == 2)
+    Ring_State_Update();
+
+    if (ImageFlag.image_element_rings_flag == RING_STATE_ENTRY
+        || ImageFlag.image_element_rings_flag == RING_STATE_INSIDE)
     {
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
         {
@@ -860,12 +909,6 @@ void Element_Handle_Right_Rings(void)
         }
     }
 
-    if (ImageStatus.OFFLine >= 5)     /* ponytail: TC264ï¿½Ð·ï¿½Î§ï¿½ï¿½Ð¡, ï¿½ï¿½Öµï¿½ï¿½Ð¡ */
-    {
-        ImageFlag.image_element_rings = 0;
-        ImageFlag.image_element_rings_flag = 0;
-        ImageFlag.ring_big_small = 0;
-    }
 }
 
 /* ================================================================
@@ -1214,11 +1257,8 @@ void Flag_init(void)
     ImageFlag.Bend_Road              = 0;
     ImageFlag.Zebra_Flag             = 0;
     ImageFlag.Ramp                   = 0;
-    ImageFlag.image_element_rings    = 0;
-    ImageFlag.image_element_rings_flag = 0;
     ImageFlag.straight_xie           = 0;
     ImageFlag.straight_long          = 0;
-    ImageFlag.ring_big_small         = 0;
     ImageFlag.Out_Road               = 0;
 }
 

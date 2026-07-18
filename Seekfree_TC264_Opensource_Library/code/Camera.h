@@ -122,6 +122,13 @@ typedef struct {
 
 extern ImageStatustypedef ImageStatus;         // 图像状态全局变量
 
+/* 圆环跨帧状态只允许按入环、环内、出环方向单向推进。 */
+#define RING_STATE_IDLE    0
+#define RING_STATE_ENTRY   1
+#define RING_STATE_INSIDE  2
+#define RING_STATE_EXIT    3
+#define RING_EXIT_STABLE_FRAMES 8U
+
 /* ---- 图像处理数据结构 ---- */
 void  Get_Border_And_SideType(uint8* p, uint8 type, int L, int H, JumpPointtypedef* Q);
                                                // 获取跳变点与边线类型

@@ -4,10 +4,6 @@
 #include <stdint.h>
 extern volatile float Err;
 
-/* ---- ²ÎÊý ---- */
-#define PI_KP          0.5f
-#define PI_KI          0.02f
-#define CURVE_SPEED    0
 #define PI_OUT_MIN    -100
 #define PI_OUT_MAX     100
 

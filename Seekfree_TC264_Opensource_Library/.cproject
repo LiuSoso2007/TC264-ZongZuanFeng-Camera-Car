@@ -155,7 +155,7 @@
 							<targetPlatform archList="all" binaryParser="com.tasking.managedbuilder.TASKING_ELF" id="com.infineon.aurix.buildsystem.managed.tasking.targetPlatform.610227280" isAbstract="false" osList="all" superClass="com.infineon.aurix.buildsystem.managed.tasking.targetPlatform"/>
 							<builder buildPath="${workspace_loc:/Seekfree_TC264_Opensource_Library}/Release" id="com.infineon.aurix.buildsystem.managed.tasking.builder.1083539901" keepEnvironmentInBuildfile="false" name="Gnu Make Builder" superClass="com.infineon.aurix.buildsystem.managed.tasking.builder"/>
 							<tool id="com.infineon.aurix.buildsystem.managed.tool.c.compiler.tasking.release.821162238" name="TASKING C/C++ Compiler" superClass="com.infineon.aurix.buildsystem.managed.tool.c.compiler.tasking.release">
-								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.infineon.aurix.buildsystem.managed.c.compiler.tasking.include.2131821072" name="Include paths" superClass="com.infineon.aurix.buildsystem.managed.c.compiler.tasking.include" valueType="includePath">
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.infineon.aurix.buildsystem.managed.c.compiler.tasking.include.2131821072" name="Include paths (-I)" superClass="com.infineon.aurix.buildsystem.managed.c.compiler.tasking.include" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Seekfree_TC264_Opensource_Library/}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Seekfree_TC264_Opensource_Library/Configurations}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Seekfree_TC264_Opensource_Library/Libraries}&quot;"/>
@@ -433,7 +433,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Seekfree_TC264_Opensource_Library/Libraries/iLLD/TC26B/Tricore/_Lib/InternalMux}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Seekfree_TC264_Opensource_Library/Libraries/iLLD/TC26B/Tricore/_PinMap}&quot;"/>
 								</option>
-								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.infineon.aurix.buildsystem.managed.c.compiler.tasking.preprocessor.definedSymbols.2097735517" name="Defined symbols" superClass="com.infineon.aurix.buildsystem.managed.c.compiler.tasking.preprocessor.definedSymbols" valueType="definedSymbols">
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.infineon.aurix.buildsystem.managed.c.compiler.tasking.preprocessor.definedSymbols.2097735517" name="Defined symbols (-D)" superClass="com.infineon.aurix.buildsystem.managed.c.compiler.tasking.preprocessor.definedSymbols" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="__CPU__=tc26xb"/>
 								</option>
 								<inputType id="com.infineon.aurix.buildsystem.managed.tool.c.compiler.tasking.input.cpp.1247658865" name="C++" superClass="com.infineon.aurix.buildsystem.managed.tool.c.compiler.tasking.input.cpp"/>
@@ -776,7 +776,7 @@
 							<tool id="com.infineon.aurix.buildsystem.managed.tool.c.objcopy.894944927" name="AURIX Object Copy" superClass="com.infineon.aurix.buildsystem.managed.tool.c.objcopy"/>
 							<tool id="com.infineon.aurix.buildsystem.managed.tool.objdump.1254246831" name="AURIX Create Listing" superClass="com.infineon.aurix.buildsystem.managed.tool.objdump"/>
 							<tool id="com.infineon.aurix.buildsystem.managed.tool.printsize.414841921" name="AURIX Print Size" superClass="com.infineon.aurix.buildsystem.managed.tool.printsize"/>
-							<tool id="com.infineon.aurix.buildsystem.managed.tool.archiver.1030182549" name="AURIX Archiver" superClass="com.infineon.aurix.buildsystem.managed.tool.archiver"/>
+							<tool id="com.infineon.aurix.buildsystem.managed.tool.archiver.326447992" name="AURIX Archiver" superClass="com.infineon.aurix.buildsystem.managed.tool.archiver"/>
 						</toolChain>
 					</folderInfo>
 				</configuration>
@@ -1109,7 +1109,7 @@
 							<tool id="com.infineon.aurix.buildsystem.managed.tool.c.objcopy.1577362320" name="AURIX Object Copy" superClass="com.infineon.aurix.buildsystem.managed.tool.c.objcopy"/>
 							<tool id="com.infineon.aurix.buildsystem.managed.tool.objdump.182703204" name="AURIX Create Listing" superClass="com.infineon.aurix.buildsystem.managed.tool.objdump"/>
 							<tool id="com.infineon.aurix.buildsystem.managed.tool.printsize.1544864303" name="AURIX Print Size" superClass="com.infineon.aurix.buildsystem.managed.tool.printsize"/>
-							<tool id="com.infineon.aurix.buildsystem.managed.tool.archiver.820550237" name="AURIX Archiver" superClass="com.infineon.aurix.buildsystem.managed.tool.archiver"/>
+							<tool id="com.infineon.aurix.buildsystem.managed.tool.archiver.393413997" name="AURIX Archiver" superClass="com.infineon.aurix.buildsystem.managed.tool.archiver"/>
 						</toolChain>
 					</folderInfo>
 				</configuration>

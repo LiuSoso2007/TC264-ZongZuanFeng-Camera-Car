@@ -9,6 +9,20 @@ $Cpu1 = [IO.File]::ReadAllText($Cpu1Path, $Gbk)
 $SharedPath = Join-Path $Root 'Seekfree_TC264_Opensource_Library/code/Shared.h'
 $Shared = [IO.File]::ReadAllText($SharedPath, $Gbk)
 
+if (-not $Cpu0.Contains('#define IPS200_DISPLAY_ENABLE 0')) {
+    throw 'CPU0 does not disable IPS200 by default for race mode'
+}
+
+$Cpu0WithoutDisplayBlocks = [Text.RegularExpressions.Regex]::Replace(
+    $Cpu0,
+    '(?s)#if IPS200_DISPLAY_ENABLE.*?#endif',
+    '')
+if ([Text.RegularExpressions.Regex]::IsMatch(
+        $Cpu0WithoutDisplayBlocks,
+        '\b(?:IPS200|ips200)_[A-Za-z0-9_]+\s*\(')) {
+    throw 'CPU0 still has an IPS200 call outside the compile-time display guard'
+}
+
 if (-not $Cpu0.Contains('IPS200_ShowGrayImageFast(mt9v03x_image[0], MT9V03X_W, MT9V03X_H);')) {
     throw 'CPU0 does not use the direct-register display path for each frame'
 }

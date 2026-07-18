@@ -1,7 +1,7 @@
 /**
- * cpu0_main.c  ---  CPU0: 摄像头图像采集 + 图像处理 + IPS200全屏显示
+ * cpu0_main.c  ---  CPU0: 摄像头图像采集 + 图像处理 + 可选IPS200显示
  *
- * 每帧: 二值化 + 全屏显示 (原始图 + OTSU阈值 + 二值图 + 元素识别)
+ * 每帧: 二值化 + 元素识别；仅在显示开关启用时刷新IPS200
  * IPS200显示由CPU0独占管理, CPU1不操作显示屏
  */
 
@@ -17,8 +17,12 @@ volatile uint8_t StopRequest = 0U;
 
 /* 压缩图行号越小前瞻越远；40～42行兼顾弯道提前量和远场稳定性。 */
 #define STEERING_LOOKAHEAD_ROW 40
+/* 比赛默认关闭IPS200，调试时改为1；关闭后编译器移除全部屏幕调用。 */
+#define IPS200_DISPLAY_ENABLE 0
+#if IPS200_DISPLAY_ENABLE
 /* 摄像头50帧时每5帧刷新一次编码器数值，避免文字刷新拖慢画面。 */
 #define ENCODER_DISPLAY_DIV 5U
+#endif
 /* 连续两帧确认可滤除单帧误判，确认后保持全速8帧再停车越过终点线。 */
 #define ZEBRA_STOP_CONFIRM_FRAMES 2U
 #define ZEBRA_STOP_DELAY_FRAMES 8U
@@ -27,7 +31,9 @@ volatile uint8_t StopRequest = 0U;
 
 int core0_main(void)
 {
+#if IPS200_DISPLAY_ENABLE
     static uint8_t encoder_display_cnt = 0U;
+#endif
     static uint8_t zebra_confirm_count = 0U;
     static uint8_t zebra_delay_count = 0U;
     static uint8_t zebra_stop_pending = 0U;
@@ -41,19 +47,23 @@ int core0_main(void)
     Camera_Init();
     Camera_CompressInit();           /* 图像压缩初始化 (仅调用一次) */
 
+#if IPS200_DISPLAY_ENABLE
     /*
      * IPS200初始化放在CPU0, 和摄像头共享同一核,
      * 避免双核同时操作SPI导致冲突.
      */
     IPS200_Init();
+#endif
 
     cpu_wait_event_ready();
 
+#if IPS200_DISPLAY_ENABLE
     ips200_full(RGB565_BLACK);  /* 清屏为黑色 */
     ips200_set_color(RGB565_WHITE, RGB565_BLACK);
     ips200_show_string(2U, 128U, "L_Enc:");
     ips200_show_string(2U, 144U, "R_Enc:");
     ips200_show_string(2U, 170U, "Err:");
+#endif
 
     while (TRUE)
     {
@@ -115,6 +125,7 @@ int core0_main(void)
             {
                 Err = 0.0f;
             }
+#if IPS200_DISPLAY_ENABLE
             /* 每帧只走QSPI2寄存器连续直刷，禁止回到逐字节等待的调试显示路径。 */
             IPS200_ShowGrayImageFast(mt9v03x_image[0], MT9V03X_W, MT9V03X_H);
 
@@ -126,6 +137,7 @@ int core0_main(void)
                 ips200_show_int(58U, 144U, (int32)EncRight, 5U);
                 ips200_show_int(58U, 170U, (int32)Err, 5U);
             }
+#endif
         }
     }
 }

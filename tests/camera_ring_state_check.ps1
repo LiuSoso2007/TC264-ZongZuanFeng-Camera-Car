@@ -13,18 +13,29 @@ function Assert-Contains([string]$Text, [string]$Expected, [string]$Message) {
 $Camera = Read-Gbk 'Seekfree_TC264_Opensource_Library/code/Camera.c'
 $Header = Read-Gbk 'Seekfree_TC264_Opensource_Library/code/Camera.h'
 
-Assert-Contains $Header '#define RING_STATE_IDLE    0' 'Ring idle state is missing'
-Assert-Contains $Header '#define RING_STATE_ENTRY   1' 'Ring entry state is missing'
-Assert-Contains $Header '#define RING_STATE_INSIDE  2' 'Ring inside state is missing'
-Assert-Contains $Header '#define RING_STATE_EXIT    3' 'Ring exit state is missing'
-Assert-Contains $Header '#define RING_EXIT_STABLE_FRAMES 8U' 'Ring exit debounce is missing'
+@{
+    RING_STATE_IDLE = 0; RING_STATE_CONFIRM = 1; RING_STATE_APPROACH = 2
+    RING_STATE_ENTRY = 3; RING_STATE_INSIDE = 4; RING_STATE_EXIT = 5
+    RING_STATE_RECOVERY = 6
+}.GetEnumerator() | ForEach-Object {
+    Assert-Contains $Header ("#define {0}" -f $_.Key) ("Missing ring state {0}" -f $_.Key)
+}
 
-Assert-Contains $Camera 'static uint8 s_ring_exit_stable_count = 0U;' 'Ring exit counter is not persistent'
-Assert-Contains $Camera 'ImageFlag.image_element_rings_flag = RING_STATE_ENTRY;' 'Ring detection does not enter the state machine'
-Assert-Contains $Camera 'if (ImageFlag.image_element_rings_flag == RING_STATE_ENTRY)' 'Ring entry transition is missing'
-Assert-Contains $Camera 'else if (ImageFlag.image_element_rings_flag == RING_STATE_INSIDE)' 'Ring inside transition is missing'
-Assert-Contains $Camera 'else if (ImageFlag.image_element_rings_flag == RING_STATE_EXIT)' 'Ring exit transition is missing'
-Assert-Contains $Camera 's_ring_exit_stable_count >= RING_EXIT_STABLE_FRAMES' 'Ring exit release condition is missing'
+Assert-Contains $Header '#define RING_CONFIRM_FRAMES' 'Missing ring confirmation frame limit'
+Assert-Contains $Header '#define RING_EXIT_CONFIRM_FRAMES' 'Missing exit confirmation frame limit'
+Assert-Contains $Header '#define RING_EXIT_STABLE_FRAMES' 'Missing exit stable frame limit'
+Assert-Contains $Header '#define RING_RECOVERY_FRAMES' 'Missing recovery lockout frame limit'
+Assert-Contains $Header '#define RING_ENTRY_CENTER_OFFSET' 'Missing entry steering offset'
+Assert-Contains $Header '#define RING_INSIDE_CENTER_OFFSET' 'Missing inside steering offset'
+
+Assert-Contains $Camera 'static void Ring_Set_State(uint8 state)' 'Ring state transition helper is missing'
+Assert-Contains $Camera 'static int Ring_Find_Entry_Corner' 'Entry corner detector is missing'
+Assert-Contains $Camera 'static uint8 Ring_Has_Exit_Feature' 'Exit feature detector is missing'
+Assert-Contains $Camera 'static void Ring_Rebuild_Center' 'Ring center rebuilding is missing'
+Assert-Contains $Camera 'RING_STATE_CONFIRM' 'Detection does not enter confirmation state'
+Assert-Contains $Camera 's_ring_exit_loss_seen' 'Exit-side loss history is not persistent'
+Assert-Contains $Camera 'RING_INSIDE_MAX_FRAMES' 'Inside timeout guard is missing'
+Assert-Contains $Camera 'RING_EXIT_MAX_FRAMES' 'Exit timeout guard is missing'
 
 $RingStateStart = $Camera.IndexOf('static void Ring_State_Update(void)')
 $RingStateEnd = $Camera.IndexOf('void Element_Judgment_Left_Rings(void)', $RingStateStart)
@@ -32,91 +43,92 @@ if ($RingStateStart -lt 0 -or $RingStateEnd -le $RingStateStart) {
     throw 'Ring state update function block is missing'
 }
 $RingStateCode = $Camera.Substring($RingStateStart, $RingStateEnd - $RingStateStart)
-if ($RingStateCode.Contains('if (ImageStatus.OFFLine >= 5)')) {
-    throw 'Ring entry is still blocked by the unreachable OFFLine threshold'
-}
+Assert-Contains $RingStateCode 'case RING_STATE_CONFIRM:' 'Confirm transition is missing'
+Assert-Contains $RingStateCode 'case RING_STATE_APPROACH:' 'Approach transition is missing'
+Assert-Contains $RingStateCode 'case RING_STATE_ENTRY:' 'Entry transition is missing'
+Assert-Contains $RingStateCode 'case RING_STATE_INSIDE:' 'Inside transition is missing'
+Assert-Contains $RingStateCode 'case RING_STATE_EXIT:' 'Exit transition is missing'
+Assert-Contains $RingStateCode 'case RING_STATE_RECOVERY:' 'Recovery transition is missing'
 
-$LeftHandleStart = $Camera.IndexOf('void Element_Handle_Left_Rings(void)')
-$LeftHandleEnd = $Camera.IndexOf('void Element_Handle_Right_Rings(void)', $LeftHandleStart)
-$RightHandleStart = $LeftHandleEnd
-$RightHandleEnd = $Camera.IndexOf('void Element_Judgment_Zebra(void)', $RightHandleStart)
-if ($LeftHandleStart -lt 0 -or $LeftHandleEnd -le $LeftHandleStart -or
-    $RightHandleEnd -le $RightHandleStart) {
-    throw 'Ring handle function block is missing'
-}
-$LeftHandleCode = $Camera.Substring($LeftHandleStart, $LeftHandleEnd - $LeftHandleStart)
-$RightHandleCode = $Camera.Substring($RightHandleStart, $RightHandleEnd - $RightHandleStart)
-Assert-Contains $LeftHandleCode `
-    'ImageDeal[row].Center = ImageDeal[row].RightBorder - Half_Bend_Wide[row];' `
-    'Left ring does not rebuild center from the stable right border'
-Assert-Contains $LeftHandleCode `
-    '|| ImageFlag.image_element_rings_flag == RING_STATE_EXIT)' `
-    'Left ring stops rebuilding center as soon as exit debounce starts'
-Assert-Contains $RightHandleCode `
-    'ImageDeal[row].Center = ImageDeal[row].LeftBorder + Half_Bend_Wide[row];' `
-    'Right ring does not rebuild center from the stable left border'
-Assert-Contains $RightHandleCode `
-    '|| ImageFlag.image_element_rings_flag == RING_STATE_EXIT)' `
-    'Right ring stops rebuilding center as soon as exit debounce starts'
-
-$FlagStart = $Camera.IndexOf('void Flag_init(void)')
-$FlagEnd = $Camera.IndexOf('void Camera_ShowElementStatus(void)', $FlagStart)
-if ($FlagStart -lt 0 -or $FlagEnd -le $FlagStart) { throw 'Flag_init function block is missing' }
-$FlagCode = $Camera.Substring($FlagStart, $FlagEnd - $FlagStart)
-if ($FlagCode.Contains('ImageFlag.image_element_rings') -or
-    $FlagCode.Contains('ImageFlag.ring_big_small')) {
-    throw 'Flag_init still clears persistent ring state every frame'
-}
-
-function Step-RingState([int]$State, [int]$OffLine, [int]$LeftMiss,
-                        [int]$RightMiss, [int]$StableCount) {
-    $Stable = $OffLine -le 2 -and $LeftMiss -lt 4 -and $RightMiss -lt 4
-    if ($State -eq 1) {
-        $State = 2
+function New-RingModel {
+    return [pscustomobject]@{
+        State = 1; StateFrames = 0; Confirm = 0; Evidence = 0
+        Stable = 0; LossSeen = $false
     }
-    elseif ($State -eq 2 -and $Stable) {
-        $State = 3
-        $StableCount = 0
-    }
-    elseif ($State -eq 3) {
-        if ($Stable) {
-            $StableCount++
-            if ($StableCount -ge 8) {
-                $State = 0
-                $StableCount = 0
+}
+
+function Step-RingModel($Model, [bool]$Candidate, [bool]$EntryCorner,
+                        [bool]$InsideVisual, [bool]$ExitLoss,
+                        [bool]$ExitFeature, [bool]$StableRoad) {
+    $Model.StateFrames++
+    switch ($Model.State) {
+        1 {
+            if ($Candidate) { $Model.Confirm++ } else { $Model.Confirm = 0 }
+            if ($Model.Confirm -ge 3) { $Model.State = 2; $Model.StateFrames = 0 }
+            elseif ($Model.StateFrames -ge 8) { $Model.State = 0 }
+        }
+        2 {
+            if ($EntryCorner) { $Model.Evidence++ } else { $Model.Evidence = 0 }
+            if ($Model.Evidence -ge 2 -or $Model.StateFrames -ge 24) {
+                $Model.State = 3; $Model.StateFrames = 0; $Model.Evidence = 0
             }
         }
-        else {
-            $StableCount = 0
+        3 {
+            if ($InsideVisual) { $Model.Evidence++ } else { $Model.Evidence = 0 }
+            if ($Model.Evidence -ge 3 -or $Model.StateFrames -ge 30) {
+                $Model.State = 4; $Model.StateFrames = 0; $Model.Evidence = 0
+            }
+        }
+        4 {
+            if ($ExitLoss) { $Model.LossSeen = $true }
+            if ($Model.LossSeen -and $ExitFeature) { $Model.Evidence++ }
+            else { $Model.Evidence = 0 }
+            if ($Model.Evidence -ge 2 -or $Model.StateFrames -ge 90) {
+                $Model.State = 5; $Model.StateFrames = 0; $Model.Stable = 0
+            }
+        }
+        5 {
+            if ($StableRoad) { $Model.Stable++ } else { $Model.Stable = 0 }
+            if ($Model.Stable -ge 8 -or $Model.StateFrames -ge 60) {
+                $Model.State = 6; $Model.StateFrames = 0; $Model.Stable = 0
+            }
+        }
+        6 {
+            if ($StableRoad) { $Model.Stable++ } else { $Model.Stable = 0 }
+            if (($Model.StateFrames -ge 12 -and $Model.Stable -ge 4) -or
+                $Model.StateFrames -ge 40) { $Model.State = 0 }
         }
     }
-    return [pscustomobject]@{ State = $State; StableCount = $StableCount }
 }
 
-function Try-EnterRing([int]$State, [bool]$Candidate) {
-    if ($State -eq 0 -and $Candidate) { return 1 }
-    return $State
-}
+$M = New-RingModel
+Step-RingModel $M $true $false $false $false $false $false
+if ($M.State -ne 1) { throw 'Ring confirms from only one additional frame' }
+Step-RingModel $M $true $false $false $false $false $false
+if ($M.State -ne 1) { throw 'Ring confirms from only two frames' }
+Step-RingModel $M $true $false $false $false $false $false
+if ($M.State -ne 2) { throw 'Ring does not advance after three confirmed frames' }
+1..2 | ForEach-Object { Step-RingModel $M $true $true $false $false $false $false }
+if ($M.State -ne 3) { throw 'Entry corner does not advance to entry state' }
+1..3 | ForEach-Object { Step-RingModel $M $false $false $true $false $false $true }
+if ($M.State -ne 4) { throw 'Entry does not advance to inside state' }
 
-$Step = Step-RingState -State 1 -OffLine 2 -LeftMiss 13 -RightMiss 0 -StableCount 0
-if ($Step.State -ne 2) { throw 'Entry does not advance to inside state' }
+Step-RingModel $M $false $false $false $false $true $true
+if ($M.State -ne 4) { throw 'Transient line recovery skips the inside state' }
+Step-RingModel $M $false $false $false $true $false $false
+1..2 | ForEach-Object { Step-RingModel $M $false $false $false $false $true $false }
+if ($M.State -ne 5) { throw 'Confirmed exit feature does not advance to exit state' }
+1..8 | ForEach-Object { Step-RingModel $M $false $false $false $false $false $true }
+if ($M.State -ne 6) { throw 'Stable exit does not advance to recovery' }
+1..12 | ForEach-Object { Step-RingModel $M $false $false $false $false $false $true }
+if ($M.State -ne 0) { throw 'Recovery lockout does not release the ring' }
 
-$Step = Step-RingState -State $Step.State -OffLine 2 -LeftMiss 0 -RightMiss 0 -StableCount 0
-if ($Step.State -ne 3) { throw 'Inside does not advance to exit state' }
+$M = New-RingModel
+$M.State = 4; $M.StateFrames = 89
+Step-RingModel $M $false $false $false $false $false $false
+if ($M.State -ne 5) { throw 'Inside timeout can leave the machine stuck in the ring' }
+$M.StateFrames = 59
+Step-RingModel $M $false $false $false $false $false $false
+if ($M.State -ne 6) { throw 'Exit timeout can leave the machine stuck at the exit' }
 
-if ((Try-EnterRing -State $Step.State -Candidate $true) -ne 3) {
-    throw 'An active ring can be entered repeatedly'
-}
-
-$Step = Step-RingState -State $Step.State -OffLine 2 -LeftMiss 13 -RightMiss 0 -StableCount 4
-if ($Step.State -ne 3 -or $Step.StableCount -ne 0) {
-    throw 'Unstable exit does not keep the lockout state'
-}
-
-for ($Frame = 1; $Frame -le 8; $Frame++) {
-    $Step = Step-RingState -State $Step.State -OffLine 2 -LeftMiss 0 -RightMiss 0 `
-        -StableCount $Step.StableCount
-}
-if ($Step.State -ne 0) { throw 'Stable exit does not release the ring state' }
-
-Write-Output 'PASS camera ring state machine'
+Write-Output 'PASS camera seven-state ring machine'

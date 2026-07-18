@@ -122,12 +122,36 @@ typedef struct {
 
 extern ImageStatustypedef ImageStatus;         // 图像状态全局变量
 
-/* 圆环跨帧状态只允许按入环、环内、出环方向单向推进。 */
-#define RING_STATE_IDLE    0
-#define RING_STATE_ENTRY   1
-#define RING_STATE_INSIDE  2
-#define RING_STATE_EXIT    3
-#define RING_EXIT_STABLE_FRAMES 8U
+/* 圆环只按七个阶段单向推进，方向由image_element_rings单独保存。 */
+#define RING_STATE_IDLE       0
+#define RING_STATE_CONFIRM    1
+#define RING_STATE_APPROACH   2
+#define RING_STATE_ENTRY      3
+#define RING_STATE_INSIDE     4
+#define RING_STATE_EXIT       5
+#define RING_STATE_RECOVERY   6
+
+/* 连续帧与超时参数均为纯视觉保护，防止单帧误判和状态卡死。 */
+#define RING_CONFIRM_FRAMES       3U
+#define RING_EXIT_CONFIRM_FRAMES  2U
+#define RING_EXIT_STABLE_FRAMES   8U
+#define RING_RECOVERY_FRAMES      12U
+#define RING_CONFIRM_MAX_FRAMES   8U
+#define RING_APPROACH_MAX_FRAMES  24U
+#define RING_ENTRY_MAX_FRAMES     30U
+#define RING_INSIDE_MAX_FRAMES    90U
+#define RING_EXIT_MAX_FRAMES      60U
+#define RING_RECOVERY_MAX_FRAMES  40U
+
+/* 94x60图像的初始标定值，实车只需调整这些参数。 */
+#define RING_ENTRY_CORNER_ROW        38
+#define RING_INSIDE_CORNER_ROW       48
+#define RING_EXIT_MISS_MIN            8
+#define RING_APPROACH_CENTER_OFFSET   4
+#define RING_ENTRY_CENTER_OFFSET     10
+#define RING_INSIDE_CENTER_OFFSET    14
+#define RING_EXIT_CENTER_OFFSET       8
+#define RING_RECOVERY_CENTER_OFFSET   4
 
 /* ---- 图像处理数据结构 ---- */
 void  Get_Border_And_SideType(uint8* p, uint8 type, int L, int H, JumpPointtypedef* Q);

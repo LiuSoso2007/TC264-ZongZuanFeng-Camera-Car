@@ -744,11 +744,8 @@ static void Ring_State_Update(void)
 {
     if (ImageFlag.image_element_rings_flag == RING_STATE_ENTRY)
     {
-        /* À—œﬂÃ·«∞÷–∂œÀµ√˜≥µÃÂ“—æ≠Ω¯»Î‘≤ª∑÷˜ÃÂ°£ */
-        if (ImageStatus.OFFLine >= 5)
-        {
-            ImageFlag.image_element_rings_flag = RING_STATE_INSIDE;
-        }
+        /* ∫Ú—°ºÏ≤‚“—æ≠»∑»œ»Îª∑£¨÷±Ω”Ω¯»Îª∑ƒ⁄Ã¨£¨±‹√‚OFFLine∫„µÕµº÷¬◊¥Ã¨ø®À¿°£ */
+        ImageFlag.image_element_rings_flag = RING_STATE_INSIDE;
     }
     else if (ImageFlag.image_element_rings_flag == RING_STATE_INSIDE)
     {
@@ -883,8 +880,9 @@ void Element_Handle_Left_Rings(void)
         /* ÔøΩÔøΩÔøΩﬂ≤ÔøΩÔøΩÔøΩ: ÔøΩÔøΩÔøΩÔøΩ=ÔøΩÔøΩÔøΩÔøΩÔøΩ+ÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩ */
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
         {
-            ImageDeal[row].Center = ImageDeal[row].LeftBorder + Half_Bend_Wide[row];
-            LimitH(ImageDeal[row].Center);
+            /* ◊Û‘≤ª∑µƒ◊Û±ﬂΩÁ»± ß£¨ π”√Œ»∂®µƒ”“±ﬂΩÁ÷ÿΩ®÷–œﬂ°£ */
+            ImageDeal[row].Center = ImageDeal[row].RightBorder - Half_Bend_Wide[row];
+            LimitL(ImageDeal[row].Center);
         }
     }
 
@@ -904,8 +902,9 @@ void Element_Handle_Right_Rings(void)
     {
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
         {
-            ImageDeal[row].Center = ImageDeal[row].RightBorder - Half_Bend_Wide[row];
-            LimitL(ImageDeal[row].Center);
+            /* ”“‘≤ª∑µƒ”“±ﬂΩÁ»± ß£¨ π”√Œ»∂®µƒ◊Û±ﬂΩÁ÷ÿΩ®÷–œﬂ°£ */
+            ImageDeal[row].Center = ImageDeal[row].LeftBorder + Half_Bend_Wide[row];
+            LimitH(ImageDeal[row].Center);
         }
     }
 

@@ -26,6 +26,33 @@ Assert-Contains $Camera 'else if (ImageFlag.image_element_rings_flag == RING_STA
 Assert-Contains $Camera 'else if (ImageFlag.image_element_rings_flag == RING_STATE_EXIT)' 'Ring exit transition is missing'
 Assert-Contains $Camera 's_ring_exit_stable_count >= RING_EXIT_STABLE_FRAMES' 'Ring exit release condition is missing'
 
+$RingStateStart = $Camera.IndexOf('static void Ring_State_Update(void)')
+$RingStateEnd = $Camera.IndexOf('void Element_Judgment_Left_Rings(void)', $RingStateStart)
+if ($RingStateStart -lt 0 -or $RingStateEnd -le $RingStateStart) {
+    throw 'Ring state update function block is missing'
+}
+$RingStateCode = $Camera.Substring($RingStateStart, $RingStateEnd - $RingStateStart)
+if ($RingStateCode.Contains('if (ImageStatus.OFFLine >= 5)')) {
+    throw 'Ring entry is still blocked by the unreachable OFFLine threshold'
+}
+
+$LeftHandleStart = $Camera.IndexOf('void Element_Handle_Left_Rings(void)')
+$LeftHandleEnd = $Camera.IndexOf('void Element_Handle_Right_Rings(void)', $LeftHandleStart)
+$RightHandleStart = $LeftHandleEnd
+$RightHandleEnd = $Camera.IndexOf('void Element_Judgment_Zebra(void)', $RightHandleStart)
+if ($LeftHandleStart -lt 0 -or $LeftHandleEnd -le $LeftHandleStart -or
+    $RightHandleEnd -le $RightHandleStart) {
+    throw 'Ring handle function block is missing'
+}
+$LeftHandleCode = $Camera.Substring($LeftHandleStart, $LeftHandleEnd - $LeftHandleStart)
+$RightHandleCode = $Camera.Substring($RightHandleStart, $RightHandleEnd - $RightHandleStart)
+Assert-Contains $LeftHandleCode `
+    'ImageDeal[row].Center = ImageDeal[row].RightBorder - Half_Bend_Wide[row];' `
+    'Left ring does not rebuild center from the stable right border'
+Assert-Contains $RightHandleCode `
+    'ImageDeal[row].Center = ImageDeal[row].LeftBorder + Half_Bend_Wide[row];' `
+    'Right ring does not rebuild center from the stable left border'
+
 $FlagStart = $Camera.IndexOf('void Flag_init(void)')
 $FlagEnd = $Camera.IndexOf('void Camera_ShowElementStatus(void)', $FlagStart)
 if ($FlagStart -lt 0 -or $FlagEnd -le $FlagStart) { throw 'Flag_init function block is missing' }
@@ -38,7 +65,7 @@ if ($FlagCode.Contains('ImageFlag.image_element_rings') -or
 function Step-RingState([int]$State, [int]$OffLine, [int]$LeftMiss,
                         [int]$RightMiss, [int]$StableCount) {
     $Stable = $OffLine -le 2 -and $LeftMiss -lt 4 -and $RightMiss -lt 4
-    if ($State -eq 1 -and $OffLine -ge 5) {
+    if ($State -eq 1) {
         $State = 2
     }
     elseif ($State -eq 2 -and $Stable) {
@@ -65,7 +92,7 @@ function Try-EnterRing([int]$State, [bool]$Candidate) {
     return $State
 }
 
-$Step = Step-RingState -State 1 -OffLine 5 -LeftMiss 13 -RightMiss 0 -StableCount 0
+$Step = Step-RingState -State 1 -OffLine 2 -LeftMiss 13 -RightMiss 0 -StableCount 0
 if ($Step.State -ne 2) { throw 'Entry does not advance to inside state' }
 
 $Step = Step-RingState -State $Step.State -OffLine 2 -LeftMiss 0 -RightMiss 0 -StableCount 0

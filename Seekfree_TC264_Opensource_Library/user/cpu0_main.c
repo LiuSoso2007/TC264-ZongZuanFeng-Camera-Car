@@ -19,12 +19,18 @@ volatile uint8_t StopRequest = 0U;
 #define STEERING_LOOKAHEAD_ROW 40
 /* 摄像头50帧时每5帧刷新一次编码器数值，避免文字刷新拖慢画面。 */
 #define ENCODER_DISPLAY_DIV 5U
+/* 连续两帧确认可滤除单帧误判，确认后保持全速8帧再停车越过终点线。 */
+#define ZEBRA_STOP_CONFIRM_FRAMES 2U
+#define ZEBRA_STOP_DELAY_FRAMES 8U
 
 #pragma section all "cpu0_dsram"
 
 int core0_main(void)
 {
     static uint8_t encoder_display_cnt = 0U;
+    static uint8_t zebra_confirm_count = 0U;
+    static uint8_t zebra_delay_count = 0U;
+    static uint8_t zebra_stop_pending = 0U;
 
     clock_init();
     debug_init();
@@ -62,8 +68,31 @@ int core0_main(void)
             Scan_Element();
             Element_Handle();
 
-            /* 斑马线视为终点，停车请求一旦置位便保持到系统复位。 */
-            if (ImageFlag.Zebra_Flag != 0)
+            /* 斑马线连续确认后仍保持原速越线，延迟结束才锁存停车。 */
+            if (StopRequest == 0U && zebra_stop_pending == 0U)
+            {
+                if (ImageFlag.Zebra_Flag != 0)
+                {
+                    if (zebra_confirm_count < ZEBRA_STOP_CONFIRM_FRAMES)
+                    {
+                        zebra_confirm_count++;
+                    }
+                    if (zebra_confirm_count >= ZEBRA_STOP_CONFIRM_FRAMES)
+                    {
+                        zebra_stop_pending = 1U;
+                        zebra_delay_count = 0U;
+                    }
+                }
+                else
+                {
+                    zebra_confirm_count = 0U;
+                }
+            }
+            else if (StopRequest == 0U && zebra_delay_count < ZEBRA_STOP_DELAY_FRAMES)
+            {
+                zebra_delay_count++;
+            }
+            else if (StopRequest == 0U)
             {
                 StopRequest = 1U;
             }

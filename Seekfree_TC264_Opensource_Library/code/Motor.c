@@ -32,6 +32,12 @@ void Motor_Init(void)
 void Motor_SetLeftPWM(int8_t Speed)
 {
     uint32_t duty = SpeedToDuty(Speed);
+    /* 零速必须同时关闭两个桥臂，避免方向引脚残留导致电机继续转动。 */
+    if (Speed == 0) {
+        pwm_set_duty(MOTOR_LEFT_IN1, 0);
+        pwm_set_duty(MOTOR_LEFT_IN2, 0);
+        return;
+    }
     if (Speed >= 0) {
         pwm_set_duty(MOTOR_LEFT_IN1, duty);
         pwm_set_duty(MOTOR_LEFT_IN2, 0);
@@ -44,6 +50,12 @@ void Motor_SetLeftPWM(int8_t Speed)
 void Motor_SetRightPWM(int8_t Speed)
 {
     uint32_t duty = SpeedToDuty(Speed);
+    /* 右电机接线极性相反，但零速同样必须将两个桥臂全部清零。 */
+    if (Speed == 0) {
+        pwm_set_duty(MOTOR_RIGHT_IN1, 0);
+        pwm_set_duty(MOTOR_RIGHT_IN2, 0);
+        return;
+    }
     if (Speed >= 0) {
         pwm_set_duty(MOTOR_RIGHT_IN1, duty);
         pwm_set_duty(MOTOR_RIGHT_IN2, MOTOR_DUTY_MAX);

@@ -15,6 +15,7 @@ function Assert-NotContains([string]$Text, [string]$Unexpected, [string]$Message
 }
 
 $Shared = Read-Gbk 'Seekfree_TC264_Opensource_Library/code/Shared.h'
+$Motor = Read-Gbk 'Seekfree_TC264_Opensource_Library/code/Motor.c'
 $Cpu0 = Read-Gbk 'Seekfree_TC264_Opensource_Library/user/cpu0_main.c'
 $Cpu1 = Read-Gbk 'Seekfree_TC264_Opensource_Library/user/cpu1_main.c'
 
@@ -23,6 +24,18 @@ Assert-Contains $Cpu0 'volatile uint8_t StopRequest = 0U;' 'CPU0 stop request st
 Assert-Contains $Cpu0 'if (ImageFlag.Zebra_Flag != 0)' 'CPU0 does not latch a zebra detection'
 Assert-Contains $Cpu0 'StopRequest = 1U;' 'CPU0 does not request a stop after zebra detection'
 Assert-NotContains $Cpu1 'StopRequest = 0U;' 'CPU1 must not clear the latched stop request'
+Assert-Contains $Cpu0 '#define ZEBRA_STOP_CONFIRM_FRAMES 2U' 'Zebra detection is not debounced'
+Assert-Contains $Cpu0 '#define ZEBRA_STOP_DELAY_FRAMES 8U' 'Finish-line run-on distance is missing'
+
+$LeftMotor = $Motor.Substring($Motor.IndexOf('void Motor_SetLeftPWM'),
+    $Motor.IndexOf('void Motor_SetRightPWM') - $Motor.IndexOf('void Motor_SetLeftPWM'))
+$RightMotor = $Motor.Substring($Motor.IndexOf('void Motor_SetRightPWM'))
+Assert-Contains $LeftMotor 'if (Speed == 0)' 'Left motor zero command does not use an explicit stop branch'
+Assert-Contains $RightMotor 'if (Speed == 0)' 'Right motor zero command does not use an explicit stop branch'
+Assert-Contains $LeftMotor 'pwm_set_duty(MOTOR_LEFT_IN1, 0);' 'Left motor IN1 is not cleared while stopped'
+Assert-Contains $LeftMotor 'pwm_set_duty(MOTOR_LEFT_IN2, 0);' 'Left motor IN2 is not cleared while stopped'
+Assert-Contains $RightMotor 'pwm_set_duty(MOTOR_RIGHT_IN1, 0);' 'Right motor IN1 is not cleared while stopped'
+Assert-Contains $RightMotor 'pwm_set_duty(MOTOR_RIGHT_IN2, 0);' 'Right motor IN2 is not cleared while stopped'
 
 $StopBranch = $Cpu1.IndexOf('if (StopRequest != 0U)')
 $PiUpdate = $Cpu1.IndexOf('pwm_left  = PI_Update')
@@ -39,13 +52,28 @@ Assert-Contains $StopCode 'Motor_SetLeftPWM(0);' 'Left motor is not forced to ze
 Assert-Contains $StopCode 'Motor_SetRightPWM(0);' 'Right motor is not forced to zero'
 Assert-Contains $StopCode 'Servo_SetAngleDeg(SERVO_CENTER_ANGLE);' 'Servo is not centered while stopped'
 
-function Update-StopRequest([int]$Current, [int]$ZebraFlag) {
-    if ($ZebraFlag -ne 0) { return 1 }
-    return $Current
+function Update-ZebraStop([int]$Confirm, [int]$Delay, [int]$Pending, [int]$ZebraFlag) {
+    if ($Pending -eq 0) {
+        if ($ZebraFlag -ne 0) { $Confirm++ } else { $Confirm = 0 }
+        if ($Confirm -ge 2) { $Pending = 1; $Delay = 0 }
+    } elseif ($Delay -lt 8) {
+        $Delay++
+    } else {
+        return @(1, $Confirm, $Delay, $Pending)
+    }
+    return @(0, $Confirm, $Delay, $Pending)
 }
 
-if ((Update-StopRequest 0 0) -ne 0) { throw 'Stop request triggers without a zebra' }
-if ((Update-StopRequest 0 1) -ne 1) { throw 'Zebra detection does not trigger a stop' }
-if ((Update-StopRequest 1 0) -ne 1) { throw 'Stop request is not latched until reset' }
+$State = @(0, 0, 0)
+$Result = Update-ZebraStop $State[0] $State[1] $State[2] 1
+if ($Result[0] -ne 0) { throw 'A single zebra frame stops the car too early' }
+$Result = Update-ZebraStop $Result[1] $Result[2] $Result[3] 1
+if ($Result[0] -ne 0) { throw 'Confirmed zebra must enter full-speed run-on first' }
+for ($Frame = 0; $Frame -lt 8; $Frame++) {
+    $Result = Update-ZebraStop $Result[1] $Result[2] $Result[3] 0
+    if ($Result[0] -ne 0) { throw 'Car stops before the finish-line run-on completes' }
+}
+$Result = Update-ZebraStop $Result[1] $Result[2] $Result[3] 0
+if ($Result[0] -ne 1) { throw 'Car does not stop after the finish-line run-on' }
 
 Write-Output 'PASS zebra latched stop'

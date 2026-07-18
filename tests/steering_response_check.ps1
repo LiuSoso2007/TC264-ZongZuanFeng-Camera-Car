@@ -15,7 +15,7 @@ $Cpu1 = Read-Gbk 'Seekfree_TC264_Opensource_Library/user/cpu1_main.c'
 $Cpu0 = Read-Gbk 'Seekfree_TC264_Opensource_Library/user/cpu0_main.c'
 
 Assert-Contains $PidSource '#define PD_ERR_DEAD_ZONE 3.0f' 'PD dead zone is not +/-3'
-Assert-Contains $Cpu1 '#define PD_KP          1.5f' 'PD proportional gain is not 1.5'
+Assert-Contains $Cpu1 '#define PD_KP          0.9f' 'PD proportional gain is not 0.9'
 Assert-Contains $Cpu1 'static int8_t   StraightSpeed = 40;' 'Straight speed is not 40'
 Assert-Contains $Cpu0 '#define STEERING_LOOKAHEAD_ROW 40' 'CPU0 lookahead row is not moved farther to row 40'
 Assert-Contains $Cpu0 'ImageDeal[STEERING_LOOKAHEAD_ROW].Center' 'Err does not use the configured far lookahead row'
@@ -25,7 +25,7 @@ Assert-Contains $Cpu0 'ImageDeal[STEERING_LOOKAHEAD_ROW + 2].Center' 'Err does n
 function Get-SteadyPdAngle([float]$Err) {
     $Center = 80.0
     if ($Err -ge -3.0 -and $Err -le 3.0) { return $Center }
-    $Out = 1.5 * $Err + $Center
+    $Out = 0.9 * $Err + $Center
     return [Math]::Max(9.0, [Math]::Min(132.0, $Out))
 }
 
@@ -36,7 +36,7 @@ if ((Get-SteadyPdAngle -Err (-3.0)) -ne 80.0 -or
 
 $Left = Get-SteadyPdAngle -Err (-10.0)
 $Right = Get-SteadyPdAngle -Err 10.0
-if ($Left -gt 65.0 -or $Right -lt 95.0) {
+if ($Left -gt 71.0 -or $Right -lt 89.0) {
     throw 'Small track errors still produce too little steering angle'
 }
 

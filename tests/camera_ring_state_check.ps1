@@ -49,9 +49,15 @@ $RightHandleCode = $Camera.Substring($RightHandleStart, $RightHandleEnd - $Right
 Assert-Contains $LeftHandleCode `
     'ImageDeal[row].Center = ImageDeal[row].RightBorder - Half_Bend_Wide[row];' `
     'Left ring does not rebuild center from the stable right border'
+Assert-Contains $LeftHandleCode `
+    '|| ImageFlag.image_element_rings_flag == RING_STATE_EXIT)' `
+    'Left ring stops rebuilding center as soon as exit debounce starts'
 Assert-Contains $RightHandleCode `
     'ImageDeal[row].Center = ImageDeal[row].LeftBorder + Half_Bend_Wide[row];' `
     'Right ring does not rebuild center from the stable left border'
+Assert-Contains $RightHandleCode `
+    '|| ImageFlag.image_element_rings_flag == RING_STATE_EXIT)' `
+    'Right ring stops rebuilding center as soon as exit debounce starts'
 
 $FlagStart = $Camera.IndexOf('void Flag_init(void)')
 $FlagEnd = $Camera.IndexOf('void Camera_ShowElementStatus(void)', $FlagStart)

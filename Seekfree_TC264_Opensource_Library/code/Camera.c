@@ -874,8 +874,10 @@ void Element_Handle_Left_Rings(void)
 
     Ring_State_Update();
 
+    /* ³ö»··À¶¶ÆÚ¼ä¼ÌÐø²¹Ïß£¬±ÜÃâ×´Ì¬ÇÐ»»ºó¶æ»úÁ¢¼´»ØÕý¡£ */
     if (ImageFlag.image_element_rings_flag == RING_STATE_ENTRY
-        || ImageFlag.image_element_rings_flag == RING_STATE_INSIDE)
+        || ImageFlag.image_element_rings_flag == RING_STATE_INSIDE
+        || ImageFlag.image_element_rings_flag == RING_STATE_EXIT)
     {
         /* ï¿½ï¿½ï¿½ß²ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½=ï¿½ï¿½ï¿½ï¿½ï¿½+ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
@@ -897,8 +899,10 @@ void Element_Handle_Right_Rings(void)
 
     Ring_State_Update();
 
+    /* ³ö»··À¶¶ÆÚ¼ä¼ÌÐø²¹Ïß£¬±ÜÃâ×´Ì¬ÇÐ»»ºó¶æ»úÁ¢¼´»ØÕý¡£ */
     if (ImageFlag.image_element_rings_flag == RING_STATE_ENTRY
-        || ImageFlag.image_element_rings_flag == RING_STATE_INSIDE)
+        || ImageFlag.image_element_rings_flag == RING_STATE_INSIDE
+        || ImageFlag.image_element_rings_flag == RING_STATE_EXIT)
     {
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
         {

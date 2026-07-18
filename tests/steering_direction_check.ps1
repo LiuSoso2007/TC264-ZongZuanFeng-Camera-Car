@@ -20,7 +20,7 @@ Assert-Contains $PidSource 's_pd_err0 = Err;' 'PD input must keep the Err direct
 Assert-NotContains $PidSource 's_pd_err0 = -Err;' 'PD still reverses the Err direction'
 
 function Get-FirstPdAngle([float]$Err) {
-    $Out = 80.0 + 2.5 * $Err + 0.4 * $Err
+    $Out = 80.0 + 1.5 * $Err + 0.4 * $Err
     return [Math]::Max(9.0, [Math]::Min(132.0, $Out))
 }
 

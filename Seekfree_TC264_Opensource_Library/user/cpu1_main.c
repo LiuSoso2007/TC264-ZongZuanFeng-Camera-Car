@@ -32,7 +32,7 @@ volatile uint8_t PID_Flag = 0;
 #pragma section all "cpu1_dsram"   /* ---- CPU1 private variables ---- */
 
 /* ---- CPU1 local parameters (future: key / IMU control) ---- */
-static int8_t   StraightSpeed = 20;
+static int8_t   StraightSpeed = 40;
 static int16_t  EncLeft       = 0;
 static int16_t  EncRight      = 0;
 static int16_t  EncCount        = 0;
@@ -48,7 +48,7 @@ static int16_t  EncCount        = 0;
 #define PI_KI          0.02f
 #define CURVE_SPEED    0
 /* ---- PD²ÎÊý ---- */
-#define PD_KP          2.5f
+#define PD_KP          1.5f
 #define PD_KD          0.4f
 
 static PI_t s_PI_Left, s_PI_Right;   /* Left/Right motor PI controllers */

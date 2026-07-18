@@ -32,8 +32,8 @@ Assert-Contains $PidSource 'Servo_SetAngleDeg(SERVO_CENTER_ANGLE);' 'PDËÀÇøÎ´Ê¹Ó
 
 function Get-PdAngle([float]$Err) {
     $Center = 80.0
-    if ($Err -ge -4.0 -and $Err -le 4.0) { return $Center }
-    $Out = 2.5 * $Err + 0.4 * $Err + $Center
+    if ($Err -ge -3.0 -and $Err -le 3.0) { return $Center }
+    $Out = 1.5 * $Err + 0.4 * $Err + $Center
     return [Math]::Max(9.0, [Math]::Min(132.0, $Out))
 }
 

@@ -5,7 +5,7 @@
 #include "Servo.h"
 
 /* ---- PD ---- */
-#define PD_ERR_DEAD_ZONE 4.0f  /* Err死区边界，范围内舵机回中。 */
+#define PD_ERR_DEAD_ZONE 3.0f  /* Err死区边界，范围内舵机回中。 */
 static uint8_t s_pd_div = 1, s_pd_cnt = 0;
 static float   s_pd_out = 0.0f, s_pd_err0 = 0.0f, s_pd_err1 = 0.0f;
 

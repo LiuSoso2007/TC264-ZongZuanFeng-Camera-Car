@@ -12,9 +12,14 @@ function Assert-Contains([string]$Text, [string]$Expected, [string]$Message) {
 
 $PidSource = Read-Gbk 'Seekfree_TC264_Opensource_Library/code/PID.c'
 $Cpu1 = Read-Gbk 'Seekfree_TC264_Opensource_Library/user/cpu1_main.c'
+$Cpu0 = Read-Gbk 'Seekfree_TC264_Opensource_Library/user/cpu0_main.c'
 
 Assert-Contains $PidSource '#define PD_ERR_DEAD_ZONE 4.0f' 'PD dead zone is not +/-4'
 Assert-Contains $Cpu1 '#define PD_KP          2.5f' 'PD proportional gain is not 2.5'
+Assert-Contains $Cpu0 '#define STEERING_LOOKAHEAD_ROW 40' 'CPU0 lookahead row is not moved farther to row 40'
+Assert-Contains $Cpu0 'ImageDeal[STEERING_LOOKAHEAD_ROW].Center' 'Err does not use the configured far lookahead row'
+Assert-Contains $Cpu0 'ImageDeal[STEERING_LOOKAHEAD_ROW + 1].Center' 'Err does not average the second lookahead row'
+Assert-Contains $Cpu0 'ImageDeal[STEERING_LOOKAHEAD_ROW + 2].Center' 'Err does not average the third lookahead row'
 
 function Get-SteadyPdAngle([float]$Err) {
     $Center = 80.0

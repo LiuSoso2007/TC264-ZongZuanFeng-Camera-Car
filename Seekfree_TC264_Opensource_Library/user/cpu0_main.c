@@ -14,6 +14,9 @@
 
 volatile float    Err             = 0.0f;
 
+/* 压缩图行号越小前瞻越远；40～42行兼顾弯道提前量和远场稳定性。 */
+#define STEERING_LOOKAHEAD_ROW 40
+
 #pragma section all "cpu0_dsram"
 
 int core0_main(void)
@@ -51,10 +54,12 @@ int core0_main(void)
             Element_Handle();
 
             /* ---- 计算 Err (图像偏差) 供 CPU1 使用 ---- */
-            /* 近场3行平均，Err保持像素单位，与CPU1的PD参数一致。 */
-            if (ImageStatus.OFFLine < 48)
+            /* 前瞻3行平均，Err保持像素单位，与CPU1的PD参数一致。 */
+            if (ImageStatus.OFFLine < STEERING_LOOKAHEAD_ROW)
             {
-                Err = (float)((ImageDeal[52].Center + ImageDeal[51].Center + ImageDeal[50].Center) / 3
+                Err = (float)((ImageDeal[STEERING_LOOKAHEAD_ROW].Center
+                     + ImageDeal[STEERING_LOOKAHEAD_ROW + 1].Center
+                     + ImageDeal[STEERING_LOOKAHEAD_ROW + 2].Center) / 3
                      - ImageSensorMid);
             }
             else if (ImageStatus.OFFLine < SCAN_BASE_START_ROW

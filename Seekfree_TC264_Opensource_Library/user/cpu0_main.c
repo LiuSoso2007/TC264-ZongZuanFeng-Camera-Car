@@ -14,14 +14,10 @@
 
 volatile float    Err             = 0.0f;
 
-#define DISPLAY_DEBUG_INTERVAL (10U)
-
 #pragma section all "cpu0_dsram"
 
 int core0_main(void)
 {
-    uint8 display_frame_count = 0;
-
     clock_init();
     debug_init();
     system_delay_ms(100);
@@ -70,17 +66,8 @@ int core0_main(void)
             {
                 Err = 0.0f;
             }
-            /* 普通帧只连续刷新原始图，避免逐点画线和文字刷新阻塞下一帧。 */
-            if (++display_frame_count >= DISPLAY_DEBUG_INTERVAL)
-            {
-                display_frame_count = 0;
-                Camera_ShowDebug();
-            }
-            else
-            {
-                ips200_show_gray_image(0, 0, mt9v03x_image[0],
-                    MT9V03X_W, MT9V03X_H, MT9V03X_W, MT9V03X_H, 0);
-            }
+            /* 每帧只走QSPI2寄存器连续直刷，禁止回到逐字节等待的调试显示路径。 */
+            IPS200_ShowGrayImageFast(mt9v03x_image[0], MT9V03X_W, MT9V03X_H);
         }
     }
 }

@@ -39,19 +39,13 @@ volatile int16_t EncRight = 0;
 static int8_t   StraightSpeed = 40;
 static int16_t  EncCount        = 0;
 
-/* ---- LCD display parameters ---- */
-#define LCD_DIV      10
-#define LCD_LABEL_X  10
-#define LCD_VALUE_X  100
-#define LCD_Y_BASE   170
-#define LCD_ROW_H    16
 /* ---- PI参数 ---- */
-#define PI_KP          0.5f
+#define PI_KP          0.4f
 #define PI_KI          0.02f
 #define CURVE_SPEED    0
 /* ---- PD参数 ---- */
-#define PD_KP          1.5f
-#define PD_KD          0.4f
+#define PD_KP          0.9f
+#define PD_KD          0.9f
 
 static PI_t s_PI_Left, s_PI_Right;   /* Left/Right motor PI controllers */
 
@@ -64,7 +58,6 @@ int core1_main(void)
     int16_t  enc_left = 0, enc_right = 0;
     int8_t   pwm_left,  pwm_right;
     float    position_err;
-    static uint8_t lcd_cnt = 0, lcd_row = 0, lcd_dirty = 0;
 
 
     /* ---- Peripheral init (CPU1 side) ---- */
@@ -79,13 +72,7 @@ int core1_main(void)
     Motor_SetLeftPWM(0);
     Motor_SetRightPWM(0);
 
-    /* ---- LCD static text ---- */
-    /*ips200_set_color(RGB565_WHITE, RGB565_BLACK);
-    ips200_show_string(LCD_LABEL_X, LCD_Y_BASE+LCD_ROW_H*0, "L_Act:");
-    ips200_show_string(LCD_LABEL_X, LCD_Y_BASE+LCD_ROW_H*2, "R_Act:");
-    ips200_show_string(LCD_LABEL_X, LCD_Y_BASE+LCD_ROW_H*5, "Speed:");
-    ips200_show_string(LCD_LABEL_X, LCD_Y_BASE+LCD_ROW_H*6, "Err:");
-*/
+
     /* ---- Key scan PIT: 5ms (CPU1 PIT) ---- */
     pit_ms_init(CCU60_CH1, 5);
 
@@ -100,19 +87,7 @@ int core1_main(void)
 
     while (TRUE)
     {
-        /* ---- LCD refresh (time-sliced) ---- */
-        /*if (lcd_dirty)
-        {
-            ips200_set_color(RGB565_BLUE, RGB565_BLACK);
-            switch (lcd_row)
-            {
-                case 0: ips200_show_int(LCD_VALUE_X, LCD_Y_BASE+LCD_ROW_H*0, (int32)EncLeft,  5); break;
-                case 2: ips200_show_int(LCD_VALUE_X, LCD_Y_BASE+LCD_ROW_H*2, (int32)EncRight, 5); break;
-                case 5: ips200_show_int(LCD_VALUE_X, LCD_Y_BASE+LCD_ROW_H*5, (int32)StraightSpeed, 5); break;
-                case 6: ips200_show_float(LCD_VALUE_X, LCD_Y_BASE+LCD_ROW_H*6, Err, 3, 2); break;
-            }
-            if (++lcd_row >= 7) { lcd_row = 0; lcd_dirty = 0; }
-        }*/
+
 
         /* ---- Key scanning (placeholder, function TBD) ---- */
         {
@@ -127,7 +102,6 @@ int core1_main(void)
         /* ---- Wait for control period ---- */
         if (!PID_Flag)
         {
-            if (++lcd_cnt >= LCD_DIV) { lcd_cnt = 0; lcd_row = 0; lcd_dirty = 1; }
             continue;
         }
         PID_Flag = 0;
@@ -158,48 +132,41 @@ int core1_main(void)
             Motor_SetLeftPWM(0);
             Motor_SetRightPWM(0);
             Servo_SetAngleDeg(SERVO_CENTER_ANGLE);
-            if (++lcd_cnt >= LCD_DIV) { lcd_cnt = 0; lcd_row = 0; lcd_dirty = 1; }
             continue;
         }
 
         /* ---- Differential compensation: adjust L/R target speed by error ---- */
-        if      (position_err >   7.0f && position_err <  15.0f) {
-            s_PI_Left.TargetBias  = (int16_t)(-StraightSpeed * 0.5f);
-            s_PI_Right.TargetBias = (int16_t)( StraightSpeed * 0.1f);
+        /*if      (position_err >   7.0f && position_err <  15.0f) {
+            s_PI_Left.TargetBias  = (int16_t)(-StraightSpeed * 0.0f);
+            s_PI_Right.TargetBias = (int16_t)( StraightSpeed * 0.0f);
         }
         else if (position_err >= 15.0f) {
-            s_PI_Left.TargetBias  = (int16_t)(-StraightSpeed * 1.1f);
-            s_PI_Right.TargetBias = (int16_t)( StraightSpeed * 0.5f);
+            s_PI_Left.TargetBias  = (int16_t)(-StraightSpeed * 0.0f);
+            s_PI_Right.TargetBias = (int16_t)( StraightSpeed * 0.0f);
         }
-        else if (position_err <  -7.0f && position_err > -14.0f) {
-            s_PI_Left.TargetBias  = (int16_t)( StraightSpeed * 0.2f);
-            s_PI_Right.TargetBias = (int16_t)(-StraightSpeed * 0.4f);
+        else if (position_err <  -7.0f && position_err > -15.0f) {
+            s_PI_Left.TargetBias  = (int16_t)( StraightSpeed * 0.0f);
+            s_PI_Right.TargetBias = (int16_t)(-StraightSpeed * 0.0f);
         }
-        else if (position_err <= -14.0f && position_err > -20.0f) {
-            s_PI_Left.TargetBias  = (int16_t)( StraightSpeed * 0.3f);
-            s_PI_Right.TargetBias = (int16_t)(-StraightSpeed * 0.55f);
-        }
-        else if (position_err <= -20.0f) {
-            s_PI_Left.TargetBias  = (int16_t)( StraightSpeed * 0.3f);
-            s_PI_Right.TargetBias = (int16_t)(-StraightSpeed * 0.65f);
+        else if (position_err <= -15.0f) {
+            s_PI_Left.TargetBias  = (int16_t)( StraightSpeed * 0.0f);
+            s_PI_Right.TargetBias = (int16_t)(-StraightSpeed * 0.0f);
         }
         else {
             s_PI_Left.TargetBias  = 0;
             s_PI_Right.TargetBias = 0;
-        }
+        }*/
 
         /* ---- Speed PI closed-loop ---- */
         pwm_left  = PI_Update(&s_PI_Left,  position_err, enc_left,  StraightSpeed);
         pwm_right = PI_Update(&s_PI_Right, position_err, enc_right, StraightSpeed);
 
-        Motor_SetLeftPWM(pwm_left);
-        Motor_SetRightPWM(pwm_right);
+        Motor_SetLeftPWM(StraightSpeed);
+        Motor_SetRightPWM(StraightSpeed);
 
         /* ---- Servo output (currently fixed mid, future PD control) ---- */
         PD_Update(PD_KP, PD_KD);
 
-        /* ---- LCD period counter ---- */
-        if (++lcd_cnt >= LCD_DIV) { lcd_cnt = 0; lcd_row = 0; lcd_dirty = 1; }
     }
 }
 

@@ -47,6 +47,7 @@ int core0_main(void)
     ips200_set_color(RGB565_WHITE, RGB565_BLACK);
     ips200_show_string(2U, 128U, "L_Enc:");
     ips200_show_string(2U, 144U, "R_Enc:");
+    ips200_show_string(2U, 170U, "Err:");
 
     while (TRUE)
     {
@@ -94,6 +95,7 @@ int core0_main(void)
                 encoder_display_cnt = 0U;
                 ips200_show_int(58U, 128U, (int32)EncLeft, 5U);
                 ips200_show_int(58U, 144U, (int32)EncRight, 5U);
+                ips200_show_int(58U, 170U, (int32)Err, 5U);
             }
         }
     }

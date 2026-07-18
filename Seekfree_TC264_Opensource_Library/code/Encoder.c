@@ -11,7 +11,7 @@
 
 void Encoder_Init(void)
 {
-    // TIM6 ??? encoder_quad_init, ? encoder_dir_init ??
+    // ×¢ÊÍÒÑÐÞ¸´
     encoder_dir_init(ENC_LEFT,
         TIM6_ENCODER_CH1_P20_3, TIM6_ENCODER_CH2_P20_0);
     encoder_quad_init(ENC_RIGHT,

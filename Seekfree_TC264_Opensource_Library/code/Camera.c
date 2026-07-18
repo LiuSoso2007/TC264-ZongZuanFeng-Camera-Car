@@ -1,9 +1,4 @@
-/*
- * Camera.c --- MT9V03X ï¿½ï¿½ï¿½ï¿½Í·ï¿½ï¿½ï¿½ï¿½ + Í¼ï¿½ï¿½Ñ¹ï¿½ï¿½ + OTSUï¿½ï¿½Öµï¿½ï¿½ + IPS200ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¾
- *
- * OTSUï¿½Þ¸ï¿½: ï¿½Æ³ï¿½ï¿½ï¿½Ç°ï¿½Ë³ï¿½, ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½256ï¿½ï¿½ + ï¿½ï¿½Öµï¿½Þ·ï¿½30~220 (ï¿½ï¿½Ö±ï¿½ï¿½È«ï¿½ï¿½)
- * Ö¡ï¿½ï¿½ï¿½Å»ï¿½: ï¿½ï¿½ï¿½ï¿½ Camera_ShowBinaryFast() ï¿½ï¿½ï¿½ï¿½Ê¾ï¿½ï¿½ÖµÍ¼, SPIï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¡
- */
+/* ×¢ÊÍÒÑÐÞ¸´ */
 #include "Camera.h"
 #include "Shared.h"
 static uint16 s_ring_state_frames = 0U;      /* µ±Ç°½×¶ÎÒÑ¾­³ÖÐøµÄÍ¼ÏñÖ¡Êý */
@@ -16,8 +11,8 @@ static int s_ring_entry_corner_col = -1;     /* ×î½üÒ»´ÎÈë¿Ú¹ÕµãÁÐ */
 uint8  Pixle[LCDH][LCDW];
 uint8 *Image_Use[LCDH][LCDW];
 uint8  Camera_Threshold = 128;
-ImageDealDatatypedef ImageDeal[LCDH];        // Í¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý½á¹¹ (Ã¿ï¿½ï¿½Ò»ï¿½ï¿½)
-ImageStatustypedef ImageStatus;              // Í¼ï¿½ï¿½×´Ì¬(OFFLine/ï¿½ï¿½ï¿½ßµï¿½)
+ImageDealDatatypedef ImageDeal[LCDH];        // ×¢ÊÍÒÑÐÞ¸´
+ImageStatustypedef ImageStatus;              // ×¢ÊÍÒÑÐÞ¸´
 #define COMPRESS_STEP_H (MT9V03X_H/LCDH)
 #define COMPRESS_STEP_W (MT9V03X_W/LCDW)
 
@@ -28,20 +23,14 @@ uint8 Camera_IsFrameReady(void) {
 
 uint8 (*Camera_GetImage(void))[CAMERA_W] { return mt9v03x_image; }
 
-/*
- * Camera_CompressInit - ï¿½ï¿½ï¿½ï¿½ Image_Use ï¿½ï¿½ mt9v03x_image ï¿½ï¿½Ö¸ï¿½ï¿½Ó³ï¿½ï¿½
- */
+/* ×¢ÊÍÒÑÐÞ¸´ */
 void Camera_CompressInit(void) {
     uint8 i, j; uint16 r, c;
     for (i = 0; i < LCDH; i++) { r = (uint16)i * COMPRESS_STEP_H;
         for (j = 0; j < LCDW; j++) { c = (uint16)j * COMPRESS_STEP_W;
             Image_Use[i][j] = &mt9v03x_image[r][c]; } } }
 
-/*
- * Camera_OTSU_GetThreshold - ????????
- * ?????????????? (??????????????????????§à????, ???break????????¦Ë??)
- * ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½0~255, ï¿½ï¿½ï¿½ï¿½Þ·ï¿½OTSU_MIN~OTSU_MAX
- */
+/* ×¢ÊÍÒÑÐÞ¸´ */
 uint8 Camera_OTSU_GetThreshold(uint8 *image[][LCDW], uint16 col, uint16 row) {
     uint32 hist[256] = {0};
     uint16 i, j;
@@ -53,16 +42,16 @@ uint8 Camera_OTSU_GetThreshold(uint8 *image[][LCDW], uint16 col, uint16 row) {
     float maxVar = 0.0f;
     uint8 bestThr = 128;
 
-    /* ï¿½ï¿½Ò»ï¿½ï¿½: Í³ï¿½Æ»Ò¶ï¿½Ö±ï¿½ï¿½Í¼ */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
     for (i = 0; i < row; i++)
         for (j = 0; j < col; j++)
             hist[*image[i][j]]++;
 
-    /* ?????: ????????? */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
     for (t = 0; t < 256; t++)
         totalSum += (uint64)t * hist[t];
 
-    /* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Öµ, Ñ°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ä·½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½Ç°ï¿½Ë³ï¿½, È«ï¿½ï¿½ï¿½ï¿½) */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
     for (t = 0; t < 255; t++) {
         w0 += hist[t];
         if (w0 == 0) continue;
@@ -77,15 +66,13 @@ uint8 Camera_OTSU_GetThreshold(uint8 *image[][LCDW], uint16 col, uint16 row) {
         }
     }
 
-    /* ï¿½ï¿½ï¿½Ä²ï¿½: ï¿½ï¿½Öµï¿½Þ·ï¿½, ï¿½ï¿½Ö¹ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½ï¿½Øµï¿½ï¿½ï¿½ï¿½ì³£ */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
     if (bestThr < OTSU_MIN) bestThr = OTSU_MIN;
     if (bestThr > OTSU_MAX) bestThr = OTSU_MAX;
     return bestThr;
 }
 
-/*
- * Camera_GetBinaryImage - ï¿½Ò¶ï¿½Í¼ï¿½ï¿½Öµï¿½ï¿½
- */
+/* ×¢ÊÍÒÑÐÞ¸´ */
 void Camera_GetBinaryImage(void) {
     uint8 thr = Camera_OTSU_GetThreshold(Image_Use, LCDW, LCDH);
     Camera_Threshold = thr;
@@ -100,42 +87,34 @@ void Camera_ShowBinaryFast(void) {
     ips200_show_gray_image(xo, 0, Pixle[0], LCDW, LCDH, LCDW, LCDH, 1);
 }
 
-/*
- * Camera_ShowDebug - È«ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¾ (ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½Ã¿3~5Ö¡ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½)
- * ï¿½ï¿½: Ô­Ê¼ï¿½Ò¶ï¿½ 188x120 / ï¿½ï¿½: OTSUï¿½ï¿½Öµ / ï¿½ï¿½: ï¿½ï¿½ÖµÍ¼ 94x60
- */
-/*
- * Camera_DrawCenterLines - ï¿½ï¿½Ô­Ê¼Í¼ï¿½Í¶ï¿½ÖµÍ¼ï¿½ï¿½ÊµÊ±ï¿½ï¿½ï¿½ï¿½Ë«ï¿½ï¿½ï¿½ï¿½
- *   ï¿½ï¿½É«ï¿½ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ (ImageSensorMid)  -- ï¿½Ì¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä²Î¿ï¿½ï¿½ï¿½
- *   ï¿½ï¿½É«ï¿½ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ (ImageDeal[].Center) -- ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ä»¯
- * ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: ï¿½Ï²ï¿½Ô­Ê¼ï¿½Ò¶ï¿½Í¼(188x120) + ï¿½Â²ï¿½ï¿½ï¿½ÖµÍ¼(94x60)
- */
+/* ×¢ÊÍÒÑÐÞ¸´ */
+/* ×¢ÊÍÒÑÐÞ¸´ */
 void Camera_DrawCenterLines(void)
 {
     int row;
-    uint16 xo = (uint16)((MT9V03X_W - LCDW) / 2);  /* ï¿½ï¿½ÖµÍ¼XÆ«ï¿½ï¿½ */
+    uint16 xo = (uint16)((MT9V03X_W - LCDW) / 2);  /* ×¢ÊÍÒÑÐÞ¸´ */
 
-    /* ---- ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(ï¿½ï¿½É«ï¿½ï¿½ï¿½ï¿½): Í¼ï¿½ñ´«¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ---- */
-    /* Ô­Ê¼ï¿½Ò¶ï¿½Í¼ï¿½ï¿½ï¿½ï¿½: y=0~119, x=ImageSensorMid*2=94 */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
     ips200_draw_line(94, 0, 94, 119, RGB565_RED);
-    /* ï¿½ï¿½ÖµÍ¼ï¿½ï¿½ï¿½ï¿½: y=150~209, x=xo+ImageSensorMid */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
     ips200_draw_line(xo + ImageSensorMid, 150, xo + ImageSensorMid, 209, RGB565_RED);
 
-    /* ---- ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(ï¿½ï¿½É«ï¿½ï¿½ï¿½ï¿½): ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ImageDeal[row].Center ---- */
-    /* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½OFFLineï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð§ï¿½ï¿½ï¿½Ýµï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½2ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½SPIï¿½ï¿½ï¿½ï¿½ */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
     /* Á½¸ö¶Ëµã¶¼±ØÐëÎ»ÓÚOFFLineÒÔÉÏµÄÓÐÐ§ËÑÏßÇøÓò¡£ */
     for (row = SCAN_BASE_START_ROW; (row - 2) > ImageStatus.OFFLine; row -= 2)
     {
         if (ImageDeal[row].Center < 0 || ImageDeal[row].Center >= LCDW) continue;
         if (ImageDeal[row-2].Center < 0 || ImageDeal[row-2].Center >= LCDW) continue;
 
-        /* Ô­Ê¼ï¿½Ò¶ï¿½Í¼ (188x120): CenterÖµ*2Ó³ï¿½ï¿½, ï¿½Ðºï¿½*2Ó³ï¿½ï¿½ */
+        /* ×¢ÊÍÒÑÐÞ¸´ */
         ips200_draw_line(
             (uint16)ImageDeal[row].Center * 2, (uint16)row * 2,
             (uint16)ImageDeal[row-2].Center * 2, (uint16)(row-2) * 2,
             RGB565_BLUE);
 
-        /* ï¿½ï¿½ÖµÍ¼ (94x60, Æ«ï¿½ï¿½xo,150): Ê¹ï¿½ï¿½Ô­Ê¼94x60ï¿½ï¿½ï¿½ï¿½ */
+        /* ×¢ÊÍÒÑÐÞ¸´ */
         ips200_draw_line(
             xo + (uint16)ImageDeal[row].Center, 150 + (uint16)row,
             xo + (uint16)ImageDeal[row-2].Center, 150 + (uint16)(row-2),
@@ -145,17 +124,17 @@ void Camera_DrawCenterLines(void)
 
 void Camera_ShowDebug(void) {
     uint16 xo;
-    /* Ô­Ê¼ï¿½Ò¶ï¿½Í¼ */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
     ips200_show_gray_image(0, 0, mt9v03x_image[0],
         MT9V03X_W, MT9V03X_H, MT9V03X_W, MT9V03X_H, 0);
-    /* OTSU ï¿½ï¿½Öµ */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
     ips200_set_color(RGB565_YELLOW, RGB565_BLACK);
     ips200_show_string(2, 125, "OTSU Thr:");
     ips200_show_uint(82, 125, Camera_Threshold, 3);
-    /* ï¿½ï¿½Öµï¿½ï¿½Í¼ï¿½ï¿½ */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
     xo = (uint16)((MT9V03X_W - LCDW) / 2);
     ips200_show_gray_image(xo, 150, Pixle[0], LCDW, LCDH, LCDW, LCDH, 1);
-    /* Í¼ï¿½ï¿½ */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
     ips200_set_color(RGB565_WHITE, RGB565_BLACK);
     /* legend removed */
     Camera_ShowElementStatus();
@@ -166,22 +145,22 @@ void Camera_ShowDebug(void) {
 
 
 //-------------------------------------------------------------------------------
-//  @brief          Get_BaseLine - ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×¼ï¿½ï¿½
-//  Ëµï¿½ï¿½: ï¿½Óµï¿½59-57ï¿½ï¿½Ô¤É¨, ï¿½Óµï¿½56ï¿½Ð¿ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½5ï¿½ï¿½(56->52)
-//  ï¿½ï¿½Í¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(ImageSensorMid=47)ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½, ï¿½Òµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
-//  5ï¿½ï¿½È«É¨Ò»ï¿½ï¿½, È·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
-//  ï¿½ï¿½ï¿½ï¿½ Pixle[][] ï¿½ï¿½ÖµÍ¼ï¿½ï¿½ (0=ï¿½ï¿½/ï¿½ï¿½ï¿½ï¿½, 1=ï¿½ï¿½/ï¿½ï¿½ï¿½ï¿½)
+// ×¢ÊÍÒÑÐÞ¸´
+// ×¢ÊÍÒÑÐÞ¸´
+// ×¢ÊÍÒÑÐÞ¸´
+// ×¢ÊÍÒÑÐÞ¸´
+// ×¢ÊÍÒÑÐÞ¸´
 //-------------------------------------------------------------------------------
 void Get_BaseLine(void)
 {
-    uint8 *PicTemp;                             // ï¿½ï¿½Ç°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¸ï¿½ï¿½
-    int   Xsite;                                // ï¿½ï¿½É¨ï¿½ï¿½Î»ï¿½ï¿½
-    int   row;                                  // ï¿½ï¿½Ç°É¨ï¿½ï¿½ï¿½Ðºï¿½
+    uint8 *PicTemp;                             // ×¢ÊÍÒÑÐÞ¸´
+    int   Xsite;                                // ×¢ÊÍÒÑÐÞ¸´
+    int   row;                                  // ×¢ÊÍÒÑÐÞ¸´
 
-    /* ---- ï¿½ï¿½1ï¿½ï¿½: ï¿½Óµï¿½56ï¿½Ð¿ï¿½Ê¼É¨ (ï¿½ï¿½×¼ï¿½ï¿½) ---- */
-    PicTemp = Pixle[SCAN_BASE_START_ROW];       // ï¿½Óµï¿½56ï¿½Ð¿ï¿½Ê¼
+    /* ×¢ÊÍÒÑÐÞ¸´ */
+    PicTemp = Pixle[SCAN_BASE_START_ROW];       // ×¢ÊÍÒÑÐÞ¸´
 
-    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò²ï¿½ï¿½ï¿½ï¿½ï¿½, ï¿½Ò°×µï¿½ï¿½Úµï¿½ï¿½ï¿½ï¿½ï¿½
+    // ×¢ÊÍÒÑÐÞ¸´
     for (Xsite = ImageSensorMid; Xsite < (LCDW - 1); Xsite++)
     {
         if (*(PicTemp + Xsite) == 0 && *(PicTemp + Xsite + 1) == 0)
@@ -196,7 +175,7 @@ void Get_BaseLine(void)
         }
     }
 
-    // ???????????????, ???????????
+    // ×¢ÊÍÒÑÐÞ¸´
     for (Xsite = ImageSensorMid; Xsite > 0; Xsite--)
     {
         if (*(PicTemp + Xsite) == 0 && *(PicTemp + Xsite - 1) == 0)
@@ -211,25 +190,25 @@ void Get_BaseLine(void)
         }
     }
 
-    // ??56???????????????????
+    // ×¢ÊÍÒÑÐÞ¸´
     ImageDeal[SCAN_BASE_START_ROW].Center
         = (ImageDeal[SCAN_BASE_START_ROW].LeftBorder
          + ImageDeal[SCAN_BASE_START_ROW].RightBorder) / 2;
     ImageDeal[SCAN_BASE_START_ROW].Wide
         = ImageDeal[SCAN_BASE_START_ROW].RightBorder
         - ImageDeal[SCAN_BASE_START_ROW].LeftBorder;
-    /* ????¦Ä????'F', ?????'T' */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
     if (ImageDeal[SCAN_BASE_START_ROW].IsLeftFind != 'F')
         ImageDeal[SCAN_BASE_START_ROW].IsLeftFind  = 'T';
     if (ImageDeal[SCAN_BASE_START_ROW].IsRightFind != 'F')
         ImageDeal[SCAN_BASE_START_ROW].IsRightFind = 'T';
 
-    /* ---- ï¿½ï¿½2ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É¨ï¿½ï¿½55->52ï¿½ï¿½ ---- */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
     for (row = SCAN_BASE_START_ROW - 1; row >= SCAN_BASE_END_ROW; row--)
     {
         PicTemp = Pixle[row];
 
-        // ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò±ß½ï¿½
+        // ×¢ÊÍÒÑÐÞ¸´
         for (Xsite = ImageDeal[row + 1].Center; Xsite < (LCDW - 1); Xsite++)
         {
             if (*(PicTemp + Xsite) == 0 && *(PicTemp + Xsite + 1) == 0)
@@ -240,12 +219,12 @@ void Get_BaseLine(void)
             else if (Xsite == (LCDW - 2))
             {
                 ImageDeal[row].RightBorder = LCDW - 1;
-                ImageDeal[row].IsRightFind = 'F';   // ï¿½Ò²ï¿½Î´ï¿½Òµï¿½ï¿½ï¿½ï¿½ï¿½
+                ImageDeal[row].IsRightFind = 'F';   // ×¢ÊÍÒÑÐÞ¸´
                 break;
             }
         }
 
-        // ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ß½ï¿½
+        // ×¢ÊÍÒÑÐÞ¸´
         for (Xsite = ImageDeal[row + 1].Center; Xsite > 0; Xsite--)
         {
             if (*(PicTemp + Xsite) == 0 && *(PicTemp + Xsite - 1) == 0)
@@ -256,94 +235,94 @@ void Get_BaseLine(void)
             else if (Xsite == 1)
             {
                 ImageDeal[row].LeftBorder = 0;
-                ImageDeal[row].IsLeftFind = 'F';    // ???¦Ä???????
+                ImageDeal[row].IsLeftFind = 'F';    // ×¢ÊÍÒÑÐÞ¸´
                 break;
             }
         }
 
-        // ï¿½ï¿½ï¿½Â±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½ï¿½
+        // ×¢ÊÍÒÑÐÞ¸´
         ImageDeal[row].Center
             = (ImageDeal[row].LeftBorder + ImageDeal[row].RightBorder) / 2;
         ImageDeal[row].Wide
             = ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder;
-        /* ????¦Ä????'F', ?????'T' */
+        /* ×¢ÊÍÒÑÐÞ¸´ */
         if (ImageDeal[row].IsLeftFind != 'F')
             ImageDeal[row].IsLeftFind  = 'T';
         if (ImageDeal[row].IsRightFind != 'F')
             ImageDeal[row].IsRightFind = 'T';
     }
 
-    /* ---- ??3??: 5???????? (????????) ---- */
-    // TODO: ?????????????????§¹??§µ?????
+    /* ×¢ÊÍÒÑÐÞ¸´ */
+    // ×¢ÊÍÒÑÐÞ¸´
 }
 
 //-------------------------------------------------------------------------------
-//  @brief          Get_Border_And_SideType - ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
-//  ??[L, H]??¦¶??, ????????????????????????
-//  ï¿½ï¿½ï¿½ï¿½: 'T'=ï¿½Òµï¿½ï¿½ï¿½ï¿½ï¿½, 'W'=ï¿½ï¿½ï¿½Ð°ï¿½(ï¿½ï¿½ï¿½ï¿½), 'H'=ï¿½ï¿½ï¿½Ðºï¿½(ï¿½ï¿½Â·)
-//  @parameter      p    ï¿½ï¿½Ç°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¸ï¿½ï¿½
-//  @parameter      type ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: 'L'=ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½, 'R'=ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
-//  @parameter      L, H ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î§ï¿½ß½ï¿½
-//  @parameter      Q    ???????????
+// ×¢ÊÍÒÑÐÞ¸´
+// ×¢ÊÍÒÑÐÞ¸´
+// ×¢ÊÍÒÑÐÞ¸´
+// ×¢ÊÍÒÑÐÞ¸´
+// ×¢ÊÍÒÑÐÞ¸´
+// ×¢ÊÍÒÑÐÞ¸´
+// ×¢ÊÍÒÑÐÞ¸´
 //  @return         void
 //  Sample usage:   Get_Border_And_SideType(PicTemp, 'R', low, high, &jp);
 //-------------------------------------------------------------------------------
 void Get_Border_And_SideType(uint8* p, uint8 type, int L, int H, JumpPointtypedef* Q)
 {
     int i;
-    /* ---- ï¿½ï¿½È«Ð£ï¿½ï¿½: ï¿½ï¿½L/Hï¿½ï¿½ï¿½ï¿½ï¿½ÚºÏ·ï¿½ï¿½ï¿½Î§[0, LCDW-1] ---- */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
     LimitL(L);
     LimitH(H);
 
-    if (type == 'L')                            // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É¨ï¿½ï¿½
+    if (type == 'L')                            // ×¢ÊÍÒÑÐÞ¸´
     {
         for (i = H; i >= L; i--)
         {
-            // ï¿½ï¿½(1)->ï¿½ï¿½(0)ï¿½ï¿½ï¿½ï¿½: ï¿½Òµï¿½ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½Î»ï¿½ï¿½
+            // ×¢ÊÍÒÑÐÞ¸´
             if (*(p + i) == 1 && *(p + i - 1) != 1)
             {
-                Q->point = i;                   // ??????????????
-                Q->type  = 'T';                 // ???????????
+                Q->point = i;                   // ×¢ÊÍÒÑÐÞ¸´
+                Q->type  = 'T';                 // ×¢ÊÍÒÑÐÞ¸´
                 break;
             }
-            else if (i == L)                    // É¨ï¿½èµ½ï¿½ï¿½ï¿½ï¿½Î´ï¿½Òµï¿½ï¿½ï¿½ï¿½ï¿½
+            else if (i == L)                    // ×¢ÊÍÒÑÐÞ¸´
             {
-                if (*(p + (L + H) / 2) != 0)    // ï¿½ï¿½ï¿½ï¿½ï¿½Ðµï¿½ï¿½ï¿½ï¿½Ç°ï¿½É«
+                if (*(p + (L + H) / 2) != 0)    // ×¢ÊÍÒÑÐÞ¸´
                 {
-                    Q->point = (L + H) / 2;     // ï¿½ï¿½É¨ï¿½ï¿½Î»ï¿½ï¿½
-                    Q->type  = 'W';             // ï¿½ï¿½ï¿½Ð°ï¿½(ï¿½ï¿½Ê§ï¿½ï¿½ï¿½ï¿½)
+                    Q->point = (L + H) / 2;     // ×¢ÊÍÒÑÐÞ¸´
+                    Q->type  = 'W';             // ×¢ÊÍÒÑÐÞ¸´
                 }
-                else                            // Í¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý½á¹¹ (Ã¿ï¿½ï¿½Ò»ï¿½ï¿½)
+                else                            // ×¢ÊÍÒÑÐÞ¸´
                 {
-                    Q->point = (L + H) / 2;     // Hï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ðµï¿½, ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½LeftBorder>RightBorder
-                    Q->type  = 'H';             // ï¿½ï¿½ï¿½Ðºï¿½
+                    Q->point = (L + H) / 2;     // ×¢ÊÍÒÑÐÞ¸´
+                    Q->type  = 'H';             // ×¢ÊÍÒÑÐÞ¸´
                 }
                 break;
             }
         }
     }
-    else if (type == 'R')                       // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É¨ï¿½ï¿½
+    else if (type == 'R')                       // ×¢ÊÍÒÑÐÞ¸´
     {
         for (i = L; i <= H; i++)
         {
-            // ï¿½ï¿½(1)->ï¿½ï¿½(0)ï¿½ï¿½ï¿½ï¿½: ï¿½Òµï¿½ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½Î»ï¿½ï¿½
+            // ×¢ÊÍÒÑÐÞ¸´
             if (*(p + i) == 1 && *(p + i + 1) != 1)
             {
-                Q->point = i;                   // ??????????????
-                Q->type  = 'T';                 // ???????????
+                Q->point = i;                   // ×¢ÊÍÒÑÐÞ¸´
+                Q->type  = 'T';                 // ×¢ÊÍÒÑÐÞ¸´
                 break;
             }
-            else if (i == H)                    // É¨ï¿½èµ½ï¿½ï¿½ï¿½ï¿½Î´ï¿½Òµï¿½ï¿½ï¿½ï¿½ï¿½
+            else if (i == H)                    // ×¢ÊÍÒÑÐÞ¸´
             {
-                if (*(p + (L + H) / 2) != 0)    // ï¿½ï¿½ï¿½ï¿½ï¿½Ðµï¿½ï¿½ï¿½ï¿½Ç°ï¿½É«
+                if (*(p + (L + H) / 2) != 0)    // ×¢ÊÍÒÑÐÞ¸´
                 {
-                    Q->point = (L + H) / 2;     // ï¿½ï¿½É¨ï¿½ï¿½Î»ï¿½ï¿½
-                    Q->type  = 'W';             // ï¿½ï¿½ï¿½Ð°ï¿½(ï¿½ï¿½Ê§ï¿½ï¿½ï¿½ï¿½)
+                    Q->point = (L + H) / 2;     // ×¢ÊÍÒÑÐÞ¸´
+                    Q->type  = 'W';             // ×¢ÊÍÒÑÐÞ¸´
                 }
-                else                            // Í¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý½á¹¹ (Ã¿ï¿½ï¿½Ò»ï¿½ï¿½)
+                else                            // ×¢ÊÍÒÑÐÞ¸´
                 {
-                    Q->point = (L + H) / 2;     // Hï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ðµï¿½, ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½LeftBorder>RightBorder
-                    Q->type  = 'H';             // ï¿½ï¿½ï¿½Ðºï¿½
+                    Q->point = (L + H) / 2;     // ×¢ÊÍÒÑÐÞ¸´
+                    Q->type  = 'H';             // ×¢ÊÍÒÑÐÞ¸´
                 }
                 break;
             }
@@ -353,55 +332,48 @@ void Get_Border_And_SideType(uint8* p, uint8 type, int L, int H, JumpPointtypede
 
 
 //-------------------------------------------------------------------------------
-//  @brief          Get_AllLine - ï¿½Ó»ï¿½×¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É¨ï¿½ï¿½È«ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
-//  ??Get_BaseLine(56->52)???, ??51?§á??????52?§ß???????????Úb0??
-//  ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: ï¿½Úµï¿½Ç°ï¿½ï¿½ï¿½ï¿½Ò»ï¿½Ð±ï¿½ï¿½ï¿½Î»ï¿½ï¿½+/-ImageScanIntervalï¿½ï¿½Î§ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
-//  ï¿½ì³£ï¿½ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ò´¥·ï¿½ï¿½ï¿½ï¿½ï¿½; ï¿½ï¿½ï¿½Ð°×´ï¿½ï¿½ï¿½OFFLine
+// ×¢ÊÍÒÑÐÞ¸´
+// ×¢ÊÍÒÑÐÞ¸´
+// ×¢ÊÍÒÑÐÞ¸´
+// ×¢ÊÍÒÑÐÞ¸´
 //  @parameter      void
 //  @return         void
-//  @note           ï¿½ï¿½ï¿½ï¿½ ImageDeal[52] (ï¿½ï¿½×¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½) ï¿½ï¿½ Pixle[][] (ï¿½ï¿½ÖµÍ¼ï¿½ï¿½)
-//  @note           OFFLine: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í¬Ê±ï¿½ï¿½ï¿½ï¿½ï¿½Ð¶ï¿½Îªï¿½ï¿½ï¿½ï¿½Æ«ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+// ×¢ÊÍÒÑÐÞ¸´
+// ×¢ÊÍÒÑÐÞ¸´
 //  Sample usage:   Get_AllLine();
 //-------------------------------------------------------------------------------
 void Get_AllLine(void)
 {
-    uint8 *PicTemp;                             // ï¿½ï¿½Ç°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¸ï¿½ï¿½
-    int   row;                                  // ï¿½ï¿½Ç°É¨ï¿½ï¿½ï¿½Ðºï¿½
-    int   IntervalLow, IntervalHigh;            // ??????????????
-    int   i;                                    // ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    uint8 *PicTemp;                             // ×¢ÊÍÒÑÐÞ¸´
+    int   row;                                  // ×¢ÊÍÒÑÐÞ¸´
+    int   IntervalLow, IntervalHigh;            // ×¢ÊÍÒÑÐÞ¸´
+    int   i;                                    // ×¢ÊÍÒÑÐÞ¸´
 
-    /* ---- ï¿½ï¿½Ê¼ï¿½ï¿½×´Ì¬ï¿½ï¿½ï¿½ï¿½ ---- */
-    ImageStatus.OFFLine          = 2;           // ï¿½ï¿½ï¿½ï¿½ï¿½Ðºï¿½(ï¿½ï¿½Ê¼Îª2)
-    ImageStatus.Miss_Left_lines  = 0;           // ??????????????
-    ImageStatus.Miss_Right_lines = 0;           // ï¿½Ò²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê§ï¿½ï¿½ï¿½ï¿½
-    ImageStatus.WhiteLine        = 0;           // ï¿½ï¿½É«ï¿½Ð¼ï¿½ï¿½ï¿½(Ê®ï¿½ï¿½Ê¶ï¿½ï¿½)
-    ImageStatus.WhiteLine_L      = 0;           // ï¿½ï¿½ï¿½ï¿½ï¿½Ð¼ï¿½ï¿½ï¿½
-    ImageStatus.WhiteLine_R      = 0;           // ?????§Þ???
-    ImageStatus.OFFLineBoundary  = 0;           // ï¿½ï¿½ï¿½ß±ß½ï¿½ï¿½Ðºï¿½
-    ImageStatus.Det_True         = 0;           // ï¿½ï¿½Ð§ï¿½ï¿½ï¿½ï¿½Ö¾
+    /* ×¢ÊÍÒÑÐÞ¸´ */
+    ImageStatus.OFFLine          = 2;           // ×¢ÊÍÒÑÐÞ¸´
+    ImageStatus.Miss_Left_lines  = 0;           // ×¢ÊÍÒÑÐÞ¸´
+    ImageStatus.Miss_Right_lines = 0;           // ×¢ÊÍÒÑÐÞ¸´
+    ImageStatus.WhiteLine        = 0;           // ×¢ÊÍÒÑÐÞ¸´
+    ImageStatus.WhiteLine_L      = 0;           // ×¢ÊÍÒÑÐÞ¸´
+    ImageStatus.WhiteLine_R      = 0;           // ×¢ÊÍÒÑÐÞ¸´
+    ImageStatus.OFFLineBoundary  = 0;           // ×¢ÊÍÒÑÐÞ¸´
+    ImageStatus.Det_True         = 0;           // ×¢ÊÍÒÑÐÞ¸´
 
-    /*
-     * ï¿½ï¿½51ï¿½Ð¿ï¿½Ê¼, ï¿½ï¿½52ï¿½ï¿½(ï¿½ï¿½×¼ï¿½ï¿½)Îªï¿½Î¿ï¿½ï¿½ï¿½ï¿½ï¿½É¨ï¿½ï¿½
-     * ï¿½ï¿½ï¿½Ðµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö±ï¿½ï¿½0ï¿½Ð»ò´¥·ï¿½OFFLineï¿½ï¿½ï¿½ï¿½
-     */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
     for (row = SCAN_BASE_END_ROW - 1; row > ImageStatus.OFFLine; row--)
     {
-        JumpPointtypedef JumpPoint[2];          // [0]=????????, [1]=????????
+        JumpPointtypedef JumpPoint[2];          // ×¢ÊÍÒÑÐÞ¸´
         PicTemp = Pixle[row];
 
-        /* ============================================================
-         * ï¿½Ò²ï¿½ï¿½ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½Ò±ß½ï¿½ +/- ImageScanInterval ï¿½ï¿½Î§ï¿½ï¿½É¨ï¿½ï¿½
-         * ============================================================ */
+        /* ×¢ÊÍÒÑÐÞ¸´ */
         IntervalLow  = ImageDeal[row + 1].RightBorder - ImageScanInterval;
         IntervalHigh = ImageDeal[row + 1].RightBorder + ImageScanInterval;
-        LimitL(IntervalLow);                    // ï¿½Þ·ï¿½ï¿½ï¿½[0, 93]
+        LimitL(IntervalLow);                    // ×¢ÊÍÒÑÐÞ¸´
         LimitH(IntervalHigh);
 
         Get_Border_And_SideType(PicTemp, 'R', IntervalLow, IntervalHigh, &JumpPoint[1]);
 
-        /* ============================================================
-         * ???????: ??????????? +/- ImageScanInterval ??¦¶?????
-         * ============================================================ */
+        /* ×¢ÊÍÒÑÐÞ¸´ */
         IntervalLow  = ImageDeal[row + 1].LeftBorder - ImageScanInterval;
         IntervalHigh = ImageDeal[row + 1].LeftBorder + ImageScanInterval;
         LimitL(IntervalLow);
@@ -409,48 +381,43 @@ void Get_AllLine(void)
 
         Get_Border_And_SideType(PicTemp, 'L', IntervalLow, IntervalHigh, &JumpPoint[0]);
 
-        /* ============================================================
-         * ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í½ï¿½ï¿½Ð±ï¿½ï¿½ß´ï¿½ï¿½ï¿½:
-         * 'T'=ï¿½ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½Îªï¿½Òµï¿½ï¿½Ä±ï¿½ï¿½ï¿½Î»ï¿½ï¿½
-         * 'W'=È«ï¿½ï¿½: Ê¹ï¿½ï¿½ï¿½ï¿½Ò»ï¿½Ð±ï¿½ï¿½ï¿½Öµ (ï¿½ï¿½ï¿½ï¿½+1)
-         * 'H'=È«ï¿½ï¿½: É¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã»ï¿½Ð°×µï¿½, ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
-         * ============================================================ */
-        if (JumpPoint[0].type == 'W')           // ??????§Ñ?(????)
+        /* ×¢ÊÍÒÑÐÞ¸´ */
+        if (JumpPoint[0].type == 'W')           // ×¢ÊÍÒÑÐÞ¸´
         {
-            ImageDeal[row].LeftBorder = ImageDeal[row + 1].LeftBorder;  // ?????????????
-            ImageStatus.Miss_Left_lines++;      // ????????+1
+            ImageDeal[row].LeftBorder = ImageDeal[row + 1].LeftBorder;  // ×¢ÊÍÒÑÐÞ¸´
+            ImageStatus.Miss_Left_lines++;      // ×¢ÊÍÒÑÐÞ¸´
         }
-        else                                    // 'T' ? 'H'
+        else                                    // ×¢ÊÍÒÑÐÞ¸´
         {
             ImageDeal[row].LeftBorder = JumpPoint[0].point;
-            ImageStatus.Miss_Left_lines = 0;    // ï¿½Òµï¿½ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ã¶ªÊ§ï¿½ï¿½ï¿½ï¿½
+            ImageStatus.Miss_Left_lines = 0;    // ×¢ÊÍÒÑÐÞ¸´
         }
 
-        if (JumpPoint[1].type == 'W')           // ï¿½Ò²ï¿½ï¿½ï¿½ï¿½Ð°ï¿½(ï¿½ï¿½ï¿½ï¿½)
+        if (JumpPoint[1].type == 'W')           // ×¢ÊÍÒÑÐÞ¸´
         {
-            ImageDeal[row].RightBorder = ImageDeal[row + 1].RightBorder; // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½Ò±ß½ï¿½
-            ImageStatus.Miss_Right_lines++;     // ï¿½Ò²à¶ªÊ§ï¿½ï¿½ï¿½ï¿½+1
+            ImageDeal[row].RightBorder = ImageDeal[row + 1].RightBorder; // ×¢ÊÍÒÑÐÞ¸´
+            ImageStatus.Miss_Right_lines++;     // ×¢ÊÍÒÑÐÞ¸´
         }
-        else                                    // 'T' ? 'H'
+        else                                    // ×¢ÊÍÒÑÐÞ¸´
         {
             ImageDeal[row].RightBorder = JumpPoint[1].point;
-            ImageStatus.Miss_Right_lines = 0;   // ï¿½Òµï¿½ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ã¶ªÊ§ï¿½ï¿½ï¿½ï¿½
+            ImageStatus.Miss_Right_lines = 0;   // ×¢ÊÍÒÑÐÞ¸´
         }
 
-        /* ---- ï¿½ï¿½Â¼ï¿½Òµï¿½×´Ì¬ ---- */
+        /* ×¢ÊÍÒÑÐÞ¸´ */
         ImageDeal[row].IsLeftFind  = JumpPoint[0].type;
         ImageDeal[row].IsRightFind = JumpPoint[1].type;
 
-        /* ---- ï¿½ï¿½ï¿½Ð¼ï¿½ï¿½ï¿½(ï¿½ï¿½ï¿½ï¿½Í¬Ê±Îªï¿½ï¿½) ---- */
+        /* ×¢ÊÍÒÑÐÞ¸´ */
         if (JumpPoint[0].type == 'W' && JumpPoint[1].type == 'W')
         {
-            ImageStatus.WhiteLine++;            // ï¿½Û¼Æ°ï¿½É«ï¿½Ð¼ï¿½ï¿½ï¿½
+            ImageStatus.WhiteLine++;            // ×¢ÊÍÒÑÐÞ¸´
         }
         else
         {
             if (ImageStatus.WhiteLine > 0) ImageStatus.WhiteLine--;
         }
-        /* ??????§Þ??? */
+        /* ×¢ÊÍÒÑÐÞ¸´ */
         if (JumpPoint[0].type == 'W')
             ImageStatus.WhiteLine_L++;
         else
@@ -460,22 +427,19 @@ void Get_AllLine(void)
         else
             ImageStatus.WhiteLine_R = 0;
 
-        /* ---- ï¿½ï¿½ï¿½ã±¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ---- */
+        /* ×¢ÊÍÒÑÐÞ¸´ */
         ImageDeal[row].Center = (ImageDeal[row].LeftBorder + ImageDeal[row].RightBorder) / 2;
         ImageDeal[row].Wide   = ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder;
 
-        /*
-         * Hï¿½ï¿½ï¿½ï¿½ï¿½Þ¸ï¿½: È«ï¿½ï¿½ï¿½Ð³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò±ï¿½
-         * ?????????H?, ??????????????????
-         */
+        /* ×¢ÊÍÒÑÐÞ¸´ */
         if (ImageDeal[row].IsLeftFind == 'H' || ImageDeal[row].IsRightFind == 'H')
         {
-            /* ---- ??H??: ????????????????, ???????(???)??????? ---- */
+            /* ×¢ÊÍÒÑÐÞ¸´ */
             if (ImageDeal[row].IsLeftFind == 'H')
             {
                 for (i = ImageDeal[row].LeftBorder + 1; i <= ImageDeal[row].RightBorder; i++)
                 {
-                    if (*(PicTemp + i) == 1 && *(PicTemp + i - 1) == 0)  // ??->??????: ???????????
+                    if (*(PicTemp + i) == 1 && *(PicTemp + i - 1) == 0)  // ×¢ÊÍÒÑÐÞ¸´
                     {
                         ImageDeal[row].LeftBorder = i;
                         ImageDeal[row].IsLeftFind = 'T';
@@ -484,12 +448,12 @@ void Get_AllLine(void)
                 }
             }
 
-            /* ---- ï¿½ï¿½Hï¿½ï¿½: ï¿½Óµï¿½Ç°ï¿½Ò±ß½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½, Ñ°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(ï¿½×µï¿½)ï¿½Ø¶ï¿½ï¿½ï¿½ï¿½ï¿½ ---- */
+            /* ×¢ÊÍÒÑÐÞ¸´ */
             if (ImageDeal[row].IsRightFind == 'H')
             {
                 for (i = ImageDeal[row].RightBorder - 1; i >= ImageDeal[row].LeftBorder; i--)
                 {
-                    if (*(PicTemp + i) == 1 && *(PicTemp + i + 1) == 0)  // ï¿½ï¿½->ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: ï¿½Òµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò±ß½ï¿½
+                    if (*(PicTemp + i) == 1 && *(PicTemp + i + 1) == 0)  // ×¢ÊÍÒÑÐÞ¸´
                     {
                         ImageDeal[row].RightBorder = i;
                         ImageDeal[row].IsRightFind = 'T';
@@ -498,22 +462,19 @@ void Get_AllLine(void)
                 }
             }
 
-            /* ---- ï¿½Þ¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Â¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ---- */
-            /* Hï¿½ï¿½ï¿½Þ¸ï¿½Ê§ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½Ð±ß½ï¿½, ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä»ï¿½ï¿½Ôµï¿½Î³ï¿½Ö±ï¿½ï¿½ */
+            /* ×¢ÊÍÒÑÐÞ¸´ */
+            /* ×¢ÊÍÒÑÐÞ¸´ */
             if (ImageDeal[row].IsLeftFind == 'H')  { ImageDeal[row].LeftBorder  = ImageDeal[row + 1].LeftBorder; }
             if (ImageDeal[row].IsRightFind == 'H') { ImageDeal[row].RightBorder = ImageDeal[row + 1].RightBorder; }
             ImageDeal[row].Center = (ImageDeal[row].LeftBorder + ImageDeal[row].RightBorder) / 2;
             ImageDeal[row].Wide   = ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder;
         }
 
-        /* ============================================================
-         * OFFLineï¿½ï¿½ï¿½ï¿½ï¿½Ð¶ï¿½: ï¿½ï¿½ï¿½ï¿½Í¬Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê§ï¿½ï¿½ï¿½ï¿½3ï¿½Ð¡ï¿½
-         * ï¿½ï¿½ï¿½ï¿½: Ê®ï¿½ï¿½Ôªï¿½ï¿½Ë«ï¿½ï¿½È«ï¿½ï¿½(W)ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½OFFLine, ï¿½ï¿½Ö¤WhiteLineï¿½ï¿½ï¿½Û»ï¿½ï¿½ï¿½8ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ß¡ï¿½
-         * ============================================================ */
+        /* ×¢ÊÍÒÑÐÞ¸´ */
         if (ImageStatus.Miss_Left_lines > 3 && ImageStatus.Miss_Right_lines > 3
-            && !(JumpPoint[0].type == 'W' && JumpPoint[1].type == 'W'))  /* Ë«ï¿½ï¿½È«ï¿½ï¿½=Ê®ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
+            && !(JumpPoint[0].type == 'W' && JumpPoint[1].type == 'W'))  /* ×¢ÊÍÒÑÐÞ¸´ */
         {
-            ImageStatus.OFFLine = row;          // ï¿½ï¿½Â¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¼ï¿½Ðºï¿½
+            ImageStatus.OFFLine = row;          // ×¢ÊÍÒÑÐÞ¸´
             break;
         }
 
@@ -537,10 +498,8 @@ void Get_AllLine(void)
 
 
 
-/* ================================================================
- * Ôªï¿½ï¿½Ê¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ (TC264: 94ï¿½Ð¿ï¿½, AnCaiÔ­ï¿½ï¿½x1.175ï¿½ï¿½Ó³ï¿½ï¿½)
- * ================================================================ */
-const uint8 Half_Road_Wide[60] = {           /* ï¿½ï¿½ï¿½Â·ï¿½ï¿½ï¿½(ï¿½ï¿½ï¿½ï¿½->Ô¶ï¿½ï¿½ï¿½Ý¼ï¿½) */
+/* ×¢ÊÍÒÑÐÞ¸´ */
+const uint8 Half_Road_Wide[60] = {           /* ×¢ÊÍÒÑÐÞ¸´ */
      5, 6, 6, 7, 7, 7, 8, 8, 9, 9,
     11,11,12,12,12,13,14,14,15,15,
     15,16,16,18,18,19,19,20,20,20,
@@ -549,7 +508,7 @@ const uint8 Half_Road_Wide[60] = {           /* ï¿½ï¿½ï¿½Â·ï¿½ï¿½ï¿½(ï¿½ï¿½ï¿½ï¿
     32,33,33,33,34,35,36,36,36,38,
 };
 
-const uint8 Half_Bend_Wide[60] = {           /* ????????? */
+const uint8 Half_Bend_Wide[60] = {           /* ×¢ÊÍÒÑÐÞ¸´ */
     39,39,39,39,39,39,39,39,39,39,
     39,39,38,38,35,35,34,34,33,32,
     33,32,32,31,31,29,29,28,28,27,
@@ -558,23 +517,17 @@ const uint8 Half_Bend_Wide[60] = {           /* ????????? */
     33,34,34,35,35,36,36,38,38,39,
 };
 
-/* ================================================================
- * Í¼ï¿½ï¿½Ôªï¿½Ø±ï¿½Ö¾
- * ================================================================ */
-ImageFlagtypedef ImageFlag;                  /* Í¼ï¿½ï¿½Ôªï¿½Ø±ï¿½Ö¾ */
+/* ×¢ÊÍÒÑÐÞ¸´ */
+ImageFlagtypedef ImageFlag;                  /* ×¢ÊÍÒÑÐÞ¸´ */
 
-/* ================================================================
- * Helper: Straight_Judge - Ö±ï¿½ï¿½ï¿½Ð±ï¿½
- * dir=1: ?????????, dir=2: ?????????
- * ï¿½ï¿½ï¿½Ø¾ï¿½ï¿½ï¿½ï¿½ï¿½S, S<1 ï¿½ï¿½ÎªÖ±ï¿½ï¿½
- * ================================================================ */
+/* ×¢ÊÍÒÑÐÞ¸´ */
 float Straight_Judge(uint8 dir, uint8 start, uint8 end)
 {
     int i;
     float S = 0.0f, Sum = 0.0f, Err = 0.0f, k = 0.0f;
     switch (dir)
     {
-    case 1: /* ???? */
+    case 1: /* ×¢ÊÍÒÑÐÞ¸´ */
         k = (float)(ImageDeal[start].LeftBorder - ImageDeal[end].LeftBorder)
           / (float)(start - end);
         for (i = 0; i < (int)(end - start); i++)
@@ -585,7 +538,7 @@ float Straight_Judge(uint8 dir, uint8 start, uint8 end)
         }
         S = Sum / (float)(end - start);
         break;
-    case 2: /* ï¿½Ò±ß½ï¿½ */
+    case 2: /* ×¢ÊÍÒÑÐÞ¸´ */
         k = (float)(ImageDeal[start].RightBorder - ImageDeal[end].RightBorder)
           / (float)(start - end);
         for (i = 0; i < (int)(end - start); i++)
@@ -600,9 +553,7 @@ float Straight_Judge(uint8 dir, uint8 start, uint8 end)
     return S;
 }
 
-/* ================================================================
- * ï¿½ï¿½Ö±ï¿½ï¿½ï¿½Ð¶ï¿½ï¿½ë´¦ï¿½ï¿½
- * ================================================================ */
+/* ×¢ÊÍÒÑÐÞ¸´ */
 void Straight_long_judge(void)
 {
     if (ImageFlag.Bend_Road || ImageFlag.Zebra_Flag || ImageFlag.Out_Road == 1
@@ -633,9 +584,7 @@ void Straight_long_handle(void)
     }
 }
 
-/* ================================================================
- * §Ò??????§Ø? (???????????)
- * ================================================================ */
+/* ×¢ÊÍÒÑÐÞ¸´ */
 void Straight_xie_judge(void)
 {
     float S, Sum, Err, midd_k;
@@ -667,17 +616,10 @@ void Straight_xie_judge(void)
     }
 }
 
-/* ================================================================
- * ?????? (???????+????)
- * ================================================================ */
+/* ×¢ÊÍÒÑÐÞ¸´ */
 void Element_Judgment_Bend(void)
 {
-    /*
-     * ??????????: ??????????????????????
-     * Ô­ OFFLine < 3 ï¿½ß¼ï¿½ï¿½ï¿½ï¿½ï¿½: OFFLine ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í¬Ê±ï¿½ï¿½ï¿½ß²Å´ï¿½ï¿½ï¿½,
-     * ????????????, OFFLine ????2, ????????????????
-     * ï¿½ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½Ë«ï¿½à¶ªï¿½ß¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¶ï¿½ ï¿½ï¿½ Ë«ï¿½à¶¼×·ï¿½ï¿½ï¿½ï¿½ï¿½Ã²ï¿½ï¿½Ç´ï¿½Ö±ï¿½ï¿½ï¿½ï¿½
-     */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
     if (ImageFlag.image_element_rings != 0
         || ImageFlag.Zebra_Flag || ImageFlag.Out_Road == 1)
         return;
@@ -688,30 +630,28 @@ void Element_Judgment_Bend(void)
 
     if (ImageStatus.Miss_Left_lines < 4
         && ImageStatus.Miss_Right_lines < 4)
-        return;  /* ?????????? = ?????, ????????? */
+        return;  /* ×¢ÊÍÒÑÐÞ¸´ */
 
-    /* ????: ???ÂR??(<59), ??????????, ???????? (???????????) */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
     if (ImageDeal[ImageStatus.OFFLine + 1].RightBorder < 59  /* ponytail: 50*94/80=59 */
      && ImageStatus.Miss_Right_lines < 4
      && ImageStatus.Miss_Left_lines > 12
      && Straight_Judge(2, ImageStatus.OFFLine + 2, SCAN_BASE_START_ROW - 1) > 3.0f)
     {
-        ImageFlag.Bend_Road = 1;              /* ï¿½ï¿½ï¿½ï¿½ */
+        ImageFlag.Bend_Road = 1;              /* ×¢ÊÍÒÑÐÞ¸´ */
     }
 
-    /* ????: ???ÂR??(>35), ??????????, ???????? (???????????) */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
     if (ImageDeal[ImageStatus.OFFLine + 1].LeftBorder > 35  /* ponytail: 30*94/80=35 */
      && ImageStatus.Miss_Left_lines < 4
      && ImageStatus.Miss_Right_lines > 12
      && Straight_Judge(1, ImageStatus.OFFLine + 2, SCAN_BASE_START_ROW - 1) > 3.0f)
     {
-        ImageFlag.Bend_Road = 2;              /* ï¿½ï¿½ï¿½ï¿½ */
+        ImageFlag.Bend_Road = 2;              /* ×¢ÊÍÒÑÐÞ¸´ */
     }
 }
 
-/* ================================================================
- * ???????: ???¡¤???????????
- * ================================================================ */
+/* ×¢ÊÍÒÑÐÞ¸´ */
 void Element_Handle_Bend(void)
 {
     int row;                                  /* ÓÃint¶ø·ÇucharÒÔÖ§³Ö´ó·¶Î§Ñ­»· */
@@ -743,9 +683,7 @@ void Element_Handle_Bend(void)
     }
 }
 
-/* ================================================================
- * ï¿½ï¿½Ô²ï¿½ï¿½Ê¶ï¿½ï¿½
- * ================================================================ */
+/* ×¢ÊÍÒÑÐÞ¸´ */
 static void Ring_Set_State(uint8 state)
 {
     ImageFlag.image_element_rings_flag = state;
@@ -1065,42 +1003,40 @@ void Element_Judgment_Left_Rings(void)
     /* °²²ÆÍ¬Ô´ÃÅ¼÷£º×óÔ²»·±ØÐëÏÈ³öÏÖ×ó²àÁ¬Ðø¶ªÏß£¬Ö±µÀÔëÉù²»µÃ´¥·¢¡£ */
     if (ImageStatus.Miss_Right_lines > 3
         || ImageStatus.Miss_Left_lines < 13
-        || ImageStatus.OFFLine > 2 || Straight_Judge(2, 5, SCAN_BASE_END_ROW) > 3.0f   /* ???????????: ????????????? */
+        || ImageStatus.OFFLine > 2 || Straight_Judge(2, 5, SCAN_BASE_END_ROW) > 3.0f   /* ×¢ÊÍÒÑÐÞ¸´ */
         || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
         return;  /* Ìõ¼þ²»×ãÊ±½ûÖ¹½øÈëÔ²»·²¹Ïß£¬·ÀÖ¹¸²¸ÇÖ±µÀÖÐÐÄ¡£ */
 
-    /* ï¿½ï¿½ï¿½ï¿½Ç·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ðµï¿½ï¿½ï¿½ï¿½ï¿½ß¶ï¿½ï¿½ï¿½'W'(È«ï¿½ï¿½) */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
     {
         int r;
-        for (r = SCAN_BASE_START_ROW; r >= SCAN_BASE_END_ROW; r--)   /* ponytail: ï¿½ï¿½ï¿½ï¿½TC264ï¿½Ð·ï¿½Î§48->44 */
+        for (r = SCAN_BASE_START_ROW; r >= SCAN_BASE_END_ROW; r--)   /* ×¢ÊÍÒÑÐÞ¸´ */
         {
             if (ImageDeal[r].IsLeftFind == 'W') return;
         }
     }
 
-    /* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ß´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
     for (Ysite = (SCAN_BASE_START_ROW - 1); Ysite > ring_ysite; Ysite--)
     {
-        if (abs(ImageDeal[Ysite].LeftBorder - ImageDeal[Ysite - 1].LeftBorder) > 4  /* abs: ??????????????? */)
+        if (abs(ImageDeal[Ysite].LeftBorder - ImageDeal[Ysite - 1].LeftBorder) > 4  /* ×¢ÊÍÒÑÐÞ¸´ */)
         {
             Left_Less_Num++;
-            /* ???????????????? */
+            /* ×¢ÊÍÒÑÐÞ¸´ */
             if (Left_Less_Num == 1) {
-                /* ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±, ï¿½ï¿½ï¿½Ú´Ë¼ï¿½Â¼ï¿½ï¿½Ê¼ï¿½Ðºï¿½ */
+                /* ×¢ÊÍÒÑÐÞ¸´ */
             }
         }
     }
 
     if (Left_Less_Num >= 2)
     {
-        ImageFlag.image_element_rings = 1;    /* ï¿½ï¿½Ô²ï¿½ï¿½ */
+        ImageFlag.image_element_rings = 1;    /* ×¢ÊÍÒÑÐÞ¸´ */
         Ring_Set_State(RING_STATE_CONFIRM);
     }
 }
 
-/* ================================================================
- * ï¿½ï¿½Ô²ï¿½ï¿½Ê¶ï¿½ï¿½ (ï¿½ß¼ï¿½ï¿½Ô³ï¿½)
- * ================================================================ */
+/* ×¢ÊÍÒÑÐÞ¸´ */
 void Element_Judgment_Right_Rings(void)
 {
     int Ysite, ring_ysite = 25;
@@ -1109,13 +1045,13 @@ void Element_Judgment_Right_Rings(void)
     /* °²²ÆÍ¬Ô´ÃÅ¼÷£ºÓÒÔ²»·±ØÐëÏÈ³öÏÖÓÒ²àÁ¬Ðø¶ªÏß£¬Ö±µÀÔëÉù²»µÃ´¥·¢¡£ */
     if (ImageStatus.Miss_Left_lines > 3
         || ImageStatus.Miss_Right_lines < 15
-        || ImageStatus.OFFLine > 2 || Straight_Judge(1, 5, SCAN_BASE_END_ROW) > 3.0f   /* ???????????: ????????????? */
+        || ImageStatus.OFFLine > 2 || Straight_Judge(1, 5, SCAN_BASE_END_ROW) > 3.0f   /* ×¢ÊÍÒÑÐÞ¸´ */
         || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
         return;  /* Ìõ¼þ²»×ãÊ±½ûÖ¹½øÈëÔ²»·²¹Ïß£¬·ÀÖ¹¸²¸ÇÖ±µÀÖÐÐÄ¡£ */
 
     {
         int r;
-        for (r = SCAN_BASE_START_ROW; r >= SCAN_BASE_END_ROW; r--)   /* ponytail: ï¿½ï¿½ï¿½ï¿½TC264ï¿½Ð·ï¿½Î§ */
+        for (r = SCAN_BASE_START_ROW; r >= SCAN_BASE_END_ROW; r--)   /* ×¢ÊÍÒÑÐÞ¸´ */
         {
             if (ImageDeal[r].IsRightFind == 'W') return;
         }
@@ -1123,7 +1059,7 @@ void Element_Judgment_Right_Rings(void)
 
     for (Ysite = (SCAN_BASE_START_ROW - 1); Ysite > ring_ysite; Ysite--)
     {
-        if (abs(ImageDeal[Ysite].RightBorder - ImageDeal[Ysite - 1].RightBorder) > 4  /* abs: ??????????????? */)
+        if (abs(ImageDeal[Ysite].RightBorder - ImageDeal[Ysite - 1].RightBorder) > 4  /* ×¢ÊÍÒÑÐÞ¸´ */)
         {
             Right_Less_Num++;
         }
@@ -1131,14 +1067,12 @@ void Element_Judgment_Right_Rings(void)
 
     if (Right_Less_Num >= 2)
     {
-        ImageFlag.image_element_rings = 2;    /* ï¿½ï¿½Ô²ï¿½ï¿½ */
+        ImageFlag.image_element_rings = 2;    /* ×¢ÊÍÒÑÐÞ¸´ */
         Ring_Set_State(RING_STATE_CONFIRM);
     }
 }
 
-/* ================================================================
- * ï¿½ï¿½Ô²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: ï¿½Ãµï¿½Â·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
- * ================================================================ */
+/* ×¢ÊÍÒÑÐÞ¸´ */
 void Element_Handle_Left_Rings(void)
 {
     Ring_State_Update();
@@ -1148,9 +1082,7 @@ void Element_Handle_Left_Rings(void)
     }
 }
 
-/* ================================================================
- * ????????
- * ================================================================ */
+/* ×¢ÊÍÒÑÐÞ¸´ */
 void Element_Handle_Right_Rings(void)
 {
     Ring_State_Update();
@@ -1160,9 +1092,7 @@ void Element_Handle_Right_Rings(void)
     }
 }
 
-/* ================================================================
- * ?????????: ????20~32??¦¶???????????
- * ================================================================ */
+/* ×¢ÊÍÒÑÐÞ¸´ */
 void Element_Judgment_Zebra(void)
 {
     int Ysite, Xsite, net, NUM = 0;
@@ -1187,23 +1117,21 @@ void Element_Judgment_Zebra(void)
         }
     }
 
-    if (NUM > 8)                              /* ?????????: ?§Ø???????? */
+    if (NUM > 8)                              /* ×¢ÊÍÒÑÐÞ¸´ */
     {
-        if (ImageDeal[SCAN_BASE_START_ROW].Center > 47)  /* TC264: ????94????¦Ë47, ???????=?????? */
-            ImageFlag.Zebra_Flag = 2;           /* ?????, ?????? */
-        else                                  /* ï¿½ï¿½ï¿½ï¿½Æ«ï¿½ï¿½=ï¿½Ò²à±»ï¿½Úµï¿½ */
-            ImageFlag.Zebra_Flag = 1;           /* ?????, ?????? */
+        if (ImageDeal[SCAN_BASE_START_ROW].Center > 47)  /* ×¢ÊÍÒÑÐÞ¸´ */
+            ImageFlag.Zebra_Flag = 2;           /* ×¢ÊÍÒÑÐÞ¸´ */
+        else                                  /* ×¢ÊÍÒÑÐÞ¸´ */
+            ImageFlag.Zebra_Flag = 1;           /* ×¢ÊÍÒÑÐÞ¸´ */
     }
 }
 
-/* ================================================================
- * ï¿½ï¿½ï¿½ï¿½ï¿½ß´ï¿½ï¿½ï¿½: ï¿½Ãµï¿½Â·ï¿½ï¿½ï¿½ï¿½È«ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
- * ================================================================ */
+/* ×¢ÊÍÒÑÐÞ¸´ */
 void Element_Handle_Zebra(void)
 {
     int row;
 
-    if (ImageFlag.Zebra_Flag == 1)            /* ?????: ??????, ??????????????? */
+    if (ImageFlag.Zebra_Flag == 1)            /* ×¢ÊÍÒÑÐÞ¸´ */
     {
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLineBoundary + 1; row--)
         {
@@ -1211,7 +1139,7 @@ void Element_Handle_Zebra(void)
             LimitH(ImageDeal[row].Center);
         }
     }
-    else if (ImageFlag.Zebra_Flag == 2)       /* ?????: ??????, ??????????????? */
+    else if (ImageFlag.Zebra_Flag == 2)       /* ×¢ÊÍÒÑÐÞ¸´ */
     {
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLineBoundary + 1; row--)
         {
@@ -1221,14 +1149,12 @@ void Element_Handle_Zebra(void)
     }
 }
 
-/* ================================================================
- * ??????: OFFLine??? + ??? + ??????
- * ================================================================ */
+/* ×¢ÊÍÒÑÐÞ¸´ */
 void Element_Judgment_Ramp(void)
 {
-        return;                              /* ï¿½Ý²ï¿½ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Å»ï¿½ */
+        return;                              /* ×¢ÊÍÒÑÐÞ¸´ */
     int Ysite;
-    int i = 0;                           /* ï¿½ï¿½Ð§ï¿½Ð¼ï¿½ï¿½ï¿½ï¿½ï¿½ */
+    int i = 0;                           /* ×¢ÊÍÒÑÐÞ¸´ */
 
     if (ImageStatus.WhiteLine >= 3) return;
 
@@ -1251,25 +1177,21 @@ void Element_Judgment_Ramp(void)
             }
         }
 
-        if (i >= 3)                           /* ï¿½Û¼ï¿½3ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
+        if (i >= 3)                           /* ×¢ÊÍÒÑÐÞ¸´ */
         {
             ImageFlag.Ramp = 1;
         }
     }
 }
 
-/* ================================================================
- * Í¼ï¿½ï¿½Ôªï¿½Ø±ï¿½Ö¾
- * ================================================================ */
+/* ×¢ÊÍÒÑÐÞ¸´ */
 void Element_Handle_Ramp(void)
 {
-    /* Rampï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î´Êµï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
 
 }
 
-/* ================================================================
- * ??¡¤???: OFFLine??? + ????????????????
- * ================================================================ */
+/* ×¢ÊÍÒÑÐÞ¸´ */
 void Element_Judgment_OutRoad(void)
 {
     int Right_Num = 0, Left_Num = 0;
@@ -1293,33 +1215,29 @@ void Element_Judgment_OutRoad(void)
     }
 }
 
-/* ================================================================
- * ??¡¤????: ??????????????
- * ================================================================ */
+/* ×¢ÊÍÒÑÐÞ¸´ */
 void Element_Handle_OutRoad(void)
 {
     int Ysite, Xsite;
     int gray_sum = 0;
 
-    /* ???????????(????)????? */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
     for (Ysite = 35; Ysite < 55; Ysite++)
     {
-        for (Xsite = 30; Xsite < 64; Xsite++) /* TC264Í¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
+        for (Xsite = 30; Xsite < 64; Xsite++) /* ×¢ÊÍÒÑÐÞ¸´ */
         {
             gray_sum += Pixle[Ysite][Xsite];
         }
     }
 
-    /* ï¿½×µï¿½ï¿½ã¹»ï¿½ï¿½ -> ï¿½Ë³ï¿½ï¿½ï¿½Â·×´Ì¬ */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
     if (gray_sum > 400 && ImageStatus.OFFLine < 20)
     {
         ImageFlag.Out_Road = 0;
     }
 }
 
-/* ================================================================
- * ??????: ????????, ????????§¹?????????
- * ================================================================ */
+/* ×¢ÊÍÒÑÐÞ¸´ */
 #define CROSS_WHITE_LINE_MIN 8
 #define CROSS_VALID_LINE_COUNT 3
 
@@ -1441,34 +1359,31 @@ void Get_ExtensionLine(void)
         ImageDeal[row].Center = (ImageDeal[row].LeftBorder + ImageDeal[row].RightBorder) / 2;
     }
 }
-/* ================================================================
- * ?????????: ?????????????
- * ???: ????????????????????
- * ================================================================ */
+/* ×¢ÊÍÒÑÐÞ¸´ */
 void Scan_Element(void)
 {
-    /* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ôªï¿½ï¿½×´Ì¬ï¿½Â½ï¿½ï¿½ï¿½Ôªï¿½ï¿½Ê¶ï¿½ï¿½ */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
     if (ImageFlag.Out_Road == 0 && ImageFlag.Zebra_Flag == 0
      && ImageFlag.image_element_rings == 0
-     && ImageFlag.Ramp == 0)  /* ???/???????????????? */
+     && ImageFlag.Ramp == 0)  /* ×¢ÊÍÒÑÐÞ¸´ */
     {
-        Element_Judgment_OutRoad();           /* ï¿½ï¿½Â· */
-        Element_Judgment_Left_Rings();        /* ï¿½ï¿½Ô²ï¿½ï¿½ */
-        Element_Judgment_Right_Rings();       /* ï¿½ï¿½Ô²ï¿½ï¿½ */
-        Element_Judgment_Zebra();             /* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
-        Element_Judgment_Bend();              /* ??? */
-        Element_Judgment_Ramp();              /* ï¿½Âµï¿½ */
-        Straight_long_judge();                /* ï¿½ï¿½Ö±ï¿½ï¿½ */
+        Element_Judgment_OutRoad();           /* ×¢ÊÍÒÑÐÞ¸´ */
+        Element_Judgment_Left_Rings();        /* ×¢ÊÍÒÑÐÞ¸´ */
+        Element_Judgment_Right_Rings();       /* ×¢ÊÍÒÑÐÞ¸´ */
+        Element_Judgment_Zebra();             /* ×¢ÊÍÒÑÐÞ¸´ */
+        Element_Judgment_Bend();              /* ×¢ÊÍÒÑÐÞ¸´ */
+        Element_Judgment_Ramp();              /* ×¢ÊÍÒÑÐÞ¸´ */
+        Straight_long_judge();                /* ×¢ÊÍÒÑÐÞ¸´ */
     }
 
-    /* ????????????¡¤ */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
     if (ImageFlag.Bend_Road)
     {
         Element_Judgment_OutRoad();
         if (ImageFlag.Out_Road) ImageFlag.Bend_Road = 0;
     }
 
-    /* ???????????????? */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
     if (ImageFlag.Bend_Road)
     {
         Element_Judgment_Zebra();
@@ -1476,9 +1391,7 @@ void Scan_Element(void)
     }
 }
 
-/* ================================================================
- * ?????????: ???????????????????????
- * ================================================================ */
+/* ×¢ÊÍÒÑÐÞ¸´ */
 void Element_Handle(void)
 {
     if (ImageFlag.Out_Road != 0)
@@ -1498,9 +1411,7 @@ void Element_Handle(void)
     else if (ImageFlag.Bend_Road != 0)
         Element_Handle_Bend();
 }
-/* ================================================================
- * ï¿½ï¿½Ô²ï¿½ï¿½Ê¶ï¿½ï¿½
- * ================================================================ */
+/* ×¢ÊÍÒÑÐÞ¸´ */
 void Flag_init(void)
 {
     ImageFlag.Bend_Road              = 0;
@@ -1513,40 +1424,37 @@ void Flag_init(void)
 
 
 //-------------------------------------------------------------------------------
-//  @brief          Camera_ShowElementStatus - ï¿½ï¿½Ê¾ï¿½ï¿½Ç°Ôªï¿½ï¿½×´Ì¬
-//  ï¿½ï¿½IPS200ï¿½×²ï¿½ï¿½ï¿½Ê¾ï¿½ï¿½Ç°Ê¶ï¿½ðµ½µï¿½ï¿½ï¿½ï¿½ï¿½Ôªï¿½ï¿½(ï¿½ï¿½Ð´ï¿½ï¿½Ê¶)
-//  ??§Õ: zhi=??? wan_L/R=??? shi=??? huan_L/R=??? banma=???? po=??? duan=??¡¤
+// ×¢ÊÍÒÑÐÞ¸´
+// ×¢ÊÍÒÑÐÞ¸´
+// ×¢ÊÍÒÑÐÞ¸´
 //  @parameter      void
 //  @return         void
 //  Sample usage:   Camera_ShowElementStatus();
 //-------------------------------------------------------------------------------
 void Camera_ShowElementStatus(void)
 {
-    /* ï¿½×²ï¿½×´Ì¬ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
     ips200_set_color(RGB565_WHITE, RGB565_BLUE);
 
-    /*
-     * ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¾ï¿½ï¿½Ç°Ôªï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ï¿½È¼ï¿½ï¿½ï¿½ï¿½Ïµï¿½ï¿½ï¿½
-     * Î»ï¿½ï¿½: y=225 (ï¿½ï¿½Ä»240ï¿½ï¿½, ï¿½×²ï¿½15pxï¿½Ð¸ï¿½)
-     */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
         if    (ImageFlag.image_element_rings == 1)
     {
-        ips200_show_string(2, 225, "ELEM: yuan_L ");     /* ï¿½ï¿½Ô²ï¿½ï¿½ */
+        ips200_show_string(2, 225, "ELEM: yuan_L ");     /* ×¢ÊÍÒÑÐÞ¸´ */
     }
     else if (ImageFlag.image_element_rings == 2)
     {
-        ips200_show_string(2, 225, "ELEM: yuan_R ");     /* ï¿½ï¿½Ô²ï¿½ï¿½ */
+        ips200_show_string(2, 225, "ELEM: yuan_R ");     /* ×¢ÊÍÒÑÐÞ¸´ */
     }
     else if (ImageStatus.WhiteLine >= 8)
     {
-        ips200_show_string(2, 225, "ELEM: shi    ");     /* Ê®ï¿½ï¿½ */
+        ips200_show_string(2, 225, "ELEM: shi    ");     /* ×¢ÊÍÒÑÐÞ¸´ */
     }
     else
     {
-        ips200_show_string(2, 225, "ELEM: ---    ");     /* ï¿½ï¿½Ôªï¿½ï¿½ */
+        ips200_show_string(2, 225, "ELEM: ---    ");     /* ×¢ÊÍÒÑÐÞ¸´ */
     }
 
-    /* ??????§Þ??? */
+    /* ×¢ÊÍÒÑÐÞ¸´ */
     /* µ×À¸ÓÒ²àÏÔÊ¾µ±Ç°Í¼ÏñÆ«²î£¬ÓëÔªËØ×´Ì¬Í¬Ö¡Ë¢ÐÂ¡£ */
     ips200_show_string(120, 225, "Err:");
     ips200_show_float(152, 225, Err, 3, 2);

@@ -9,14 +9,59 @@
  * 严禁修改逐飞设备库函数。
  ******************************************************************************/
 #include "IPS200.h"
-#include "IfxQspi_reg.h"
+#include "IfxPort_reg.h"
 
-#define IPS200_QSPI_FIFO_DEPTH (4U)
-#define IPS200_QSPI_TIMEOUT    (1000000U)
-#define IPS200_SCREEN_WIDTH    (240U)
-#define IPS200_SCREEN_HEIGHT   (320U)
+#define IPS200_SCREEN_WIDTH      (240U)
+#define IPS200_SCREEN_HEIGHT     (320U)
+
+/* 屏幕软件SPI的四根信号线均位于P15，直接写OMR可避免通用GPIO函数开销。 */
+#define IPS200_SCL_SET_MASK      (1U << 4)
+#define IPS200_SCL_CLEAR_MASK    (1U << 20)
+#define IPS200_SDA_SET_MASK      (1U << 2)
+#define IPS200_SDA_CLEAR_MASK    (1U << 18)
+#define IPS200_DC_SET_MASK       (1U << 1)
+#define IPS200_DC_CLEAR_MASK     (1U << 17)
+#define IPS200_CS_SET_MASK       (1U << 5)
+#define IPS200_CS_CLEAR_MASK     (1U << 21)
 
 static uint16 ips200_gray_rgb565[256];
+
+/*
+ * 按SPI模式0发送数据：下降沿切换数据、上升沿由屏幕采样。
+ * 每位仅写两次P15 OMR寄存器，P15总线访问间隔同时限制了最高时钟频率。
+ */
+static inline void IPS200_WriteBitsDirect(uint32 data, uint8 bit_count)
+{
+    uint32 data_mask;
+    uint32 port_value;
+
+    data_mask = 1U << (bit_count - 1U);
+    while (data_mask != 0U)
+    {
+        port_value = IPS200_SCL_CLEAR_MASK;
+        if ((data & data_mask) != 0U)
+        {
+            port_value |= IPS200_SDA_SET_MASK;
+        }
+        else
+        {
+            port_value |= IPS200_SDA_CLEAR_MASK;
+        }
+
+        MODULE_P15.OMR.U = port_value;
+        MODULE_P15.OMR.U = IPS200_SCL_SET_MASK;
+        data_mask >>= 1U;
+    }
+
+    MODULE_P15.OMR.U = IPS200_SCL_CLEAR_MASK;
+}
+
+static inline void IPS200_WriteCommandDirect(uint8 command)
+{
+    MODULE_P15.OMR.U = IPS200_DC_CLEAR_MASK;
+    IPS200_WriteBitsDirect(command, 8U);
+    MODULE_P15.OMR.U = IPS200_DC_SET_MASK;
+}
 
 static void IPS200_InitGrayTable(void)
 {
@@ -35,26 +80,17 @@ static void IPS200_InitGrayTable(void)
  */
 void IPS200_Init(void)
 {
-    ips200_init(IPS200_TYPE_SPI);          /* QSPI2硬件接口初始化 */
+    ips200_init(IPS200_TYPE_SPI);           /* 按当前接线初始化软件SPI */
     ips200_clear();                         /* 清屏 */
     ips200_set_dir(IPS200_PORTAIT);        /* 竖屏模式 */
     ips200_set_font(IPS200_8X16_FONT);     /* 8x16字体 */
     IPS200_InitGrayTable();                 /* 预计算灰度到RGB565映射 */
 }
 
-/*
- * 使用QSPI2发送FIFO直接刷新灰度图，避免逐字节等待FIFO清空。
- * 每个32位数据项打包两个RGB565像素，高位像素先发。
- */
+/* 使用现有软件SPI引脚直接刷新灰度图，避免逐飞通用软件SPI的函数和延时开销。 */
 void IPS200_ShowGrayImageFast(const uint8 *image, uint16 width, uint16 height)
 {
-    Ifx_QSPI_BACON stream_config;
     uint32 pixel_count;
-    uint32 pair_count;
-    uint32 non_final_pairs;
-    uint32 packed_pixels;
-    uint32 wait_count;
-    uint8 has_tail;
 
     if (image == NULL || width == 0U || height == 0U
         || width > IPS200_SCREEN_WIDTH || height > IPS200_SCREEN_HEIGHT)
@@ -63,107 +99,25 @@ void IPS200_ShowGrayImageFast(const uint8 *image, uint16 width, uint16 height)
     }
 
     pixel_count = (uint32)width * height;
-    pair_count = pixel_count / 2U;
-    has_tail = (uint8)(pixel_count & 1U);
-    non_final_pairs = pair_count;
-    if (has_tail == 0U)
+
+    MODULE_P15.OMR.U = IPS200_CS_CLEAR_MASK | IPS200_SCL_CLEAR_MASK;
+
+    /* 设置从屏幕左上角开始、与输入图像等大的连续写入区域。 */
+    IPS200_WriteCommandDirect(0x2AU);
+    IPS200_WriteBitsDirect(0U, 16U);
+    IPS200_WriteBitsDirect(width - 1U, 16U);
+
+    IPS200_WriteCommandDirect(0x2BU);
+    IPS200_WriteBitsDirect(0U, 16U);
+    IPS200_WriteBitsDirect(height - 1U, 16U);
+
+    IPS200_WriteCommandDirect(0x2CU);
+    while (pixel_count > 0U)
     {
-        non_final_pairs--;
+        IPS200_WriteBitsDirect(ips200_gray_rgb565[*image], 16U);
+        image++;
+        pixel_count--;
     }
 
-    gpio_low(IPS200_CS_PIN_SPI);
-
-    /* 设置连续写入区域，少量命令继续使用已验证的逐飞接口。 */
-    gpio_low(IPS200_DC_PIN_SPI);
-    spi_write_8bit(IPS200_SPI, 0x2AU);
-    gpio_high(IPS200_DC_PIN_SPI);
-    spi_write_16bit(IPS200_SPI, 0U);
-    spi_write_16bit(IPS200_SPI, width - 1U);
-
-    gpio_low(IPS200_DC_PIN_SPI);
-    spi_write_8bit(IPS200_SPI, 0x2BU);
-    gpio_high(IPS200_DC_PIN_SPI);
-    spi_write_16bit(IPS200_SPI, 0U);
-    spi_write_16bit(IPS200_SPI, height - 1U);
-
-    gpio_low(IPS200_DC_PIN_SPI);
-    spi_write_8bit(IPS200_SPI, 0x2CU);
-    gpio_high(IPS200_DC_PIN_SPI);
-
-    wait_count = IPS200_QSPI_TIMEOUT;
-    while (MODULE_QSPI2.STATUS.B.TXFIFOLEVEL != 0U)
-    {
-        if (--wait_count == 0U) goto transfer_failed;
-    }
-
-    MODULE_QSPI2.FLAGSCLEAR.U = 0xFFFFU;
-    stream_config.U = MODULE_QSPI2.BACON.U;
-
-    if (non_final_pairs > 0U)
-    {
-        /* 每个FIFO数据项连续发送两个RGB565像素，减少一半寄存器写入。 */
-        stream_config.B.DL = 31;
-        stream_config.B.LAST = 0;
-        MODULE_QSPI2.BACONENTRY.U = stream_config.U;
-
-        while (non_final_pairs > 0U)
-        {
-            wait_count = IPS200_QSPI_TIMEOUT;
-            while (MODULE_QSPI2.STATUS.B.TXFIFOLEVEL >= IPS200_QSPI_FIFO_DEPTH)
-            {
-                if (--wait_count == 0U) goto transfer_failed;
-            }
-
-            packed_pixels = ((uint32)ips200_gray_rgb565[image[0]] << 16)
-                | ips200_gray_rgb565[image[1]];
-            MODULE_QSPI2.DATAENTRY[0].U = packed_pixels;
-            image += 2;
-            non_final_pairs--;
-        }
-    }
-
-    /* 末尾BACON和最后一个数据项各占一个FIFO槽位。 */
-    wait_count = IPS200_QSPI_TIMEOUT;
-    while (MODULE_QSPI2.STATUS.B.TXFIFOLEVEL > (IPS200_QSPI_FIFO_DEPTH - 2U))
-    {
-        if (--wait_count == 0U) goto transfer_failed;
-    }
-
-    stream_config.B.LAST = 1;
-    if (has_tail != 0U)
-    {
-        stream_config.B.DL = 15;
-        packed_pixels = ips200_gray_rgb565[image[0]];
-    }
-    else
-    {
-        stream_config.B.DL = 31;
-        packed_pixels = ((uint32)ips200_gray_rgb565[image[0]] << 16)
-            | ips200_gray_rgb565[image[1]];
-    }
-
-    MODULE_QSPI2.BACONENTRY.U = stream_config.U;
-    MODULE_QSPI2.DATAENTRY[0].U = packed_pixels;
-
-    wait_count = IPS200_QSPI_TIMEOUT;
-    while (MODULE_QSPI2.STATUS.B.TXFIFOLEVEL != 0U)
-    {
-        if (--wait_count == 0U) goto transfer_failed;
-    }
-
-    wait_count = IPS200_QSPI_TIMEOUT;
-    while (MODULE_QSPI2.STATUS.B.PT1F == 0U)
-    {
-        if (--wait_count == 0U) goto transfer_failed;
-    }
-
-    MODULE_QSPI2.FLAGSCLEAR.U = 0xFFFFU;
-    gpio_high(IPS200_CS_PIN_SPI);
-    return;
-
-transfer_failed:
-    /* 超时后复位状态机和收发FIFO，避免残留数据破坏下一帧。 */
-    gpio_high(IPS200_CS_PIN_SPI);
-    MODULE_QSPI2.GLOBALCON.B.RESETS = 7U;
-    MODULE_QSPI2.FLAGSCLEAR.U = 0xFFFFU;
+    MODULE_P15.OMR.U = IPS200_CS_SET_MASK | IPS200_SCL_CLEAR_MASK;
 }

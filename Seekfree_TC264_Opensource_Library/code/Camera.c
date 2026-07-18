@@ -1,4 +1,4 @@
-/* 注释已修复 */
+/* 摄像头图像处理模块说明 */
 #include "Camera.h"
 #include "Shared.h"
 static uint16 s_ring_state_frames = 0U;      /* 当前阶段已经持续的图像帧数 */
@@ -11,8 +11,8 @@ static int s_ring_entry_corner_col = -1;     /* 最近一次入口拐点列 */
 uint8  Pixle[LCDH][LCDW];
 uint8 *Image_Use[LCDH][LCDW];
 uint8  Camera_Threshold = 128;
-ImageDealDatatypedef ImageDeal[LCDH];        // 注释已修复
-ImageStatustypedef ImageStatus;              // 注释已修复
+ImageDealDatatypedef ImageDeal[LCDH];        // 更新当前扫描行数据
+ImageStatustypedef ImageStatus;              // 更新图像识别状态
 #define COMPRESS_STEP_H (MT9V03X_H/LCDH)
 #define COMPRESS_STEP_W (MT9V03X_W/LCDW)
 
@@ -23,14 +23,14 @@ uint8 Camera_IsFrameReady(void) {
 
 uint8 (*Camera_GetImage(void))[CAMERA_W] { return mt9v03x_image; }
 
-/* 注释已修复 */
+/* 函数说明：Camera_CompressInit。 */
 void Camera_CompressInit(void) {
     uint8 i, j; uint16 r, c;
     for (i = 0; i < LCDH; i++) { r = (uint16)i * COMPRESS_STEP_H;
         for (j = 0; j < LCDW; j++) { c = (uint16)j * COMPRESS_STEP_W;
             Image_Use[i][j] = &mt9v03x_image[r][c]; } } }
 
-/* 注释已修复 */
+/* 函数说明：Camera_OTSU_GetThreshold。 */
 uint8 Camera_OTSU_GetThreshold(uint8 *image[][LCDW], uint16 col, uint16 row) {
     uint32 hist[256] = {0};
     uint16 i, j;
@@ -42,16 +42,16 @@ uint8 Camera_OTSU_GetThreshold(uint8 *image[][LCDW], uint16 col, uint16 row) {
     float maxVar = 0.0f;
     uint8 bestThr = 128;
 
-    /* 注释已修复 */
+    /* 统计图像灰度直方图。 */
     for (i = 0; i < row; i++)
         for (j = 0; j < col; j++)
             hist[*image[i][j]]++;
 
-    /* 注释已修复 */
+    /* 统计图像灰度直方图。 */
     for (t = 0; t < 256; t++)
         totalSum += (uint64)t * hist[t];
 
-    /* 注释已修复 */
+    /* 统计图像灰度直方图。 */
     for (t = 0; t < 255; t++) {
         w0 += hist[t];
         if (w0 == 0) continue;
@@ -66,13 +66,13 @@ uint8 Camera_OTSU_GetThreshold(uint8 *image[][LCDW], uint16 col, uint16 row) {
         }
     }
 
-    /* 注释已修复 */
+    /* 搜索并限制最佳二值化阈值。 */
     if (bestThr < OTSU_MIN) bestThr = OTSU_MIN;
     if (bestThr > OTSU_MAX) bestThr = OTSU_MAX;
     return bestThr;
 }
 
-/* 注释已修复 */
+/* 函数说明：Camera_GetBinaryImage。 */
 void Camera_GetBinaryImage(void) {
     uint8 thr = Camera_OTSU_GetThreshold(Image_Use, LCDW, LCDH);
     Camera_Threshold = thr;
@@ -87,34 +87,34 @@ void Camera_ShowBinaryFast(void) {
     ips200_show_gray_image(xo, 0, Pixle[0], LCDW, LCDH, LCDW, LCDH, 1);
 }
 
-/* 注释已修复 */
-/* 注释已修复 */
+/* 执行当前图像处理步骤。 */
+/* 函数说明：Camera_DrawCenterLines。 */
 void Camera_DrawCenterLines(void)
 {
     int row;
-    uint16 xo = (uint16)((MT9V03X_W - LCDW) / 2);  /* 注释已修复 */
+    uint16 xo = (uint16)((MT9V03X_W - LCDW) / 2);  /* 执行当前图像处理步骤。 */
 
-    /* 注释已修复 */
-    /* 注释已修复 */
+    /* 执行当前图像处理步骤。 */
+    /* 执行当前图像处理步骤。 */
     ips200_draw_line(94, 0, 94, 119, RGB565_RED);
-    /* 注释已修复 */
+    /* 执行当前图像处理步骤。 */
     ips200_draw_line(xo + ImageSensorMid, 150, xo + ImageSensorMid, 209, RGB565_RED);
 
-    /* 注释已修复 */
-    /* 注释已修复 */
+    /* 更新图像识别状态。 */
+    /* 更新图像识别状态。 */
     /* 两个端点都必须位于OFFLine以上的有效搜线区域。 */
     for (row = SCAN_BASE_START_ROW; (row - 2) > ImageStatus.OFFLine; row -= 2)
     {
         if (ImageDeal[row].Center < 0 || ImageDeal[row].Center >= LCDW) continue;
         if (ImageDeal[row-2].Center < 0 || ImageDeal[row-2].Center >= LCDW) continue;
 
-        /* 注释已修复 */
+        /* 处理当前扫描行的边线数据。 */
         ips200_draw_line(
             (uint16)ImageDeal[row].Center * 2, (uint16)row * 2,
             (uint16)ImageDeal[row-2].Center * 2, (uint16)(row-2) * 2,
             RGB565_BLUE);
 
-        /* 注释已修复 */
+        /* 处理当前扫描行的边线数据。 */
         ips200_draw_line(
             xo + (uint16)ImageDeal[row].Center, 150 + (uint16)row,
             xo + (uint16)ImageDeal[row-2].Center, 150 + (uint16)(row-2),
@@ -124,17 +124,17 @@ void Camera_DrawCenterLines(void)
 
 void Camera_ShowDebug(void) {
     uint16 xo;
-    /* 注释已修复 */
+    /* 执行当前图像处理步骤。 */
     ips200_show_gray_image(0, 0, mt9v03x_image[0],
         MT9V03X_W, MT9V03X_H, MT9V03X_W, MT9V03X_H, 0);
-    /* 注释已修复 */
+    /* 执行当前图像处理步骤。 */
     ips200_set_color(RGB565_YELLOW, RGB565_BLACK);
     ips200_show_string(2, 125, "OTSU Thr:");
     ips200_show_uint(82, 125, Camera_Threshold, 3);
-    /* 注释已修复 */
+    /* 处理当前扫描行的边线数据。 */
     xo = (uint16)((MT9V03X_W - LCDW) / 2);
     ips200_show_gray_image(xo, 150, Pixle[0], LCDW, LCDH, LCDW, LCDH, 1);
-    /* 注释已修复 */
+    /* 执行当前图像处理步骤。 */
     ips200_set_color(RGB565_WHITE, RGB565_BLACK);
     /* legend removed */
     Camera_ShowElementStatus();
@@ -145,22 +145,22 @@ void Camera_ShowDebug(void) {
 
 
 //-------------------------------------------------------------------------------
-// 注释已修复
-// 注释已修复
-// 注释已修复
-// 注释已修复
-// 注释已修复
+// 记录当前处理步骤
+// 记录当前处理步骤
+// 记录当前处理步骤
+// 记录当前处理步骤
+// 记录当前处理步骤
 //-------------------------------------------------------------------------------
 void Get_BaseLine(void)
 {
-    uint8 *PicTemp;                             // 注释已修复
-    int   Xsite;                                // 注释已修复
-    int   row;                                  // 注释已修复
+    uint8 *PicTemp;                             // 记录当前处理步骤
+    int   Xsite;                                // 记录当前处理步骤
+    int   row;                                  // 记录当前处理步骤
 
-    /* 注释已修复 */
-    PicTemp = Pixle[SCAN_BASE_START_ROW];       // 注释已修复
+    /* 处理当前扫描行的边线数据。 */
+    PicTemp = Pixle[SCAN_BASE_START_ROW];       // 更新当前扫描行数据
 
-    // 注释已修复
+    // 记录当前处理步骤
     for (Xsite = ImageSensorMid; Xsite < (LCDW - 1); Xsite++)
     {
         if (*(PicTemp + Xsite) == 0 && *(PicTemp + Xsite + 1) == 0)
@@ -175,7 +175,7 @@ void Get_BaseLine(void)
         }
     }
 
-    // 注释已修复
+    // 记录当前处理步骤
     for (Xsite = ImageSensorMid; Xsite > 0; Xsite--)
     {
         if (*(PicTemp + Xsite) == 0 && *(PicTemp + Xsite - 1) == 0)
@@ -190,25 +190,25 @@ void Get_BaseLine(void)
         }
     }
 
-    // 注释已修复
+    // 记录当前处理步骤
     ImageDeal[SCAN_BASE_START_ROW].Center
         = (ImageDeal[SCAN_BASE_START_ROW].LeftBorder
          + ImageDeal[SCAN_BASE_START_ROW].RightBorder) / 2;
     ImageDeal[SCAN_BASE_START_ROW].Wide
         = ImageDeal[SCAN_BASE_START_ROW].RightBorder
         - ImageDeal[SCAN_BASE_START_ROW].LeftBorder;
-    /* 注释已修复 */
+    /* 处理当前扫描行的边线数据。 */
     if (ImageDeal[SCAN_BASE_START_ROW].IsLeftFind != 'F')
         ImageDeal[SCAN_BASE_START_ROW].IsLeftFind  = 'T';
     if (ImageDeal[SCAN_BASE_START_ROW].IsRightFind != 'F')
         ImageDeal[SCAN_BASE_START_ROW].IsRightFind = 'T';
 
-    /* 注释已修复 */
+    /* 处理当前扫描行的边线数据。 */
     for (row = SCAN_BASE_START_ROW - 1; row >= SCAN_BASE_END_ROW; row--)
     {
         PicTemp = Pixle[row];
 
-        // 注释已修复
+        // 记录当前处理步骤
         for (Xsite = ImageDeal[row + 1].Center; Xsite < (LCDW - 1); Xsite++)
         {
             if (*(PicTemp + Xsite) == 0 && *(PicTemp + Xsite + 1) == 0)
@@ -219,12 +219,12 @@ void Get_BaseLine(void)
             else if (Xsite == (LCDW - 2))
             {
                 ImageDeal[row].RightBorder = LCDW - 1;
-                ImageDeal[row].IsRightFind = 'F';   // 注释已修复
+                ImageDeal[row].IsRightFind = 'F';   // 更新当前扫描行数据
                 break;
             }
         }
 
-        // 注释已修复
+        // 记录当前处理步骤
         for (Xsite = ImageDeal[row + 1].Center; Xsite > 0; Xsite--)
         {
             if (*(PicTemp + Xsite) == 0 && *(PicTemp + Xsite - 1) == 0)
@@ -235,94 +235,94 @@ void Get_BaseLine(void)
             else if (Xsite == 1)
             {
                 ImageDeal[row].LeftBorder = 0;
-                ImageDeal[row].IsLeftFind = 'F';    // 注释已修复
+                ImageDeal[row].IsLeftFind = 'F';    // 更新当前扫描行数据
                 break;
             }
         }
 
-        // 注释已修复
+        // 记录当前处理步骤
         ImageDeal[row].Center
             = (ImageDeal[row].LeftBorder + ImageDeal[row].RightBorder) / 2;
         ImageDeal[row].Wide
             = ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder;
-        /* 注释已修复 */
+        /* 处理当前扫描行的边线数据。 */
         if (ImageDeal[row].IsLeftFind != 'F')
             ImageDeal[row].IsLeftFind  = 'T';
         if (ImageDeal[row].IsRightFind != 'F')
             ImageDeal[row].IsRightFind = 'T';
     }
 
-    /* 注释已修复 */
-    // 注释已修复
+    /* 执行当前图像处理步骤。 */
+    // 记录当前处理步骤
 }
 
 //-------------------------------------------------------------------------------
-// 注释已修复
-// 注释已修复
-// 注释已修复
-// 注释已修复
-// 注释已修复
-// 注释已修复
-// 注释已修复
+// 记录当前处理步骤
+// 记录当前处理步骤
+// 记录当前处理步骤
+// 记录当前处理步骤
+// 记录当前处理步骤
+// 记录当前处理步骤
+// 记录当前处理步骤
 //  @return         void
 //  Sample usage:   Get_Border_And_SideType(PicTemp, 'R', low, high, &jp);
 //-------------------------------------------------------------------------------
 void Get_Border_And_SideType(uint8* p, uint8 type, int L, int H, JumpPointtypedef* Q)
 {
     int i;
-    /* 注释已修复 */
+    /* 执行当前图像处理步骤。 */
     LimitL(L);
     LimitH(H);
 
-    if (type == 'L')                            // 注释已修复
+    if (type == 'L')                            // 记录当前处理步骤
     {
         for (i = H; i >= L; i--)
         {
-            // 注释已修复
+            // 记录当前处理步骤
             if (*(p + i) == 1 && *(p + i - 1) != 1)
             {
-                Q->point = i;                   // 注释已修复
-                Q->type  = 'T';                 // 注释已修复
+                Q->point = i;                   // 记录当前处理步骤
+                Q->type  = 'T';                 // 记录当前处理步骤
                 break;
             }
-            else if (i == L)                    // 注释已修复
+            else if (i == L)                    // 记录当前处理步骤
             {
-                if (*(p + (L + H) / 2) != 0)    // 注释已修复
+                if (*(p + (L + H) / 2) != 0)    // 记录当前处理步骤
                 {
-                    Q->point = (L + H) / 2;     // 注释已修复
-                    Q->type  = 'W';             // 注释已修复
+                    Q->point = (L + H) / 2;     // 记录当前处理步骤
+                    Q->type  = 'W';             // 记录当前处理步骤
                 }
-                else                            // 注释已修复
+                else                            // 记录当前处理步骤
                 {
-                    Q->point = (L + H) / 2;     // 注释已修复
-                    Q->type  = 'H';             // 注释已修复
+                    Q->point = (L + H) / 2;     // 记录当前处理步骤
+                    Q->type  = 'H';             // 记录当前处理步骤
                 }
                 break;
             }
         }
     }
-    else if (type == 'R')                       // 注释已修复
+    else if (type == 'R')                       // 记录当前处理步骤
     {
         for (i = L; i <= H; i++)
         {
-            // 注释已修复
+            // 记录当前处理步骤
             if (*(p + i) == 1 && *(p + i + 1) != 1)
             {
-                Q->point = i;                   // 注释已修复
-                Q->type  = 'T';                 // 注释已修复
+                Q->point = i;                   // 记录当前处理步骤
+                Q->type  = 'T';                 // 记录当前处理步骤
                 break;
             }
-            else if (i == H)                    // 注释已修复
+            else if (i == H)                    // 记录当前处理步骤
             {
-                if (*(p + (L + H) / 2) != 0)    // 注释已修复
+                if (*(p + (L + H) / 2) != 0)    // 记录当前处理步骤
                 {
-                    Q->point = (L + H) / 2;     // 注释已修复
-                    Q->type  = 'W';             // 注释已修复
+                    Q->point = (L + H) / 2;     // 记录当前处理步骤
+                    Q->type  = 'W';             // 记录当前处理步骤
                 }
-                else                            // 注释已修复
+                else                            // 记录当前处理步骤
                 {
-                    Q->point = (L + H) / 2;     // 注释已修复
-                    Q->type  = 'H';             // 注释已修复
+                    Q->point = (L + H) / 2;     // 记录当前处理步骤
+                    Q->type  = 'H';             // 记录当前处理步骤
                 }
                 break;
             }
@@ -332,48 +332,48 @@ void Get_Border_And_SideType(uint8* p, uint8 type, int L, int H, JumpPointtypede
 
 
 //-------------------------------------------------------------------------------
-// 注释已修复
-// 注释已修复
-// 注释已修复
-// 注释已修复
+// 记录当前处理步骤
+// 记录当前处理步骤
+// 记录当前处理步骤
+// 记录当前处理步骤
 //  @parameter      void
 //  @return         void
-// 注释已修复
-// 注释已修复
+// 记录当前处理步骤
+// 记录当前处理步骤
 //  Sample usage:   Get_AllLine();
 //-------------------------------------------------------------------------------
 void Get_AllLine(void)
 {
-    uint8 *PicTemp;                             // 注释已修复
-    int   row;                                  // 注释已修复
-    int   IntervalLow, IntervalHigh;            // 注释已修复
-    int   i;                                    // 注释已修复
+    uint8 *PicTemp;                             // 记录当前处理步骤
+    int   row;                                  // 记录当前处理步骤
+    int   IntervalLow, IntervalHigh;            // 记录当前处理步骤
+    int   i;                                    // 记录当前处理步骤
 
-    /* 注释已修复 */
-    ImageStatus.OFFLine          = 2;           // 注释已修复
-    ImageStatus.Miss_Left_lines  = 0;           // 注释已修复
-    ImageStatus.Miss_Right_lines = 0;           // 注释已修复
-    ImageStatus.WhiteLine        = 0;           // 注释已修复
-    ImageStatus.WhiteLine_L      = 0;           // 注释已修复
-    ImageStatus.WhiteLine_R      = 0;           // 注释已修复
-    ImageStatus.OFFLineBoundary  = 0;           // 注释已修复
-    ImageStatus.Det_True         = 0;           // 注释已修复
+    /* 更新图像识别状态。 */
+    ImageStatus.OFFLine          = 2;           // 更新图像识别状态
+    ImageStatus.Miss_Left_lines  = 0;           // 更新图像识别状态
+    ImageStatus.Miss_Right_lines = 0;           // 更新图像识别状态
+    ImageStatus.WhiteLine        = 0;           // 更新图像识别状态
+    ImageStatus.WhiteLine_L      = 0;           // 更新图像识别状态
+    ImageStatus.WhiteLine_R      = 0;           // 更新图像识别状态
+    ImageStatus.OFFLineBoundary  = 0;           // 更新图像识别状态
+    ImageStatus.Det_True         = 0;           // 更新图像识别状态
 
-    /* 注释已修复 */
+    /* 更新图像识别状态。 */
     for (row = SCAN_BASE_END_ROW - 1; row > ImageStatus.OFFLine; row--)
     {
-        JumpPointtypedef JumpPoint[2];          // 注释已修复
+        JumpPointtypedef JumpPoint[2];          // 记录当前处理步骤
         PicTemp = Pixle[row];
 
-        /* 注释已修复 */
+        /* 处理当前扫描行的边线数据。 */
         IntervalLow  = ImageDeal[row + 1].RightBorder - ImageScanInterval;
         IntervalHigh = ImageDeal[row + 1].RightBorder + ImageScanInterval;
-        LimitL(IntervalLow);                    // 注释已修复
+        LimitL(IntervalLow);                    // 记录当前处理步骤
         LimitH(IntervalHigh);
 
         Get_Border_And_SideType(PicTemp, 'R', IntervalLow, IntervalHigh, &JumpPoint[1]);
 
-        /* 注释已修复 */
+        /* 处理当前扫描行的边线数据。 */
         IntervalLow  = ImageDeal[row + 1].LeftBorder - ImageScanInterval;
         IntervalHigh = ImageDeal[row + 1].LeftBorder + ImageScanInterval;
         LimitL(IntervalLow);
@@ -381,43 +381,43 @@ void Get_AllLine(void)
 
         Get_Border_And_SideType(PicTemp, 'L', IntervalLow, IntervalHigh, &JumpPoint[0]);
 
-        /* 注释已修复 */
-        if (JumpPoint[0].type == 'W')           // 注释已修复
+        /* 处理当前扫描行的边线数据。 */
+        if (JumpPoint[0].type == 'W')           // 记录当前处理步骤
         {
-            ImageDeal[row].LeftBorder = ImageDeal[row + 1].LeftBorder;  // 注释已修复
-            ImageStatus.Miss_Left_lines++;      // 注释已修复
+            ImageDeal[row].LeftBorder = ImageDeal[row + 1].LeftBorder;  // 更新当前扫描行数据
+            ImageStatus.Miss_Left_lines++;      // 更新图像识别状态
         }
-        else                                    // 注释已修复
+        else                                    // 记录当前处理步骤
         {
             ImageDeal[row].LeftBorder = JumpPoint[0].point;
-            ImageStatus.Miss_Left_lines = 0;    // 注释已修复
+            ImageStatus.Miss_Left_lines = 0;    // 更新图像识别状态
         }
 
-        if (JumpPoint[1].type == 'W')           // 注释已修复
+        if (JumpPoint[1].type == 'W')           // 记录当前处理步骤
         {
-            ImageDeal[row].RightBorder = ImageDeal[row + 1].RightBorder; // 注释已修复
-            ImageStatus.Miss_Right_lines++;     // 注释已修复
+            ImageDeal[row].RightBorder = ImageDeal[row + 1].RightBorder; // 更新当前扫描行数据
+            ImageStatus.Miss_Right_lines++;     // 更新图像识别状态
         }
-        else                                    // 注释已修复
+        else                                    // 记录当前处理步骤
         {
             ImageDeal[row].RightBorder = JumpPoint[1].point;
-            ImageStatus.Miss_Right_lines = 0;   // 注释已修复
+            ImageStatus.Miss_Right_lines = 0;   // 更新图像识别状态
         }
 
-        /* 注释已修复 */
+        /* 处理当前扫描行的边线数据。 */
         ImageDeal[row].IsLeftFind  = JumpPoint[0].type;
         ImageDeal[row].IsRightFind = JumpPoint[1].type;
 
-        /* 注释已修复 */
+        /* 更新图像识别状态。 */
         if (JumpPoint[0].type == 'W' && JumpPoint[1].type == 'W')
         {
-            ImageStatus.WhiteLine++;            // 注释已修复
+            ImageStatus.WhiteLine++;            // 更新图像识别状态
         }
         else
         {
             if (ImageStatus.WhiteLine > 0) ImageStatus.WhiteLine--;
         }
-        /* 注释已修复 */
+        /* 更新图像识别状态。 */
         if (JumpPoint[0].type == 'W')
             ImageStatus.WhiteLine_L++;
         else
@@ -427,19 +427,19 @@ void Get_AllLine(void)
         else
             ImageStatus.WhiteLine_R = 0;
 
-        /* 注释已修复 */
+        /* 处理当前扫描行的边线数据。 */
         ImageDeal[row].Center = (ImageDeal[row].LeftBorder + ImageDeal[row].RightBorder) / 2;
         ImageDeal[row].Wide   = ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder;
 
-        /* 注释已修复 */
+        /* 处理当前扫描行的边线数据。 */
         if (ImageDeal[row].IsLeftFind == 'H' || ImageDeal[row].IsRightFind == 'H')
         {
-            /* 注释已修复 */
+            /* 处理当前扫描行的边线数据。 */
             if (ImageDeal[row].IsLeftFind == 'H')
             {
                 for (i = ImageDeal[row].LeftBorder + 1; i <= ImageDeal[row].RightBorder; i++)
                 {
-                    if (*(PicTemp + i) == 1 && *(PicTemp + i - 1) == 0)  // 注释已修复
+                    if (*(PicTemp + i) == 1 && *(PicTemp + i - 1) == 0)  // 记录当前处理步骤
                     {
                         ImageDeal[row].LeftBorder = i;
                         ImageDeal[row].IsLeftFind = 'T';
@@ -448,12 +448,12 @@ void Get_AllLine(void)
                 }
             }
 
-            /* 注释已修复 */
+            /* 处理当前扫描行的边线数据。 */
             if (ImageDeal[row].IsRightFind == 'H')
             {
                 for (i = ImageDeal[row].RightBorder - 1; i >= ImageDeal[row].LeftBorder; i--)
                 {
-                    if (*(PicTemp + i) == 1 && *(PicTemp + i + 1) == 0)  // 注释已修复
+                    if (*(PicTemp + i) == 1 && *(PicTemp + i + 1) == 0)  // 记录当前处理步骤
                     {
                         ImageDeal[row].RightBorder = i;
                         ImageDeal[row].IsRightFind = 'T';
@@ -462,19 +462,19 @@ void Get_AllLine(void)
                 }
             }
 
-            /* 注释已修复 */
-            /* 注释已修复 */
+            /* 处理当前扫描行的边线数据。 */
+            /* 处理当前扫描行的边线数据。 */
             if (ImageDeal[row].IsLeftFind == 'H')  { ImageDeal[row].LeftBorder  = ImageDeal[row + 1].LeftBorder; }
             if (ImageDeal[row].IsRightFind == 'H') { ImageDeal[row].RightBorder = ImageDeal[row + 1].RightBorder; }
             ImageDeal[row].Center = (ImageDeal[row].LeftBorder + ImageDeal[row].RightBorder) / 2;
             ImageDeal[row].Wide   = ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder;
         }
 
-        /* 注释已修复 */
+        /* 更新图像识别状态。 */
         if (ImageStatus.Miss_Left_lines > 3 && ImageStatus.Miss_Right_lines > 3
-            && !(JumpPoint[0].type == 'W' && JumpPoint[1].type == 'W'))  /* 注释已修复 */
+            && !(JumpPoint[0].type == 'W' && JumpPoint[1].type == 'W'))  /* 更新图像识别状态。 */
         {
-            ImageStatus.OFFLine = row;          // 注释已修复
+            ImageStatus.OFFLine = row;          // 更新图像识别状态
             break;
         }
 
@@ -498,8 +498,8 @@ void Get_AllLine(void)
 
 
 
-/* 注释已修复 */
-const uint8 Half_Road_Wide[60] = {           /* 注释已修复 */
+/* 执行当前图像处理步骤。 */
+const uint8 Half_Road_Wide[60] = {           /* 执行当前图像处理步骤。 */
      5, 6, 6, 7, 7, 7, 8, 8, 9, 9,
     11,11,12,12,12,13,14,14,15,15,
     15,16,16,18,18,19,19,20,20,20,
@@ -508,7 +508,7 @@ const uint8 Half_Road_Wide[60] = {           /* 注释已修复 */
     32,33,33,33,34,35,36,36,36,38,
 };
 
-const uint8 Half_Bend_Wide[60] = {           /* 注释已修复 */
+const uint8 Half_Bend_Wide[60] = {           /* 执行当前图像处理步骤。 */
     39,39,39,39,39,39,39,39,39,39,
     39,39,38,38,35,35,34,34,33,32,
     33,32,32,31,31,29,29,28,28,27,
@@ -517,17 +517,17 @@ const uint8 Half_Bend_Wide[60] = {           /* 注释已修复 */
     33,34,34,35,35,36,36,38,38,39,
 };
 
-/* 注释已修复 */
-ImageFlagtypedef ImageFlag;                  /* 注释已修复 */
+/* 执行当前图像处理步骤。 */
+ImageFlagtypedef ImageFlag;                  /* 执行当前图像处理步骤。 */
 
-/* 注释已修复 */
+/* 函数说明：Straight_Judge。 */
 float Straight_Judge(uint8 dir, uint8 start, uint8 end)
 {
     int i;
     float S = 0.0f, Sum = 0.0f, Err = 0.0f, k = 0.0f;
     switch (dir)
     {
-    case 1: /* 注释已修复 */
+    case 1: /* 处理当前扫描行的边线数据。 */
         k = (float)(ImageDeal[start].LeftBorder - ImageDeal[end].LeftBorder)
           / (float)(start - end);
         for (i = 0; i < (int)(end - start); i++)
@@ -538,7 +538,7 @@ float Straight_Judge(uint8 dir, uint8 start, uint8 end)
         }
         S = Sum / (float)(end - start);
         break;
-    case 2: /* 注释已修复 */
+    case 2: /* 处理当前扫描行的边线数据。 */
         k = (float)(ImageDeal[start].RightBorder - ImageDeal[end].RightBorder)
           / (float)(start - end);
         for (i = 0; i < (int)(end - start); i++)
@@ -553,7 +553,7 @@ float Straight_Judge(uint8 dir, uint8 start, uint8 end)
     return S;
 }
 
-/* 注释已修复 */
+/* 函数说明：Straight_long_judge。 */
 void Straight_long_judge(void)
 {
     if (ImageFlag.Bend_Road || ImageFlag.Zebra_Flag || ImageFlag.Out_Road == 1
@@ -584,7 +584,7 @@ void Straight_long_handle(void)
     }
 }
 
-/* 注释已修复 */
+/* 函数说明：Straight_xie_judge。 */
 void Straight_xie_judge(void)
 {
     float S, Sum, Err, midd_k;
@@ -616,10 +616,10 @@ void Straight_xie_judge(void)
     }
 }
 
-/* 注释已修复 */
+/* 函数说明：Element_Judgment_Bend。 */
 void Element_Judgment_Bend(void)
 {
-    /* 注释已修复 */
+    /* 执行当前图像处理步骤。 */
     if (ImageFlag.image_element_rings != 0
         || ImageFlag.Zebra_Flag || ImageFlag.Out_Road == 1)
         return;
@@ -630,28 +630,28 @@ void Element_Judgment_Bend(void)
 
     if (ImageStatus.Miss_Left_lines < 4
         && ImageStatus.Miss_Right_lines < 4)
-        return;  /* 注释已修复 */
+        return;  /* 更新图像识别状态。 */
 
-    /* 注释已修复 */
+    /* 更新图像识别状态。 */
     if (ImageDeal[ImageStatus.OFFLine + 1].RightBorder < 59  /* ponytail: 50*94/80=59 */
      && ImageStatus.Miss_Right_lines < 4
      && ImageStatus.Miss_Left_lines > 12
      && Straight_Judge(2, ImageStatus.OFFLine + 2, SCAN_BASE_START_ROW - 1) > 3.0f)
     {
-        ImageFlag.Bend_Road = 1;              /* 注释已修复 */
+        ImageFlag.Bend_Road = 1;              /* 执行当前图像处理步骤。 */
     }
 
-    /* 注释已修复 */
+    /* 更新图像识别状态。 */
     if (ImageDeal[ImageStatus.OFFLine + 1].LeftBorder > 35  /* ponytail: 30*94/80=35 */
      && ImageStatus.Miss_Left_lines < 4
      && ImageStatus.Miss_Right_lines > 12
      && Straight_Judge(1, ImageStatus.OFFLine + 2, SCAN_BASE_START_ROW - 1) > 3.0f)
     {
-        ImageFlag.Bend_Road = 2;              /* 注释已修复 */
+        ImageFlag.Bend_Road = 2;              /* 执行当前图像处理步骤。 */
     }
 }
 
-/* 注释已修复 */
+/* 函数说明：Element_Handle_Bend。 */
 void Element_Handle_Bend(void)
 {
     int row;                                  /* 用int而非uchar以支持大范围循环 */
@@ -683,7 +683,7 @@ void Element_Handle_Bend(void)
     }
 }
 
-/* 注释已修复 */
+/* 执行当前图像处理步骤。 */
 static void Ring_Set_State(uint8 state)
 {
     ImageFlag.image_element_rings_flag = state;
@@ -1003,40 +1003,40 @@ void Element_Judgment_Left_Rings(void)
     /* 安财同源门槛：左圆环必须先出现左侧连续丢线，直道噪声不得触发。 */
     if (ImageStatus.Miss_Right_lines > 3
         || ImageStatus.Miss_Left_lines < 13
-        || ImageStatus.OFFLine > 2 || Straight_Judge(2, 5, SCAN_BASE_END_ROW) > 3.0f   /* 注释已修复 */
+        || ImageStatus.OFFLine > 2 || Straight_Judge(2, 5, SCAN_BASE_END_ROW) > 3.0f   /* 执行当前图像处理步骤。 */
         || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
         return;  /* 条件不足时禁止进入圆环补线，防止覆盖直道中心。 */
 
-    /* 注释已修复 */
+    /* 执行当前图像处理步骤。 */
     {
         int r;
-        for (r = SCAN_BASE_START_ROW; r >= SCAN_BASE_END_ROW; r--)   /* 注释已修复 */
+        for (r = SCAN_BASE_START_ROW; r >= SCAN_BASE_END_ROW; r--)   /* 处理当前扫描行的边线数据。 */
         {
             if (ImageDeal[r].IsLeftFind == 'W') return;
         }
     }
 
-    /* 注释已修复 */
+    /* 处理当前扫描行的边线数据。 */
     for (Ysite = (SCAN_BASE_START_ROW - 1); Ysite > ring_ysite; Ysite--)
     {
-        if (abs(ImageDeal[Ysite].LeftBorder - ImageDeal[Ysite - 1].LeftBorder) > 4  /* 注释已修复 */)
+        if (abs(ImageDeal[Ysite].LeftBorder - ImageDeal[Ysite - 1].LeftBorder) > 4  /* 执行当前图像处理步骤。 */)
         {
             Left_Less_Num++;
-            /* 注释已修复 */
+            /* 执行当前图像处理步骤。 */
             if (Left_Less_Num == 1) {
-                /* 注释已修复 */
+                /* 执行当前图像处理步骤。 */
             }
         }
     }
 
     if (Left_Less_Num >= 2)
     {
-        ImageFlag.image_element_rings = 1;    /* 注释已修复 */
+        ImageFlag.image_element_rings = 1;    /* 执行当前图像处理步骤。 */
         Ring_Set_State(RING_STATE_CONFIRM);
     }
 }
 
-/* 注释已修复 */
+/* 函数说明：Element_Judgment_Right_Rings。 */
 void Element_Judgment_Right_Rings(void)
 {
     int Ysite, ring_ysite = 25;
@@ -1045,13 +1045,13 @@ void Element_Judgment_Right_Rings(void)
     /* 安财同源门槛：右圆环必须先出现右侧连续丢线，直道噪声不得触发。 */
     if (ImageStatus.Miss_Left_lines > 3
         || ImageStatus.Miss_Right_lines < 15
-        || ImageStatus.OFFLine > 2 || Straight_Judge(1, 5, SCAN_BASE_END_ROW) > 3.0f   /* 注释已修复 */
+        || ImageStatus.OFFLine > 2 || Straight_Judge(1, 5, SCAN_BASE_END_ROW) > 3.0f   /* 执行当前图像处理步骤。 */
         || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
         return;  /* 条件不足时禁止进入圆环补线，防止覆盖直道中心。 */
 
     {
         int r;
-        for (r = SCAN_BASE_START_ROW; r >= SCAN_BASE_END_ROW; r--)   /* 注释已修复 */
+        for (r = SCAN_BASE_START_ROW; r >= SCAN_BASE_END_ROW; r--)   /* 处理当前扫描行的边线数据。 */
         {
             if (ImageDeal[r].IsRightFind == 'W') return;
         }
@@ -1059,7 +1059,7 @@ void Element_Judgment_Right_Rings(void)
 
     for (Ysite = (SCAN_BASE_START_ROW - 1); Ysite > ring_ysite; Ysite--)
     {
-        if (abs(ImageDeal[Ysite].RightBorder - ImageDeal[Ysite - 1].RightBorder) > 4  /* 注释已修复 */)
+        if (abs(ImageDeal[Ysite].RightBorder - ImageDeal[Ysite - 1].RightBorder) > 4  /* 执行当前图像处理步骤。 */)
         {
             Right_Less_Num++;
         }
@@ -1067,12 +1067,12 @@ void Element_Judgment_Right_Rings(void)
 
     if (Right_Less_Num >= 2)
     {
-        ImageFlag.image_element_rings = 2;    /* 注释已修复 */
+        ImageFlag.image_element_rings = 2;    /* 执行当前图像处理步骤。 */
         Ring_Set_State(RING_STATE_CONFIRM);
     }
 }
 
-/* 注释已修复 */
+/* 函数说明：Element_Handle_Left_Rings。 */
 void Element_Handle_Left_Rings(void)
 {
     Ring_State_Update();
@@ -1082,7 +1082,7 @@ void Element_Handle_Left_Rings(void)
     }
 }
 
-/* 注释已修复 */
+/* 函数说明：Element_Handle_Right_Rings。 */
 void Element_Handle_Right_Rings(void)
 {
     Ring_State_Update();
@@ -1092,7 +1092,7 @@ void Element_Handle_Right_Rings(void)
     }
 }
 
-/* 注释已修复 */
+/* 函数说明：Element_Judgment_Zebra。 */
 void Element_Judgment_Zebra(void)
 {
     int Ysite, Xsite, net, NUM = 0;
@@ -1117,21 +1117,21 @@ void Element_Judgment_Zebra(void)
         }
     }
 
-    if (NUM > 8)                              /* 注释已修复 */
+    if (NUM > 8)                              /* 处理当前扫描行的边线数据。 */
     {
-        if (ImageDeal[SCAN_BASE_START_ROW].Center > 47)  /* 注释已修复 */
-            ImageFlag.Zebra_Flag = 2;           /* 注释已修复 */
-        else                                  /* 注释已修复 */
-            ImageFlag.Zebra_Flag = 1;           /* 注释已修复 */
+        if (ImageDeal[SCAN_BASE_START_ROW].Center > 47)  /* 执行当前图像处理步骤。 */
+            ImageFlag.Zebra_Flag = 2;           /* 执行当前图像处理步骤。 */
+        else                                  /* 执行当前图像处理步骤。 */
+            ImageFlag.Zebra_Flag = 1;           /* 执行当前图像处理步骤。 */
     }
 }
 
-/* 注释已修复 */
+/* 函数说明：Element_Handle_Zebra。 */
 void Element_Handle_Zebra(void)
 {
     int row;
 
-    if (ImageFlag.Zebra_Flag == 1)            /* 注释已修复 */
+    if (ImageFlag.Zebra_Flag == 1)            /* 更新图像识别状态。 */
     {
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLineBoundary + 1; row--)
         {
@@ -1139,7 +1139,7 @@ void Element_Handle_Zebra(void)
             LimitH(ImageDeal[row].Center);
         }
     }
-    else if (ImageFlag.Zebra_Flag == 2)       /* 注释已修复 */
+    else if (ImageFlag.Zebra_Flag == 2)       /* 更新图像识别状态。 */
     {
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLineBoundary + 1; row--)
         {
@@ -1149,12 +1149,12 @@ void Element_Handle_Zebra(void)
     }
 }
 
-/* 注释已修复 */
+/* 函数说明：Element_Judgment_Ramp。 */
 void Element_Judgment_Ramp(void)
 {
-        return;                              /* 注释已修复 */
+        return;                              /* 执行当前图像处理步骤。 */
     int Ysite;
-    int i = 0;                           /* 注释已修复 */
+    int i = 0;                           /* 更新图像识别状态。 */
 
     if (ImageStatus.WhiteLine >= 3) return;
 
@@ -1177,21 +1177,21 @@ void Element_Judgment_Ramp(void)
             }
         }
 
-        if (i >= 3)                           /* 注释已修复 */
+        if (i >= 3)                           /* 执行当前图像处理步骤。 */
         {
             ImageFlag.Ramp = 1;
         }
     }
 }
 
-/* 注释已修复 */
+/* 函数说明：Element_Handle_Ramp。 */
 void Element_Handle_Ramp(void)
 {
-    /* 注释已修复 */
+    /* 执行当前图像处理步骤。 */
 
 }
 
-/* 注释已修复 */
+/* 函数说明：Element_Judgment_OutRoad。 */
 void Element_Judgment_OutRoad(void)
 {
     int Right_Num = 0, Left_Num = 0;
@@ -1215,29 +1215,29 @@ void Element_Judgment_OutRoad(void)
     }
 }
 
-/* 注释已修复 */
+/* 函数说明：Element_Handle_OutRoad。 */
 void Element_Handle_OutRoad(void)
 {
     int Ysite, Xsite;
     int gray_sum = 0;
 
-    /* 注释已修复 */
+    /* 执行当前图像处理步骤。 */
     for (Ysite = 35; Ysite < 55; Ysite++)
     {
-        for (Xsite = 30; Xsite < 64; Xsite++) /* 注释已修复 */
+        for (Xsite = 30; Xsite < 64; Xsite++) /* 处理当前扫描行的边线数据。 */
         {
             gray_sum += Pixle[Ysite][Xsite];
         }
     }
 
-    /* 注释已修复 */
+    /* 更新图像识别状态。 */
     if (gray_sum > 400 && ImageStatus.OFFLine < 20)
     {
         ImageFlag.Out_Road = 0;
     }
 }
 
-/* 注释已修复 */
+/* 执行当前图像处理步骤。 */
 #define CROSS_WHITE_LINE_MIN 8
 #define CROSS_VALID_LINE_COUNT 3
 
@@ -1359,31 +1359,31 @@ void Get_ExtensionLine(void)
         ImageDeal[row].Center = (ImageDeal[row].LeftBorder + ImageDeal[row].RightBorder) / 2;
     }
 }
-/* 注释已修复 */
+/* 函数说明：Scan_Element。 */
 void Scan_Element(void)
 {
-    /* 注释已修复 */
+    /* 执行当前图像处理步骤。 */
     if (ImageFlag.Out_Road == 0 && ImageFlag.Zebra_Flag == 0
      && ImageFlag.image_element_rings == 0
-     && ImageFlag.Ramp == 0)  /* 注释已修复 */
+     && ImageFlag.Ramp == 0)  /* 更新圆环识别状态机。 */
     {
-        Element_Judgment_OutRoad();           /* 注释已修复 */
-        Element_Judgment_Left_Rings();        /* 注释已修复 */
-        Element_Judgment_Right_Rings();       /* 注释已修复 */
-        Element_Judgment_Zebra();             /* 注释已修复 */
-        Element_Judgment_Bend();              /* 注释已修复 */
-        Element_Judgment_Ramp();              /* 注释已修复 */
-        Straight_long_judge();                /* 注释已修复 */
+        Element_Judgment_OutRoad();           /* 更新圆环识别状态机。 */
+        Element_Judgment_Left_Rings();        /* 更新圆环识别状态机。 */
+        Element_Judgment_Right_Rings();       /* 执行当前图像处理步骤。 */
+        Element_Judgment_Zebra();             /* 执行当前图像处理步骤。 */
+        Element_Judgment_Bend();              /* 执行当前图像处理步骤。 */
+        Element_Judgment_Ramp();              /* 执行当前图像处理步骤。 */
+        Straight_long_judge();                /* 执行当前图像处理步骤。 */
     }
 
-    /* 注释已修复 */
+    /* 执行当前图像处理步骤。 */
     if (ImageFlag.Bend_Road)
     {
         Element_Judgment_OutRoad();
         if (ImageFlag.Out_Road) ImageFlag.Bend_Road = 0;
     }
 
-    /* 注释已修复 */
+    /* 执行当前图像处理步骤。 */
     if (ImageFlag.Bend_Road)
     {
         Element_Judgment_Zebra();
@@ -1391,7 +1391,7 @@ void Scan_Element(void)
     }
 }
 
-/* 注释已修复 */
+/* 函数说明：Element_Handle。 */
 void Element_Handle(void)
 {
     if (ImageFlag.Out_Road != 0)
@@ -1411,7 +1411,7 @@ void Element_Handle(void)
     else if (ImageFlag.Bend_Road != 0)
         Element_Handle_Bend();
 }
-/* 注释已修复 */
+/* 函数说明：Flag_init。 */
 void Flag_init(void)
 {
     ImageFlag.Bend_Road              = 0;
@@ -1424,37 +1424,37 @@ void Flag_init(void)
 
 
 //-------------------------------------------------------------------------------
-// 注释已修复
-// 注释已修复
-// 注释已修复
+// 记录当前处理步骤
+// 记录当前处理步骤
+// 记录当前处理步骤
 //  @parameter      void
 //  @return         void
 //  Sample usage:   Camera_ShowElementStatus();
 //-------------------------------------------------------------------------------
 void Camera_ShowElementStatus(void)
 {
-    /* 注释已修复 */
+    /* 执行当前图像处理步骤。 */
     ips200_set_color(RGB565_WHITE, RGB565_BLUE);
 
-    /* 注释已修复 */
+    /* 执行当前图像处理步骤。 */
         if    (ImageFlag.image_element_rings == 1)
     {
-        ips200_show_string(2, 225, "ELEM: yuan_L ");     /* 注释已修复 */
+        ips200_show_string(2, 225, "ELEM: yuan_L ");     /* 执行当前图像处理步骤。 */
     }
     else if (ImageFlag.image_element_rings == 2)
     {
-        ips200_show_string(2, 225, "ELEM: yuan_R ");     /* 注释已修复 */
+        ips200_show_string(2, 225, "ELEM: yuan_R ");     /* 更新图像识别状态。 */
     }
     else if (ImageStatus.WhiteLine >= 8)
     {
-        ips200_show_string(2, 225, "ELEM: shi    ");     /* 注释已修复 */
+        ips200_show_string(2, 225, "ELEM: shi    ");     /* 执行当前图像处理步骤。 */
     }
     else
     {
-        ips200_show_string(2, 225, "ELEM: ---    ");     /* 注释已修复 */
+        ips200_show_string(2, 225, "ELEM: ---    ");     /* 执行当前图像处理步骤。 */
     }
 
-    /* 注释已修复 */
+    /* 执行当前图像处理步骤。 */
     /* 底栏右侧显示当前图像偏差，与元素状态同帧刷新。 */
     ips200_show_string(120, 225, "Err:");
     ips200_show_float(152, 225, Err, 3, 2);

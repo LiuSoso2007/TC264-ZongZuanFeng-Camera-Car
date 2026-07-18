@@ -11,7 +11,7 @@
 
 void Encoder_Init(void)
 {
-    // 注释已修复
+    // 记录当前处理步骤
     encoder_dir_init(ENC_LEFT,
         TIM6_ENCODER_CH1_P20_3, TIM6_ENCODER_CH2_P20_0);
     encoder_quad_init(ENC_RIGHT,

@@ -13,6 +13,7 @@
 #include "isr.h"
 
 volatile float    Err             = 0.0f;
+volatile uint8_t StopRequest = 0U;
 
 /* 压缩图行号越小前瞻越远；40～42行兼顾弯道提前量和远场稳定性。 */
 #define STEERING_LOOKAHEAD_ROW 40
@@ -52,6 +53,12 @@ int core0_main(void)
             Get_AllLine();
             Scan_Element();
             Element_Handle();
+
+            /* 斑马线视为终点，停车请求一旦置位便保持到系统复位。 */
+            if (ImageFlag.Zebra_Flag != 0)
+            {
+                StopRequest = 1U;
+            }
 
             /* ---- 计算 Err (图像偏差) 供 CPU1 使用 ---- */
             /* 前瞻3行平均，Err保持像素单位，与CPU1的PD参数一致。 */

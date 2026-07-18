@@ -146,6 +146,20 @@ int core1_main(void)
         /* ---- Track error (CPU0 image output, 0 when no image) ---- */
         position_err = Err;
 
+        /* CPU0识别斑马线后锁存停车，双电机清零并让舵机回中，复位后才重新运行。 */
+        if (StopRequest != 0U)
+        {
+            pwm_left = 0;
+            pwm_right = 0;
+            s_PI_Left.TargetBias = 0;
+            s_PI_Right.TargetBias = 0;
+            Motor_SetLeftPWM(0);
+            Motor_SetRightPWM(0);
+            Servo_SetAngleDeg(SERVO_CENTER_ANGLE);
+            if (++lcd_cnt >= LCD_DIV) { lcd_cnt = 0; lcd_row = 0; lcd_dirty = 1; }
+            continue;
+        }
+
         /* ---- Differential compensation: adjust L/R target speed by error ---- */
         if      (position_err >   7.0f && position_err <  15.0f) {
             s_PI_Left.TargetBias  = (int16_t)(-StraightSpeed * 0.5f);

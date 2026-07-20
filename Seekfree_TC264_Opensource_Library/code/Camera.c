@@ -1124,18 +1124,19 @@ void Element_Handle_Right_Rings(void)
 /* 函数说明：Element_Judgment_Zebra，基于边线宽度差值之和判断斑马线。 */
 /* 函数说明：Element_Judgment_Zebra，多重防误判的斑马线检测。 */
 /* 函数说明：Element_Judgment_Zebra，近处宽+远处窄=斑马线。 */
+/* 函数说明：Element_Judgment_Zebra，车身近处宽+远处窄=斑马线。 */
 void Element_Judgment_Zebra(void)
 {
     int sum_near, sum_far, row, i;
-    int near_rows[] = {28, 30, 32};
+    int near_rows[] = {38, 40, 42};
     int far_rows[]  = {20, 22, 24};
 
-    /* 防误判：圆环/出界/十字时跳过 */
+    /* 防误判：圆环/出界/弯道/十字时跳过 */
     if (ImageFlag.image_element_rings || ImageFlag.Out_Road == 1
         || ImageFlag.Bend_Road != 0 || ImageStatus.WhiteLine >= 3)
         return;
 
-    /* 近处区域（28/30/32行）宽度检查，必须双边可见 */
+    /* 近处区域（38/40/42行，靠近车身）宽度检查，必须双边可见 */
     sum_near = 0;
     for (i = 0; i < 3; i++)
     {
@@ -1146,7 +1147,7 @@ void Element_Judgment_Zebra(void)
         sum_near += ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder;
     }
 
-    /* 远处区域（20/22/24行）宽度检查 */
+    /* 远处区域（20/22/24行，前方斑马区）宽度检查 */
     sum_far = 0;
     for (i = 0; i < 3; i++)
     {

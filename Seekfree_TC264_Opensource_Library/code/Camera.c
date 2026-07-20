@@ -97,6 +97,7 @@ uint8 Camera_OTSU_GetThreshold(uint8 *image[][LCDW], uint16 col, uint16 row)
     if (bestThr > OTSU_MAX) bestThr = OTSU_MAX;
     bestThr += OTSU_BIAS;
     return bestThr;
+}
 
 /* º¯ÊýËµÃ÷£ºCamera_GetBinaryImage¡£ */
 void Camera_GetBinaryImage(void) {

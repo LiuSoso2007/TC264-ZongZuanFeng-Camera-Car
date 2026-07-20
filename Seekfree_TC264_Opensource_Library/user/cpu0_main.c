@@ -63,6 +63,8 @@ int core0_main(void)
     ips200_show_string(2U, 128U, "L_Enc:");
     ips200_show_string(2U, 144U, "R_Enc:");
     ips200_show_string(2U, 170U, "Err:");
+    ips200_show_string(2U, 190U, "Ring:");
+    ips200_show_string(2U, 208U, "Thr:");
 #endif
 
     while (TRUE)
@@ -155,6 +157,7 @@ int core0_main(void)
                         ips200_show_string(50U, 190U, "---   ");
                     }
                 }
+                ips200_show_int(50U, 208U, (int32)Camera_Threshold, 3U);
             }
 #endif
         }

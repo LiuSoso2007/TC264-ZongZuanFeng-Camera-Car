@@ -1129,48 +1129,39 @@ void Element_Handle_Right_Rings(void)
 /* 函数说明：Element_Judgment_Zebra，基于原始灰度相邻像素差分检测斑马线。
    斑马线特征：赛道区内相邻像素灰度剧烈交替（黑白条纹），差分绝对值>50。
    完全不依赖二值化阈值，直接使用Image_Use原始灰度数组。 */
+/* 函数说明：Element_Judgment_Zebra，二值图黑白跳变计数检测斑马线。 */
 void Element_Judgment_Zebra(void)
 {
-    int Ysite, Xsite, diff, osc, NUM = 0;
+    int Ysite, Xsite, trans, NUM = 0;
 
-    /* 防误判：圆环/出界/弯道/十字时跳过 */
-    if (ImageFlag.image_element_rings || ImageFlag.Out_Road == 1
-        || ImageFlag.Bend_Road != 0 || ImageStatus.WhiteLine >= 3)
+    /* 仅排除圆环和出界，允许其他元素共存时仍检测斑马 */
+    if (ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
         return;
 
-    /* 防弯道误判：必须为直道 */
-    if (Straight_Judge(1, 20, 38) > 2.0f || Straight_Judge(2, 20, 38) > 2.0f)
-        return;
-
-    /* 近处至少一行正常宽度，确认在赛道上而非出界 */
-    if (ImageDeal[38].LeftBorder < 0 || ImageDeal[38].RightBorder < 0
-        || ImageDeal[38].RightBorder - ImageDeal[38].LeftBorder < 20)
-        return;
-
-    /* 扫描行20~30，统计每行内灰度跳变次数 */
-    for (Ysite = 20; Ysite < 31; Ysite++)
+    /* 扫描行20~32，统计每行赛道宽度内黑到白跳变次数 */
+    for (Ysite = 20; Ysite < 33; Ysite++)
     {
         if (ImageDeal[Ysite].LeftBorder < 0 || ImageDeal[Ysite].RightBorder < 0)
             continue;
-        if (ImageDeal[Ysite].RightBorder - ImageDeal[Ysite].LeftBorder < 10)
+        if (ImageDeal[Ysite].RightBorder - ImageDeal[Ysite].LeftBorder < 6)
             continue;
 
-        osc = 0;
+        trans = 0;
         for (Xsite = ImageDeal[Ysite].LeftBorder + 2;
              Xsite < ImageDeal[Ysite].RightBorder - 3; Xsite++)
         {
-            diff = (int)*Image_Use[Ysite][Xsite]
-                 - (int)*Image_Use[Ysite][Xsite + 1];
-            if (diff < 0) diff = -diff;
-            if (diff > 50) osc++;
+            if (Pixle[Ysite][Xsite] == 0 && Pixle[Ysite][Xsite + 1] == 1)
+            {
+                trans++;
+            }
         }
-        if (osc > 4) NUM++;
+        if (trans >= 4) NUM++;
     }
 
     g_ZebraSum = NUM;
 
-    /* 11行中有8行以上出现黑白条纹特征 = 斑马线 */
-    if (NUM > 7)
+    /* 13行中有9行以上出现黑白交替 = 斑马线 */
+    if (NUM > 8)
     {
         ImageFlag.Zebra_Flag = 1;
     }

@@ -129,7 +129,10 @@ int core0_main(void)
             }
 #if IPS200_DISPLAY_ENABLE
             /* 每帧只走QSPI2寄存器连续直刷，禁止回到逐字节等待的调试显示路径。 */
-            IPS200_ShowGrayImageFast(mt9v03x_image[0], MT9V03X_W, MT9V03X_H);
+            /* 显示二值化图像 + 蓝色赛道中线 + 红色车身中线 */
+            Camera_ShowBinaryFast();
+            Camera_DrawCenterLines();
+            ips200_draw_line(94, 0, 94, 119, RGB565_RED);
 
             /* IPS200仍由CPU0独占，顺序显示CPU1发布的左右编码器值，避免双核争用SPI。 */
             if (++encoder_display_cnt >= ENCODER_DISPLAY_DIV)

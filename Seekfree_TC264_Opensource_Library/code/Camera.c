@@ -1131,43 +1131,56 @@ void Element_Handle_Right_Rings(void)
    完全不依赖二值化阈值，直接使用Image_Use原始灰度数组。 */
 /* 函数说明：Element_Judgment_Zebra，二值图黑白跳变计数检测斑马线。 */
 /* 函数说明：Element_Judgment_Zebra，二值图双向跳变+局部低阈值兜底。 */
+/* 函数说明：Element_Judgment_Zebra，边线丢失时用固定宽度兜底扫描。 */
 void Element_Judgment_Zebra(void)
 {
     int Ysite, Xsite, prev, curr, trans, NUM = 0;
-    int left, right;
+    int L, R, scanned = 0;
 
     if (ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
         return;
 
     for (Ysite = 20; Ysite < 33; Ysite++)
     {
-        left  = ImageDeal[Ysite].LeftBorder;
-        right = ImageDeal[Ysite].RightBorder;
-        if (left < 0 || right < 0 || right - left < 6) continue;
+        L = ImageDeal[Ysite].LeftBorder;
+        R = ImageDeal[Ysite].RightBorder;
+
+        /* 边线有效时用边线范围，无效时用固定宽范围兜底(列5~89) */
+        if (L >= 0 && R >= 0 && R - L >= 6)
+        {
+            L += 2;
+            R -= 3;
+        }
+        else
+        {
+            L = 5;
+            R = LCDW - 5;
+        }
 
         trans = 0;
         /* 先用二值图Pixle检测双向跳变 */
-        for (Xsite = left + 2; Xsite < right - 3; Xsite++)
+        for (Xsite = L; Xsite < R; Xsite++)
         {
             if (Pixle[Ysite][Xsite] != Pixle[Ysite][Xsite + 1])
                 trans++;
         }
-        /* 如果二值图跳变不够，再用灰度图局部低阈值(140)补检 */
+        /* 如果二值图跳变不够，再用灰度图局部低阈值(120)补检 */
         if (trans < 3)
         {
             trans = 0;
-            prev = (*Image_Use[Ysite][left + 2] > 140) ? 1 : 0;
-            for (Xsite = left + 3; Xsite < right - 2; Xsite++)
+            prev = (*Image_Use[Ysite][L] > 120) ? 1 : 0;
+            for (Xsite = L + 1; Xsite <= R; Xsite++)
             {
-                curr = (*Image_Use[Ysite][Xsite] > 140) ? 1 : 0;
+                curr = (*Image_Use[Ysite][Xsite] > 120) ? 1 : 0;
                 if (prev != curr) trans++;
                 prev = curr;
             }
         }
         if (trans >= 3) NUM++;
+        scanned++;
     }
 
-    g_ZebraSum = NUM;
+    g_ZebraSum = (scanned > 0) ? NUM : -1;
 
     if (NUM > 6)
     {

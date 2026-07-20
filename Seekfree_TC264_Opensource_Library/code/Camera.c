@@ -1126,50 +1126,51 @@ void Element_Handle_Right_Rings(void)
 /* 函数说明：Element_Judgment_Zebra，近处宽+远处窄=斑马线。 */
 /* 函数说明：Element_Judgment_Zebra，车身近处宽+远处窄=斑马线。 */
 /* 函数说明：Element_Judgment_Zebra，近处宽+远处异常(窄或丢线)+非弯道=斑马线。 */
+/* 函数说明：Element_Judgment_Zebra，基于原始灰度相邻像素差分检测斑马线。
+   斑马线特征：赛道区内相邻像素灰度剧烈交替（黑白条纹），差分绝对值>50。
+   完全不依赖二值化阈值，直接使用Image_Use原始灰度数组。 */
 void Element_Judgment_Zebra(void)
 {
-    int sum_near, sum_far, row, i, lost_far;
-    int near_rows[] = {38, 40, 42};
-    int far_rows[]  = {20, 22, 24};
+    int Ysite, Xsite, diff, osc, NUM = 0;
 
     /* 防误判：圆环/出界/弯道/十字时跳过 */
     if (ImageFlag.image_element_rings || ImageFlag.Out_Road == 1
         || ImageFlag.Bend_Road != 0 || ImageStatus.WhiteLine >= 3)
         return;
 
-    /* 防弯道误判：远处行(20~30)有明显弯曲趋势则跳过 */
-    if (Straight_Judge(1, 20, 30) > 2.5f || Straight_Judge(2, 20, 30) > 2.5f)
+    /* 防弯道误判：必须为直道 */
+    if (Straight_Judge(1, 20, 38) > 2.0f || Straight_Judge(2, 20, 38) > 2.0f)
         return;
 
-    /* 近处区域（38/40/42行，靠近车身）宽度检查，至少2行有效 */
-    sum_near = 0;
-    for (i = 0; i < 3; i++)
+    /* 近处至少一行正常宽度，确认在赛道上而非出界 */
+    if (ImageDeal[38].LeftBorder < 0 || ImageDeal[38].RightBorder < 0
+        || ImageDeal[38].RightBorder - ImageDeal[38].LeftBorder < 20)
+        return;
+
+    /* 扫描行20~30，统计每行内灰度跳变次数 */
+    for (Ysite = 20; Ysite < 31; Ysite++)
     {
-        row = near_rows[i];
-        if (ImageDeal[row].LeftBorder >= 0 && ImageDeal[row].RightBorder >= 0
-            && ImageDeal[row].RightBorder > ImageDeal[row].LeftBorder)
-            sum_near += ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder;
-        else { g_ZebraSum = -1; return; }
-    }
-    if (sum_near <= 60) { g_ZebraSum = sum_near; return; }
+        if (ImageDeal[Ysite].LeftBorder < 0 || ImageDeal[Ysite].RightBorder < 0)
+            continue;
+        if (ImageDeal[Ysite].RightBorder - ImageDeal[Ysite].LeftBorder < 10)
+            continue;
 
-    /* 远处区域（20/22/24行，前方斑马区），允许丢线 */
-    sum_far = 0;
-    lost_far = 0;
-    for (i = 0; i < 3; i++)
-    {
-        row = far_rows[i];
-        if (ImageDeal[row].LeftBorder >= 0 && ImageDeal[row].RightBorder >= 0
-            && ImageDeal[row].RightBorder > ImageDeal[row].LeftBorder)
-            sum_far += ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder;
-        else
-            lost_far++;
+        osc = 0;
+        for (Xsite = ImageDeal[Ysite].LeftBorder + 2;
+             Xsite < ImageDeal[Ysite].RightBorder - 3; Xsite++)
+        {
+            diff = (int)*Image_Use[Ysite][Xsite]
+                 - (int)*Image_Use[Ysite][Xsite + 1];
+            if (diff < 0) diff = -diff;
+            if (diff > 50) osc++;
+        }
+        if (osc > 4) NUM++;
     }
 
-    g_ZebraSum = sum_far;
+    g_ZebraSum = NUM;
 
-    /* 远处宽度窄 或 远处丢线超过1行(斑马特征) = 斑马线 */
-    if ((sum_far > 0 && sum_far < 35) || lost_far >= 2)
+    /* 11行中有8行以上出现黑白条纹特征 = 斑马线 */
+    if (NUM > 7)
     {
         ImageFlag.Zebra_Flag = 1;
     }

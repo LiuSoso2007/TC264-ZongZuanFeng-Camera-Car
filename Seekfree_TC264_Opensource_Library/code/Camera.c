@@ -1454,6 +1454,26 @@ void Camera_ShowElementStatus(void)
         ips200_show_string(2, 225, "ELEM: ---    ");     /* 执行当前图像处理步骤。 */
     }
 
+    /* 显示圆环阶段标志位：方向+阶段缩写，便于调试状态机切换 */
+    {
+        static const char *rst_name[] = {"IDLE","CNFM","APRC","ENTR","INSD","EXIT","RECV"};
+        uint8 rst = (uint8)ImageFlag.image_element_rings_flag;
+        if (ImageFlag.image_element_rings == 1 && rst < 7)
+        {
+            ips200_show_string(2, 210, "Ring:L-");
+            ips200_show_string(58, 210, rst_name[rst]);
+        }
+        else if (ImageFlag.image_element_rings == 2 && rst < 7)
+        {
+            ips200_show_string(2, 210, "Ring:R-");
+            ips200_show_string(58, 210, rst_name[rst]);
+        }
+        else
+        {
+            ips200_show_string(2, 210, "Ring:---   ");
+        }
+    }
+
     /* 执行当前图像处理步骤。 */
     /* 底栏右侧显示当前图像偏差，与元素状态同帧刷新。 */
     ips200_show_string(120, 225, "Err:");

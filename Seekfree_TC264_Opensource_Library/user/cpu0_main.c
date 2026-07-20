@@ -18,7 +18,7 @@ volatile uint8_t StopRequest = 0U;
 /* 压缩图行号越小前瞻越远；40～42行兼顾弯道提前量和远场稳定性。 */
 #define STEERING_LOOKAHEAD_ROW 40
 /* 比赛默认关闭IPS200，调试时改为1；关闭后编译器移除全部屏幕调用。 */
-#define IPS200_DISPLAY_ENABLE 0
+#define IPS200_DISPLAY_ENABLE 1
 #if IPS200_DISPLAY_ENABLE
 /* 摄像头50帧时每5帧刷新一次编码器数值，避免文字刷新拖慢画面。 */
 #define ENCODER_DISPLAY_DIV 5U
@@ -136,6 +136,25 @@ int core0_main(void)
                 ips200_show_int(58U, 128U, (int32)EncLeft, 5U);
                 ips200_show_int(58U, 144U, (int32)EncRight, 5U);
                 ips200_show_int(58U, 170U, (int32)Err, 5U);
+                /* 圆环方向和阶段标志位显示，便于调试状态机切换 */
+                {
+                    static const char *ring_st_name[] = {"IDLE","CNFM","APRC","ENTR","INSD","EXIT","RECV"};
+                    uint8 ring_st = (uint8)ImageFlag.image_element_rings_flag;
+                    if (ImageFlag.image_element_rings == 1U && ring_st < 7U)
+                    {
+                        ips200_show_string(50U, 190U, "L-");
+                        ips200_show_string(68U, 190U, ring_st_name[ring_st]);
+                    }
+                    else if (ImageFlag.image_element_rings == 2U && ring_st < 7U)
+                    {
+                        ips200_show_string(50U, 190U, "R-");
+                        ips200_show_string(68U, 190U, ring_st_name[ring_st]);
+                    }
+                    else
+                    {
+                        ips200_show_string(50U, 190U, "---   ");
+                    }
+                }
             }
 #endif
         }

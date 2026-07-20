@@ -30,8 +30,9 @@ void Camera_CompressInit(void) {
         for (j = 0; j < LCDW; j++) { c = (uint16)j * COMPRESS_STEP_W;
             Image_Use[i][j] = &mt9v03x_image[r][c]; } } }
 
-/* 函数说明：Camera_OTSU_GetThreshold。 */
-uint8 Camera_OTSU_GetThreshold(uint8 *image[][LCDW], uint16 col, uint16 row) {
+/* 函数说明：Camera_OTSU_GetThreshold，带直方图拉伸的OTSU大津法。 */
+uint8 Camera_OTSU_GetThreshold(uint8 *image[][LCDW], uint16 col, uint16 row)
+{
     uint32 hist[256] = {0};
     uint16 i, j;
     uint16 t;
@@ -41,17 +42,36 @@ uint8 Camera_OTSU_GetThreshold(uint8 *image[][LCDW], uint16 col, uint16 row) {
     uint64 sum0 = 0;
     float maxVar = 0.0f;
     uint8 bestThr = 128;
+    uint8 pmin = 255, pmax = 0;
+    uint8 range;
 
-    /* 统计图像灰度直方图。 */
+    /* 第一遍扫描全图找灰度最小最大值。 */
     for (i = 0; i < row; i++)
-        for (j = 0; j < col; j++)
-            hist[*image[i][j]]++;
+        for (j = 0; j < col; j++) {
+            uint8 v = *image[i][j];
+            if (v < pmin) pmin = v;
+            if (v > pmax) pmax = v;
+        }
 
-    /* 统计图像灰度直方图。 */
+    range = pmax - pmin;
+
+    /* 统计拉伸后直方图：对比度足时拉伸到[0,255]再做OTSU。 */
+    if (range > 30) {
+        for (i = 0; i < row; i++)
+            for (j = 0; j < col; j++) {
+                uint8 v = (uint8)(((uint16)(*image[i][j] - pmin) * 255U) / range);
+                hist[v]++;
+            }
+    } else {
+        for (i = 0; i < row; i++)
+            for (j = 0; j < col; j++)
+                hist[*image[i][j]]++;
+    }
+
+    /* OTSU类间方差遍历找最佳分隔阈值。 */
     for (t = 0; t < 256; t++)
         totalSum += (uint64)t * hist[t];
 
-    /* 统计图像灰度直方图。 */
     for (t = 0; t < 255; t++) {
         w0 += hist[t];
         if (w0 == 0) continue;
@@ -66,7 +86,12 @@ uint8 Camera_OTSU_GetThreshold(uint8 *image[][LCDW], uint16 col, uint16 row) {
         }
     }
 
-    /* 搜索并限制最佳二值化阈值。 */
+    /* 拉伸后阈值映射回原始灰度范围供二值化使用。 */
+    if (range > 30) {
+        bestThr = (uint8)(pmin + ((uint16)bestThr * range) / 255U);
+    }
+
+    /* 钳位到安全范围。 */
     if (bestThr < OTSU_MIN) bestThr = OTSU_MIN;
     if (bestThr > OTSU_MAX) bestThr = OTSU_MAX;
     return bestThr;

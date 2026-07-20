@@ -35,7 +35,8 @@
 
 /* ---- OTSU大津法阈值 (防止过暗/过曝导致异常) ---- */
 #define OTSU_MIN       30               // 最小阈值
-#define OTSU_MAX       185              // 最大阈值，低于安财210兼顾直道与反光
+#define OTSU_MAX       185              // 最大阈值
+#define OTSU_BIAS      10               // 阈值偏置，最终threshold=clamp(otsu)+bias
 
 /*
  * 屏幕布局说明:

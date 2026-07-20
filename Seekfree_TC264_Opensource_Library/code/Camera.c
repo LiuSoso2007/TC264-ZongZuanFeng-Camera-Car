@@ -93,9 +93,10 @@ uint8 Camera_OTSU_GetThreshold(uint8 *image[][LCDW], uint16 col, uint16 row)
 
     /* 钳位到安全范围。 */
     if (bestThr < OTSU_MIN) bestThr = OTSU_MIN;
+    if (bestThr < OTSU_MIN) bestThr = OTSU_MIN;
     if (bestThr > OTSU_MAX) bestThr = OTSU_MAX;
+    bestThr += OTSU_BIAS;
     return bestThr;
-}
 
 /* 函数说明：Camera_GetBinaryImage。 */
 void Camera_GetBinaryImage(void) {

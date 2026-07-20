@@ -129,55 +129,22 @@ int core0_main(void)
             }
 #if IPS200_DISPLAY_ENABLE
             /* 每帧只走QSPI2寄存器连续直刷，禁止回到逐字节等待的调试显示路径。 */
-            /* 显示二值化图像 + 下部赛道中线(蓝) + 车身中线(红) */
+            /* 显示二值化图像，赛道中线(蓝)与车身中线(红)叠加在图像上 */
             Camera_ShowBinaryFast();
-            /* 车身中线：红色竖线固定在图像水平中心 x=94 */
-            ips200_draw_line(94, 0, 94, 119, RGB565_RED);
-            /* 赛道中线：仅在下部参考区绘制蓝色折线，不超出二值图区域避免残留 */
+            /* 赛道中线：蓝色折线，坐标与二值图对齐(x=47+Center, y=row)，帧帧刷新不残留 */
             {
-                uint16 xo_ref = (uint16)((MT9V03X_W - LCDW) / 2);
+                uint16 xo = (uint16)((MT9V03X_W - LCDW) / 2);
                 int row;
                 for (row = SCAN_BASE_START_ROW; (row - 1) > ImageStatus.OFFLine; row--)
                 {
                     if (ImageDeal[row].Center < 0 || ImageDeal[row].Center >= LCDW) continue;
                     if (ImageDeal[row-1].Center < 0 || ImageDeal[row-1].Center >= LCDW) continue;
                     ips200_draw_line(
-                        xo_ref + (uint16)ImageDeal[row].Center,   150 + (uint16)row,
-                        xo_ref + (uint16)ImageDeal[row-1].Center, 150 + (uint16)(row-1),
+                        xo + (uint16)ImageDeal[row].Center,   (uint16)row,
+                        xo + (uint16)ImageDeal[row-1].Center, (uint16)(row-1),
                         RGB565_BLUE);
                 }
             }
-            /* IPS200仍由CPU0独占，顺序显示CPU1发布的左右编码器值，避免双核争用SPI。 */
-            if (++encoder_display_cnt >= ENCODER_DISPLAY_DIV)
-            {
-                encoder_display_cnt = 0U;
-                ips200_show_int(58U, 128U, (int32)EncLeft, 5U);
-                ips200_show_int(58U, 144U, (int32)EncRight, 5U);
-                ips200_show_int(58U, 170U, (int32)Err, 5U);
-                /* 圆环方向和阶段标志位显示，便于调试状态机切换 */
-                {
-                    static const char *ring_st_name[] = {"IDLE","CNFM","APRC","ENTR","INSD","EXIT","RECV"};
-                    uint8 ring_st = (uint8)ImageFlag.image_element_rings_flag;
-                    if (ImageFlag.image_element_rings == 1U && ring_st < 7U)
-                    {
-                        ips200_show_string(50U, 190U, "L-");
-                        ips200_show_string(68U, 190U, ring_st_name[ring_st]);
-                    }
-                    else if (ImageFlag.image_element_rings == 2U && ring_st < 7U)
-                    {
-                        ips200_show_string(50U, 190U, "R-");
-                        ips200_show_string(68U, 190U, ring_st_name[ring_st]);
-                    }
-                    else
-                    {
-                        ips200_show_string(50U, 190U, "---   ");
-                    }
-                }
-                ips200_show_int(50U, 208U, (int32)Camera_Threshold, 3U);
-            }
-#endif
-        }
-    }
-}
-
+            /* 车身中线：红色竖线，固定在图像水平中心 x=94 */
+            ips200_draw_line(94, 0, 94, 59, RGB565_RED);
 #pragma section all restore

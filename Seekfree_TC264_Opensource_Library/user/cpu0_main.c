@@ -129,11 +129,24 @@ int core0_main(void)
             }
 #if IPS200_DISPLAY_ENABLE
             /* 每帧只走QSPI2寄存器连续直刷，禁止回到逐字节等待的调试显示路径。 */
-            /* 显示二值化图像 + 蓝色赛道中线 + 红色车身中线 */
+            /* 显示二值化图像 + 下部赛道中线(蓝) + 车身中线(红) */
             Camera_ShowBinaryFast();
-            Camera_DrawCenterLines();
+            /* 车身中线：红色竖线固定在图像水平中心 x=94 */
             ips200_draw_line(94, 0, 94, 119, RGB565_RED);
-
+            /* 赛道中线：仅在下部参考区绘制蓝色折线，不超出二值图区域避免残留 */
+            {
+                uint16 xo_ref = (uint16)((MT9V03X_W - LCDW) / 2);
+                int row;
+                for (row = SCAN_BASE_START_ROW; (row - 1) > ImageStatus.OFFLine; row--)
+                {
+                    if (ImageDeal[row].Center < 0 || ImageDeal[row].Center >= LCDW) continue;
+                    if (ImageDeal[row-1].Center < 0 || ImageDeal[row-1].Center >= LCDW) continue;
+                    ips200_draw_line(
+                        xo_ref + (uint16)ImageDeal[row].Center,   150 + (uint16)row,
+                        xo_ref + (uint16)ImageDeal[row-1].Center, 150 + (uint16)(row-1),
+                        RGB565_BLUE);
+                }
+            }
             /* IPS200仍由CPU0独占，顺序显示CPU1发布的左右编码器值，避免双核争用SPI。 */
             if (++encoder_display_cnt >= ENCODER_DISPLAY_DIV)
             {

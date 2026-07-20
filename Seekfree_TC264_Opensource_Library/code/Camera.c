@@ -1122,28 +1122,63 @@ void Element_Handle_Right_Rings(void)
 
 /* 函数说明：Element_Judgment_Zebra。 */
 /* 函数说明：Element_Judgment_Zebra，基于边线宽度差值之和判断斑马线。 */
+/* 函数说明：Element_Judgment_Zebra，多重防误判的斑马线检测。 */
 void Element_Judgment_Zebra(void)
 {
-    /* 取第20、22、24行（从底部向上）的左右边线横向差值之和 */
-    int sum = 0;
-    int row;
-    int check_rows[] = {20, 22, 24};
-    int i;
+    int sum_at, sum_above, row, i;
+    int zebra_rows[] = {20, 22, 24};
+    int above_rows[] = {14, 16, 18};
 
+    /* 防误判1：已有其他元素时不检斑马 */
+    if (ImageFlag.image_element_rings || ImageFlag.Out_Road == 1
+        || ImageFlag.Bend_Road != 0)
+        return;
+
+    /* 防误判2：弯道或丢线严重时不检，避免弯道单侧丢线误触 */
+    if (Straight_Judge(1, 5, SCAN_BASE_END_ROW) > 1.0f
+        || Straight_Judge(2, 5, SCAN_BASE_END_ROW) > 1.0f
+        || ImageStatus.OFFLine >= 24)
+        return;
+
+    /* 防误判3：斑马线上方区域（14/16/18行）必须双边界可见且正常宽度 */
+    sum_above = 0;
     for (i = 0; i < 3; i++)
     {
-        row = check_rows[i];
-        if (ImageDeal[row].LeftBorder >= 0 && ImageDeal[row].RightBorder >= 0
-            && ImageDeal[row].RightBorder > ImageDeal[row].LeftBorder)
+        row = above_rows[i];
+        if (ImageDeal[row].LeftBorder < 0 || ImageDeal[row].RightBorder < 0
+            || ImageDeal[row].RightBorder <= ImageDeal[row].LeftBorder)
         {
-            sum += ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder;
+            g_ZebraSum = -1;
+            return;
         }
+        sum_above += ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder;
     }
 
-    g_ZebraSum = sum;
+    /* 上方必须正常宽度（>50）才说明是突然收窄的斑马线 */
+    if (sum_above <= 50)
+    {
+        g_ZebraSum = sum_above;
+        return;
+    }
 
-    /* 三条线的横向差值之和小于30即判定为斑马线 */
-    if (sum > 0 && sum < 30)
+    /* 斑马线区域（20/22/24行）宽度检查 */
+    sum_at = 0;
+    for (i = 0; i < 3; i++)
+    {
+        row = zebra_rows[i];
+        if (ImageDeal[row].LeftBorder < 0 || ImageDeal[row].RightBorder < 0
+            || ImageDeal[row].RightBorder <= ImageDeal[row].LeftBorder)
+        {
+            g_ZebraSum = -1;
+            return;
+        }
+        sum_at += ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder;
+    }
+
+    g_ZebraSum = sum_at;
+
+    /* 上方宽 + 斑马区窄 = 确认斑马线 */
+    if (sum_at > 0 && sum_at < 30)
     {
         ImageFlag.Zebra_Flag = 1;
     }

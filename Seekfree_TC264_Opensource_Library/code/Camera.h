@@ -35,8 +35,8 @@
 
 /* ---- OTSU大津法阈值 (防止过暗/过曝导致异常) ---- */
 #define OTSU_MIN       30               // 最小阈值
-#define OTSU_MAX       185              // 最大阈值
-#define OTSU_BIAS      10               // 阈值偏置，最终threshold=clamp(otsu)+bias
+#define OTSU_MAX       220              // 最大阈值
+#define OTSU_BIAS      20               // 阈值偏置，最终threshold=clamp(otsu)+bias
 
 /*
  * 屏幕布局说明:
@@ -177,6 +177,7 @@ typedef struct {
 // 状态: OFFLine/Miss_Left_lines/Miss_Right_lines 在ImageStatus中
 
 extern ImageFlagtypedef ImageFlag;             /* 图像标志全局变量 */
+extern int16_t g_ZebraSum;          /* 斑马线检测差值之和，供屏幕显示 */
 
 /* ---- 道路宽度常量 (TC264列宽94, AnCai原版x1.175倍映射) ---- */
 extern const uint8 Half_Road_Wide[60];         /* 半道路宽度: 近景~远景 */

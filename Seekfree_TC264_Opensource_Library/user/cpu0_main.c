@@ -24,8 +24,7 @@ volatile uint8_t StopRequest = 0U;
 #define ENCODER_DISPLAY_DIV 5U
 #endif
 /* 连续两帧确认可滤除单帧误判，确认后保持全速8帧再停车越过终点线。 */
-#define ZEBRA_STOP_CONFIRM_FRAMES 2U
-#define ZEBRA_STOP_DELAY_FRAMES 8U
+/* 斑马线检测到后立即停车，不再需要确认和延迟帧 */
 
 #pragma section all "cpu0_dsram"
 
@@ -34,9 +33,6 @@ int core0_main(void)
 #if IPS200_DISPLAY_ENABLE
     static uint8_t encoder_display_cnt = 0U;
 #endif
-    static uint8_t zebra_confirm_count = 0U;
-    static uint8_t zebra_delay_count = 0U;
-    static uint8_t zebra_stop_pending = 0U;
 
     clock_init();
     debug_init();
@@ -65,6 +61,7 @@ int core0_main(void)
     ips200_show_string(2U, 170U, "Err:");
     ips200_show_string(2U, 190U, "Ring:");
     ips200_show_string(2U, 208U, "Thr:");
+    ips200_show_string(2U, 222U, "Zebra:");
 #endif
 
     while (TRUE)
@@ -80,31 +77,8 @@ int core0_main(void)
             Scan_Element();
             Element_Handle();
 
-            /* 斑马线连续确认后仍保持原速越线，延迟结束才锁存停车。 */
-            if (StopRequest == 0U && zebra_stop_pending == 0U)
-            {
-                if (ImageFlag.Zebra_Flag != 0)
-                {
-                    if (zebra_confirm_count < ZEBRA_STOP_CONFIRM_FRAMES)
-                    {
-                        zebra_confirm_count++;
-                    }
-                    if (zebra_confirm_count >= ZEBRA_STOP_CONFIRM_FRAMES)
-                    {
-                        zebra_stop_pending = 1U;
-                        zebra_delay_count = 0U;
-                    }
-                }
-                else
-                {
-                    zebra_confirm_count = 0U;
-                }
-            }
-            else if (StopRequest == 0U && zebra_delay_count < ZEBRA_STOP_DELAY_FRAMES)
-            {
-                zebra_delay_count++;
-            }
-            else if (StopRequest == 0U)
+            /* 斑马线检测到后立即停车，之后不再启动 */
+            if (ImageFlag.Zebra_Flag != 0 && StopRequest == 0U)
             {
                 StopRequest = 1U;
             }
@@ -173,6 +147,7 @@ int core0_main(void)
                     }
                 }
                 ips200_show_int(50U, 208U, (int32)Camera_Threshold, 3U);
+                ips200_show_int(50U, 222U, (int32)g_ZebraSum, 3U);
             }
 #endif
         }

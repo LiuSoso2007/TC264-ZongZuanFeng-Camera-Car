@@ -11,6 +11,7 @@ static int s_ring_entry_corner_col = -1;     /* 最近一次入口拐点列 */
 uint8  Pixle[LCDH][LCDW];
 uint8 *Image_Use[LCDH][LCDW];
 uint8  Camera_Threshold = 128;
+int16_t g_ZebraSum = 0;                 /* 斑马线检测差值之和 */
 ImageDealDatatypedef ImageDeal[LCDH];        // 更新当前扫描行数据
 ImageStatustypedef ImageStatus;              // 更新图像识别状态
 #define COMPRESS_STEP_H (MT9V03X_H/LCDH)
@@ -1120,36 +1121,31 @@ void Element_Handle_Right_Rings(void)
 }
 
 /* 函数说明：Element_Judgment_Zebra。 */
+/* 函数说明：Element_Judgment_Zebra，基于边线宽度差值之和判断斑马线。 */
 void Element_Judgment_Zebra(void)
 {
-    int Ysite, Xsite, net, NUM = 0;
+    /* 取第20、22、24行（从底部向上）的左右边线横向差值之和 */
+    int sum = 0;
+    int row;
+    int check_rows[] = {20, 22, 24};
+    int i;
 
-    if (ImageFlag.Zebra_Flag || ImageFlag.image_element_rings
-        || ImageFlag.Out_Road == 1)
-        return;
-
-    if (ImageStatus.OFFLineBoundary >= 20) return;
-
-    for (Ysite = 20; Ysite < 33; Ysite++)
+    for (i = 0; i < 3; i++)
     {
-        net = 0;
-        for (Xsite = ImageDeal[Ysite].LeftBorder + 2;
-             Xsite < ImageDeal[Ysite].RightBorder - 2; Xsite++)
+        row = check_rows[i];
+        if (ImageDeal[row].LeftBorder >= 0 && ImageDeal[row].RightBorder >= 0
+            && ImageDeal[row].RightBorder > ImageDeal[row].LeftBorder)
         {
-            if (Pixle[Ysite][Xsite] == 0 && Pixle[Ysite][Xsite + 1] == 1)
-            {
-                net++;
-                if (net > 4) NUM++;
-            }
+            sum += ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder;
         }
     }
 
-    if (NUM > 8)                              /* 处理当前扫描行的边线数据。 */
+    g_ZebraSum = sum;
+
+    /* 三条线的横向差值之和小于30即判定为斑马线 */
+    if (sum > 0 && sum < 30)
     {
-        if (ImageDeal[SCAN_BASE_START_ROW].Center > 47)  /* 执行当前图像处理步骤。 */
-            ImageFlag.Zebra_Flag = 2;           /* 执行当前图像处理步骤。 */
-        else                                  /* 执行当前图像处理步骤。 */
-            ImageFlag.Zebra_Flag = 1;           /* 执行当前图像处理步骤。 */
+        ImageFlag.Zebra_Flag = 1;
     }
 }
 

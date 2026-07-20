@@ -1130,38 +1130,46 @@ void Element_Handle_Right_Rings(void)
    斑马线特征：赛道区内相邻像素灰度剧烈交替（黑白条纹），差分绝对值>50。
    完全不依赖二值化阈值，直接使用Image_Use原始灰度数组。 */
 /* 函数说明：Element_Judgment_Zebra，二值图黑白跳变计数检测斑马线。 */
+/* 函数说明：Element_Judgment_Zebra，二值图双向跳变+局部低阈值兜底。 */
 void Element_Judgment_Zebra(void)
 {
-    int Ysite, Xsite, trans, NUM = 0;
+    int Ysite, Xsite, prev, curr, trans, NUM = 0;
+    int left, right;
 
-    /* 仅排除圆环和出界，允许其他元素共存时仍检测斑马 */
     if (ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
         return;
 
-    /* 扫描行20~32，统计每行赛道宽度内黑到白跳变次数 */
     for (Ysite = 20; Ysite < 33; Ysite++)
     {
-        if (ImageDeal[Ysite].LeftBorder < 0 || ImageDeal[Ysite].RightBorder < 0)
-            continue;
-        if (ImageDeal[Ysite].RightBorder - ImageDeal[Ysite].LeftBorder < 6)
-            continue;
+        left  = ImageDeal[Ysite].LeftBorder;
+        right = ImageDeal[Ysite].RightBorder;
+        if (left < 0 || right < 0 || right - left < 6) continue;
 
         trans = 0;
-        for (Xsite = ImageDeal[Ysite].LeftBorder + 2;
-             Xsite < ImageDeal[Ysite].RightBorder - 3; Xsite++)
+        /* 先用二值图Pixle检测双向跳变 */
+        for (Xsite = left + 2; Xsite < right - 3; Xsite++)
         {
-            if (Pixle[Ysite][Xsite] == 0 && Pixle[Ysite][Xsite + 1] == 1)
-            {
+            if (Pixle[Ysite][Xsite] != Pixle[Ysite][Xsite + 1])
                 trans++;
+        }
+        /* 如果二值图跳变不够，再用灰度图局部低阈值(140)补检 */
+        if (trans < 3)
+        {
+            trans = 0;
+            prev = (*Image_Use[Ysite][left + 2] > 140) ? 1 : 0;
+            for (Xsite = left + 3; Xsite < right - 2; Xsite++)
+            {
+                curr = (*Image_Use[Ysite][Xsite] > 140) ? 1 : 0;
+                if (prev != curr) trans++;
+                prev = curr;
             }
         }
-        if (trans >= 4) NUM++;
+        if (trans >= 3) NUM++;
     }
 
     g_ZebraSum = NUM;
 
-    /* 13行中有9行以上出现黑白交替 = 斑马线 */
-    if (NUM > 8)
+    if (NUM > 6)
     {
         ImageFlag.Zebra_Flag = 1;
     }

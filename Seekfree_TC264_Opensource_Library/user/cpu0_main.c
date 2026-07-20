@@ -129,9 +129,9 @@ int core0_main(void)
             }
 #if IPS200_DISPLAY_ENABLE
             /* 每帧只走QSPI2寄存器连续直刷，禁止回到逐字节等待的调试显示路径。 */
-            /* 显示二值化图像，赛道中线(蓝)与车身中线(红)叠加在图像上 */
+            /* 显示二值化图像，赛道中线(蓝)与车身中线(红)叠加在二值图上 */
             Camera_ShowBinaryFast();
-            /* 赛道中线：蓝色折线，坐标与二值图对齐(x=47+Center, y=row)，帧帧刷新不残留 */
+            /* 赛道中线：蓝色折线，坐标与二值图对齐(xo+Center, row)，每帧自然覆盖 */
             {
                 uint16 xo = (uint16)((MT9V03X_W - LCDW) / 2);
                 int row;
@@ -145,6 +145,38 @@ int core0_main(void)
                         RGB565_BLUE);
                 }
             }
-            /* 车身中线：红色竖线，固定在图像水平中心 x=94 */
+            /* 车身中线：红色竖线固定在图像水平中心 */
             ips200_draw_line(94, 0, 94, 59, RGB565_RED);
+            if (++encoder_display_cnt >= ENCODER_DISPLAY_DIV)
+            {
+                encoder_display_cnt = 0U;
+                ips200_show_int(58U, 128U, (int32)EncLeft, 5U);
+                ips200_show_int(58U, 144U, (int32)EncRight, 5U);
+                ips200_show_int(58U, 170U, (int32)Err, 5U);
+                /* 圆环方向和阶段标志位显示，便于调试状态机切换 */
+                {
+                    static const char *ring_st_name[] = {"IDLE","CNFM","APRC","ENTR","INSD","EXIT","RECV"};
+                    uint8 ring_st = (uint8)ImageFlag.image_element_rings_flag;
+                    if (ImageFlag.image_element_rings == 1U && ring_st < 7U)
+                    {
+                        ips200_show_string(50U, 190U, "L-");
+                        ips200_show_string(68U, 190U, ring_st_name[ring_st]);
+                    }
+                    else if (ImageFlag.image_element_rings == 2U && ring_st < 7U)
+                    {
+                        ips200_show_string(50U, 190U, "R-");
+                        ips200_show_string(68U, 190U, ring_st_name[ring_st]);
+                    }
+                    else
+                    {
+                        ips200_show_string(50U, 190U, "---   ");
+                    }
+                }
+                ips200_show_int(50U, 208U, (int32)Camera_Threshold, 3U);
+            }
+#endif
+        }
+    }
+}
+
 #pragma section all restore

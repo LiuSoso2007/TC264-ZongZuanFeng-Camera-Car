@@ -771,7 +771,7 @@ static uint8 BlackHole_Check_Bottom(uint8 direction)
             {
                 if (Pixle[row][col] == IMG_BLACK) black_count++;
             }
-            if (black_count >= (BH_LEFT_COL_MAX - BH_LEFT_COL_MIN + 1))
+            if (black_count >= 6)
                 return 1;
         }
     }
@@ -784,7 +784,7 @@ static uint8 BlackHole_Check_Bottom(uint8 direction)
             {
                 if (Pixle[row][col] == IMG_BLACK) black_count++;
             }
-            if (black_count >= (BH_RIGHT_COL_MAX - BH_RIGHT_COL_MIN + 1))
+            if (black_count >= 6)
                 return 1;
         }
     }
@@ -1154,7 +1154,7 @@ static void Ring_State_Update(void)
 void Element_Judgment_Left_Rings(void)
 {
     if (ImageStatus.Miss_Right_lines > 5
-        || ImageStatus.Miss_Left_lines < 10
+        || ImageStatus.Miss_Left_lines < 6
         || ImageStatus.OFFLine > 2
         || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
         return;
@@ -1170,7 +1170,7 @@ void Element_Judgment_Left_Rings(void)
 void Element_Judgment_Right_Rings(void)
 {
     if (ImageStatus.Miss_Left_lines > 5
-        || ImageStatus.Miss_Right_lines < 10
+        || ImageStatus.Miss_Right_lines < 6
         || ImageStatus.OFFLine > 2
         || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
         return;

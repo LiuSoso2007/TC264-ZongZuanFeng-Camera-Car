@@ -129,10 +129,10 @@ extern ImageStatustypedef ImageStatus;         // 图像状态全局变量
 /* ---- 黑洞检测法常量 ---- */
 #define IMG_BLACK                   0
 #define IMG_WHITE                   1
-#define BH_BOTTOM_START_ROW        55
+#define BH_BOTTOM_START_ROW        52
 #define BH_LEFT_COL_MIN             1
-#define BH_LEFT_COL_MAX             8
-#define BH_RIGHT_COL_MIN           86
+#define BH_LEFT_COL_MAX            12
+#define BH_RIGHT_COL_MIN           82
 #define BH_RIGHT_COL_MAX           93
 #define VALLEY_SCAN_START_ROW      30
 #define VALLEY_SCAN_COL_LEFT       19

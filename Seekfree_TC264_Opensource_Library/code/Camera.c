@@ -1132,24 +1132,43 @@ void Element_Handle_Right_Rings(void)
 /* 函数说明：Element_Judgment_Zebra，二值图黑白跳变计数检测斑马线。 */
 /* 函数说明：Element_Judgment_Zebra，二值图双向跳变+局部低阈值兜底。 */
 /* 函数说明：Element_Judgment_Zebra，边线丢失时用固定宽度兜底扫描。 */
+/* 函数说明：Element_Judgment_Zebra */
+/* 函数说明：Element_Judgment_Zebra：斑马线识别——基于行内黑白跳变计数。 */
+/* 函数说明：Element_Judgment_Zebra：实际斑马线9条黑线，靠赛道边缘1条等效路沿，可识别8条黑线。 */
+/* 函数说明：Element_Judgment_Zebra：8条黑线->每行约有7~8次黑->白跳变（黑线进入白线区域）。 */
+/* 函数说明：Element_Judgment_Zebra：压缩图(94x60)中最小检测阈值取每行>=5次黑->白跳变。 */
+/* 函数说明：Element_Judgment_Zebra：连续2帧确认防止误判，通过左右丢线数量判断斑马线位于左侧还是右侧。 */
+/* 函数说明：Element_Judgment_Zebra：已处于斑马线状态时，重新扫描跳变数，连续3帧低跳变则退出。 */
+/* 函数说明：Element_Judgment_Zebra */
+/* 函数说明：Element_Judgment_Zebra：斑马线识别——基于行内黑白跳变计数。 */
+/* 函数说明：Element_Judgment_Zebra：实际斑马线9条黑线，靠赛道边缘1条等效路沿，可识别8条黑线。 */
+/* 函数说明：Element_Judgment_Zebra：8条黑线->每行约有7~8次黑->白跳变（黑线进入白线区域）。 */
+/* 函数说明：Element_Judgment_Zebra：压缩图(94x60)中最小检测阈值取每行>=5次黑->白跳变。 */
+/* 函数说明：Element_Judgment_Zebra：连续2帧确认防止误判，通过左右丢线数量判断斑马线位于左侧还是右侧。 */
 void Element_Judgment_Zebra(void)
 {
-    int Ysite, Xsite, prev, curr, trans, NUM = 0;
-    int L, R, scanned = 0;
+    int Ysite, Xsite, L, R;
+    int trans_count;        /* 当前行黑->白跳变次数 */
+    int valid_rows = 0;     /* 有效行数(跳变>=5的行) */
+    int total_rows = 0;     /* 扫描的总行数 */
+    static int confirm_cnt = 0;     /* 连续确认帧计数(用于防抖) */
 
-    if (ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
+    /* 环岛/出库等元素激活或已处于斑马线状态时不检测 */
+    if (ImageFlag.image_element_rings || ImageFlag.Out_Road == 1
+     || ImageFlag.Zebra_Flag != 0)
         return;
 
+    /* 正常检测：扫描行20~32，仅统计黑->白跳变(0->1) */
     for (Ysite = 20; Ysite < 33; Ysite++)
     {
         L = ImageDeal[Ysite].LeftBorder;
         R = ImageDeal[Ysite].RightBorder;
 
-        /* 边线有效时用边线范围，无效时用固定宽范围兜底(列5~89) */
+        /* 边界有效时使用赛道范围并缩进去毛刺，无效时用安全固定范围 */
         if (L >= 0 && R >= 0 && R - L >= 6)
         {
-            L += 2;
-            R -= 3;
+            L += 2;     /* 避开左边界毛刺 */
+            R -= 3;     /* 避开右边界毛刺 */
         }
         else
         {
@@ -1157,51 +1176,100 @@ void Element_Judgment_Zebra(void)
             R = LCDW - 5;
         }
 
-        trans = 0;
-        /* 先用二值图Pixle检测双向跳变 */
+        trans_count = 0;
         for (Xsite = L; Xsite < R; Xsite++)
         {
-            if (Pixle[Ysite][Xsite] != Pixle[Ysite][Xsite + 1])
-                trans++;
+            if (Pixle[Ysite][Xsite] == 0 && Pixle[Ysite][Xsite + 1] == 1)
+                trans_count++;
         }
-        /* 如果二值图跳变不够，再用灰度图局部低阈值(120)补检 */
-        if (trans < 3)
-        {
-            trans = 0;
-            prev = (*Image_Use[Ysite][L] > 120) ? 1 : 0;
-            for (Xsite = L + 1; Xsite <= R; Xsite++)
-            {
-                curr = (*Image_Use[Ysite][Xsite] > 120) ? 1 : 0;
-                if (prev != curr) trans++;
-                prev = curr;
-            }
-        }
-        if (trans >= 3) NUM++;
-        scanned++;
+
+        if (trans_count >= 5) valid_rows++;
+        total_rows++;
     }
 
-    g_ZebraSum = (scanned > 0) ? NUM : -1;
+    g_ZebraSum = (total_rows > 0) ? valid_rows : -1;
 
-    if (NUM > 6)
+    /* 有效行>=6时疑似斑马线，需连续2帧确认防误判 */
+    if (valid_rows >= 6)
     {
-        ImageFlag.Zebra_Flag = 1;
+        confirm_cnt++;
+        if (confirm_cnt >= 2)
+        {
+            /* 根据左右丢线差异判断斑马线位置：
+             * 左侧丢线多 -> 斑马线在左 -> Zebra_Flag=1
+             * 右侧丢线多 -> 斑马线在右 -> Zebra_Flag=2 */
+            if (ImageStatus.Miss_Left_lines > ImageStatus.Miss_Right_lines + 2)
+            {
+                ImageFlag.Zebra_Flag = 1;   /* 左库 */
+            }
+            else if (ImageStatus.Miss_Right_lines > ImageStatus.Miss_Left_lines + 2)
+            {
+                ImageFlag.Zebra_Flag = 2;   /* 右库 */
+            }
+            else
+            {
+                /* 丢线差异不明显时，默认判断为左库 */
+                ImageFlag.Zebra_Flag = 1;
+            }
+        }
+    }
+    else
+    {
+        confirm_cnt = 0;                     /* 未达阈值，清零确认计数 */
     }
 }
 
-/* 函数说明：Element_Handle_Zebra。 */
+
+
+
+
+/* 函数说明：Element_Handle_Zebra */
+/* 函数说明：Element_Handle_Zebra */
+/* 函数说明：Element_Handle_Zebra：斑马线处理——中线补到有边界侧，并检测退出条件。 */
 void Element_Handle_Zebra(void)
 {
-    int row;
+    int row, Ysite, Xsite, L, R;
+    int trans_count;
+    int exit_rows = 0;
+    static int lost_cnt = 0;        /* 连续未检测到斑马线帧计数(用于退出) */
 
-    if (ImageFlag.Zebra_Flag == 1)            /* 更新图像识别状态。 */
+    /* 第一步：重新扫描跳变数，检测斑马线是否已消失 */
+    for (Ysite = 20; Ysite < 33; Ysite++)
     {
-        for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLineBoundary + 1; row--)
+        L = ImageDeal[Ysite].LeftBorder;
+        R = ImageDeal[Ysite].RightBorder;
+        if (L >= 0 && R >= 0 && R - L >= 6) { L += 2; R -= 3; }
+        else { L = 5; R = LCDW - 5; }
+
+        trans_count = 0;
+        for (Xsite = L; Xsite < R; Xsite++)
         {
-            ImageDeal[row].Center = ImageDeal[row].LeftBorder + Half_Road_Wide[row];
-            LimitH(ImageDeal[row].Center);
+            if (Pixle[Ysite][Xsite] == 0 && Pixle[Ysite][Xsite + 1] == 1)
+                trans_count++;
+        }
+        if (trans_count >= 5) exit_rows++;
+    }
+
+    g_ZebraSum = exit_rows;
+
+    /* 斑马线特征消失时累计帧数，连续3帧确认退出 */
+    if (exit_rows < 4)
+    {
+        lost_cnt++;
+        if (lost_cnt >= 3)
+        {
+            ImageFlag.Zebra_Flag = 0;       /* 退出斑马线状态 */
+            lost_cnt = 0;
+            return;
         }
     }
-    else if (ImageFlag.Zebra_Flag == 2)       /* 更新图像识别状态。 */
+    else
+    {
+        lost_cnt = 0;                       /* 仍在斑马线内，重置 */
+    }
+
+    /* 第二步：中线强制补偿到有边界的一侧 */
+    if (ImageFlag.Zebra_Flag == 1)            /* 左库：从右边界向左补偿半路宽 */
     {
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLineBoundary + 1; row--)
         {
@@ -1209,9 +1277,17 @@ void Element_Handle_Zebra(void)
             LimitL(ImageDeal[row].Center);
         }
     }
+    else if (ImageFlag.Zebra_Flag == 2)       /* 右库：从左边界向右补偿半路宽 */
+    {
+        for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLineBoundary + 1; row--)
+        {
+            ImageDeal[row].Center = ImageDeal[row].LeftBorder + Half_Road_Wide[row];
+            LimitH(ImageDeal[row].Center);
+        }
+    }
 }
 
-/* 函数说明：Element_Judgment_Ramp。 */
+
 void Element_Judgment_Ramp(void)
 {
         return;                              /* 执行当前图像处理步骤。 */

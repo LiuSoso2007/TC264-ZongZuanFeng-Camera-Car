@@ -143,6 +143,7 @@ int core0_main(void)
             }
             /* ??????????????????? */
             {
+                uint16 xo = (uint16)((MT9V03X_W - LCDW) / 2);
                 int row;
                 for (row = SCAN_BASE_START_ROW; (row - 1) > ImageStatus.OFFLine; row--)
                 {

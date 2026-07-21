@@ -760,36 +760,41 @@ static void Ring_Clear_State(void)
 static uint8 BlackHole_Check_Bottom(uint8 direction)
 {
     int row, col;
-    int black_count;
-    
-    if (direction == 1U) /* 左环岛：检查左下角 */
+    int state;      /* 0=??, 1=??, 2=?? */
+    int black_cnt;  /* ?????? */
+    int start_col, end_col, step;
+
+    /* ????3??LCDH-1(59), LCDH-2(58), LCDH-3(57) */
+    for (row = LCDH - 1; row >= LCDH - 3; row--)
     {
-        for (row = LCDH - 1; row >= BH_BOTTOM_START_ROW; row--)
+        state = 0;
+        black_cnt = 0;
+
+        /* ????????????????? */
+        if (direction == 1U) { start_col = 0; end_col = LCDW - 1; step = 1; }
+        else                 { start_col = LCDW - 1; end_col = 0; step = -1; }
+
+        for (col = start_col; col != end_col; col += step)
         {
-            black_count = 0;
-            for (col = BH_LEFT_COL_MIN; col <= BH_LEFT_COL_MAX; col++)
+            if (Pixle[row][col] == IMG_WHITE)
             {
-                if (Pixle[row][col] == IMG_BLACK) black_count++;
+                if (state == 2 && black_cnt >= 5)
+                    return 1;   /* ???(>=5?)???????? */
+                state = 1;
+                black_cnt = 0;
             }
-            if (black_count >= 6)
-                return 1;
-        }
-    }
-    else /* 右环岛：检查右下角 */
-    {
-        for (row = LCDH - 1; row >= BH_BOTTOM_START_ROW; row--)
-        {
-            black_count = 0;
-            for (col = BH_RIGHT_COL_MIN; col <= BH_RIGHT_COL_MAX; col++)
+            else /* IMG_BLACK */
             {
-                if (Pixle[row][col] == IMG_BLACK) black_count++;
+                if (state >= 1)
+                    black_cnt++;
+                if (state == 1)
+                    state = 2;
             }
-            if (black_count >= 6)
-                return 1;
         }
     }
     return 0;
 }
+
 
 /* ---- 验证拐点上方是否存在黑洞 —— 区分普通弯道与圆环 ---- */
 static uint8 BlackHole_Check_Above(int inflection_row, int inflection_col)

@@ -771,7 +771,6 @@ static uint8 BlackHole_Check_Bottom(uint8 direction)
             {
                 if (Pixle[row][col] == IMG_BLACK) black_count++;
             }
-            /* 连续黑像素数量足够，确认左下黑洞存在 */
             if (black_count >= (BH_LEFT_COL_MAX - BH_LEFT_COL_MIN + 1))
                 return 1;
         }
@@ -796,22 +795,17 @@ static uint8 BlackHole_Check_Bottom(uint8 direction)
 static uint8 BlackHole_Check_Above(int inflection_row, int inflection_col)
 {
     int row;
-    int black_count;
-    int bh_top = inflection_row;
     
-    /* 在拐点列向上扫描，寻找三段式黑白交替（白→黑→白→黑），确认为黑洞 */
     for (row = inflection_row - 2; row > BH_BOTTOM_START_ROW + 10; row--)
     {
         if (Pixle[row][inflection_col] == IMG_WHITE
             && Pixle[row + 1][inflection_col] == IMG_BLACK)
         {
-            /* 白→黑跳变（黑洞上边界） */
             for (; row > BH_BOTTOM_START_ROW + 5; row--)
             {
                 if (Pixle[row][inflection_col] == IMG_BLACK
                     && Pixle[row + 1][inflection_col] == IMG_WHITE)
                 {
-                    /* 黑→白跳变（黑洞内部出） */
                     return 1;
                 }
             }
@@ -821,17 +815,15 @@ static uint8 BlackHole_Check_Above(int inflection_row, int inflection_col)
     return 0;
 }
 
-/* ---- 谷底追踪：从白→黑跳变点向右下/左下追踪到谷底 ---- */
+/* ---- 谷底追踪：从白黑跳变点向右下/左下追踪到谷底 ---- */
 static int BlackHole_Track_Valley(uint8 direction, int *valley_row, int *valley_col)
 {
     int row, col;
     int moved;
     int scan_col;
     
-    /* 确定扫描起始列 */
     scan_col = (direction == 1U) ? VALLEY_SCAN_COL_LEFT : VALLEY_SCAN_COL_RIGHT;
     
-    /* 从扫描起始行向上搜索，寻找白→黑跳变（黑洞下边界） */
     for (row = VALLEY_SCAN_START_ROW; row > VALLEY_MIN_ROW; row--)
     {
         if (Pixle[row][scan_col] == IMG_WHITE
@@ -839,16 +831,12 @@ static int BlackHole_Track_Valley(uint8 direction, int *valley_row, int *valley_
         {
             col = scan_col;
             
-            /* 向右/左下方向追踪到谷底 */
             if (direction == 1U)
             {
-                /* 左环岛：向右下追踪 */
-                /* 先将指针移到黑色区域最右端 */
                 for (; col + 1 < LCDW - 1; col++)
                 {
                     if (Pixle[row][col + 1] == IMG_WHITE) break;
                 }
-                /* 向右下方逐像素追踪 */
                 do {
                     moved = 0;
                     if (col + 1 < LCDW - 1 && row + 1 < LCDH - 1
@@ -867,7 +855,6 @@ static int BlackHole_Track_Valley(uint8 direction, int *valley_row, int *valley_
             }
             else
             {
-                /* 右环岛：向左下追踪 */
                 for (; col - 1 > 0; col--)
                 {
                     if (Pixle[row][col - 1] == IMG_WHITE) break;
@@ -889,7 +876,6 @@ static int BlackHole_Track_Valley(uint8 direction, int *valley_row, int *valley_
                 } while (moved);
             }
             
-            /* 谷底坐标有效性校验 */
             if (row > VALLEY_MIN_ROW && row < VALLEY_MAX_ROW
                 && col > 0 && col < LCDW - 1)
             {
@@ -908,19 +894,12 @@ static uint8 Ring_Is_Candidate(uint8 direction)
 {
     if (ImageStatus.OFFLine > 2)
         return 0U;
-    
-    /* 黑洞底部检测 */
     if (!BlackHole_Check_Bottom(direction))
         return 0U;
-    
     if (direction == 1U)
-    {
         return (uint8)(ImageStatus.Miss_Left_lines >= 10);
-    }
     if (direction == 2U)
-    {
         return (uint8)(ImageStatus.Miss_Right_lines >= 10);
-    }
     return 0U;
 }
 
@@ -935,7 +914,6 @@ static int Ring_Find_Valley_Point(uint8 direction, int *valley_col)
         *valley_col = -1;
         return -1;
     }
-    
     *valley_col = vcol;
     return valley_row;
 }
@@ -945,14 +923,10 @@ static uint8 Ring_Has_Exit_Feature(uint8 direction)
 {
     int row;
     
-    /* 出口侧丢线数检查 */
     if ((direction == 1U && ImageStatus.Miss_Right_lines > 4)
         || (direction == 2U && ImageStatus.Miss_Left_lines > 4))
-    {
         return 0U;
-    }
     
-    /* 扫描出口侧边线恢复 */
     for (row = SCAN_BASE_START_ROW - 1; row > 5; row--)
     {
         if (direction == 1U
@@ -960,7 +934,6 @@ static uint8 Ring_Has_Exit_Feature(uint8 direction)
             && ImageDeal[row - 1].IsRightFind != 'T'
             && ImageDeal[row - 2].IsRightFind != 'T')
         {
-            /* 黑洞验证：拐点上方是否有黑洞 */
             if (BlackHole_Check_Above(row, ImageDeal[row].RightBorder))
                 return 1U;
         }
@@ -973,7 +946,6 @@ static uint8 Ring_Has_Exit_Feature(uint8 direction)
                 return 1U;
         }
     }
-    
     return Ring_Is_Stable_Road();
 }
 
@@ -999,8 +971,6 @@ static void Ring_Rebuild_Fill(uint8 direction)
     int valley_row, valley_col;
     uint8 ring_state = (uint8)ImageFlag.image_element_rings_flag;
     int fill_offset = Ring_Get_Fill_Offset(ring_state);
-    
-    /* 获取谷底点 */
     int has_valley = BlackHole_Track_Valley(direction, &valley_row, &valley_col);
     
     switch (ring_state)
@@ -1008,47 +978,32 @@ static void Ring_Rebuild_Fill(uint8 direction)
     case RING_STATE_CONFIRM:
     case RING_STATE_APPROACH:
     case RING_STATE_ENTRY:
-        /* 入环阶段：锁定外环边线补线 */
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
         {
             if (direction == 1U)
-            {
-                /* 左环岛：右边界锁定外环 */
                 ImageDeal[row].Center = ImageDeal[row].RightBorder
                                       - Half_Bend_Wide[row] - fill_offset;
-            }
             else
-            {
-                /* 右环岛：左边界锁定外环 */
                 ImageDeal[row].Center = ImageDeal[row].LeftBorder
                                       + Half_Bend_Wide[row] + fill_offset;
-            }
             LimitL(ImageDeal[row].Center);
             LimitH(ImageDeal[row].Center);
         }
         break;
-        
     case RING_STATE_INSIDE:
-        /* 环内阶段：保持外环锁定，加大偏移 */
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
         {
             if (direction == 1U)
-            {
                 ImageDeal[row].Center = ImageDeal[row].RightBorder
                                       - Half_Bend_Wide[row] - fill_offset;
-            }
             else
-            {
                 ImageDeal[row].Center = ImageDeal[row].LeftBorder
                                       + Half_Bend_Wide[row] + fill_offset;
-            }
             LimitL(ImageDeal[row].Center);
             LimitH(ImageDeal[row].Center);
         }
         break;
-        
     case RING_STATE_EXIT:
-        /* 出环阶段：从拐点补到上边界 */
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
         {
             if (direction == 1U)
@@ -1073,24 +1028,18 @@ static void Ring_Rebuild_Fill(uint8 direction)
             LimitH(ImageDeal[row].Center);
         }
         break;
-        
     case RING_STATE_RECOVERY:
     default:
-        /* 恢复阶段：补直线忽略二次入口 */
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
         {
             if (direction == 1U)
-            {
                 ImageDeal[row].Center = (ImageDeal[row].RightBorder > 0)
                     ? ImageDeal[row].RightBorder - Half_Road_Wide[row] - fill_offset
                     : ImageSensorMid;
-            }
             else
-            {
                 ImageDeal[row].Center = (ImageDeal[row].LeftBorder < LCDW - 1)
                     ? ImageDeal[row].LeftBorder + Half_Road_Wide[row] + fill_offset
                     : ImageSensorMid;
-            }
             LimitL(ImageDeal[row].Center);
             LimitH(ImageDeal[row].Center);
         }
@@ -1098,7 +1047,7 @@ static void Ring_Rebuild_Fill(uint8 direction)
     }
 }
 
-/* ---- 状态机更新 (使用谷底追踪) ---- */
+/* ---- 状态机更新 ---- */
 static void Ring_State_Update(void)
 {
     uint8 direction = (uint8)ImageFlag.image_element_rings;
@@ -1111,137 +1060,78 @@ static void Ring_State_Update(void)
         return;
     }
     if (s_ring_state_frames < 65535U)
-    {
         s_ring_state_frames++;
-    }
 
     switch (ImageFlag.image_element_rings_flag)
     {
     case RING_STATE_CONFIRM:
         if (Ring_Is_Candidate(direction))
-        {
-            if (s_ring_confirm_count < RING_CONFIRM_FRAMES)
-                s_ring_confirm_count++;
-        }
+        { if (s_ring_confirm_count < RING_CONFIRM_FRAMES) s_ring_confirm_count++; }
         else
-        {
-            s_ring_confirm_count = 0U;
-        }
+        { s_ring_confirm_count = 0U; }
         if (s_ring_confirm_count >= RING_CONFIRM_FRAMES)
-        {
             Ring_Set_State(RING_STATE_APPROACH);
-        }
         else if (s_ring_state_frames >= RING_CONFIRM_MAX_FRAMES)
-        {
             Ring_Clear_State();
-        }
         break;
 
     case RING_STATE_APPROACH:
         valley_row = Ring_Find_Valley_Point(direction, &valley_col);
         if (valley_row >= 0)
-        {
-            s_ring_entry_corner_row = valley_row;
-            s_ring_entry_corner_col = valley_col;
-        }
-        /* 谷底点进入有效范围或超时，进入下一状态 */
+        { s_ring_entry_corner_row = valley_row; s_ring_entry_corner_col = valley_col; }
         if (valley_row >= 0 && valley_row < VALLEY_MAX_ROW)
-        {
-            if (s_ring_feature_count < 3U) s_ring_feature_count++;
-        }
+        { if (s_ring_feature_count < 3U) s_ring_feature_count++; }
         else
-        {
-            s_ring_feature_count = 0U;
-        }
-        if (s_ring_feature_count >= 3U
-            || s_ring_state_frames >= RING_APPROACH_MAX_FRAMES)
-        {
+        { s_ring_feature_count = 0U; }
+        if (s_ring_feature_count >= 3U || s_ring_state_frames >= RING_APPROACH_MAX_FRAMES)
             Ring_Set_State(RING_STATE_ENTRY);
-        }
         break;
 
     case RING_STATE_ENTRY:
         valley_row = Ring_Find_Valley_Point(direction, &valley_col);
         if (valley_row >= 0)
-        {
-            s_ring_entry_corner_row = valley_row;
-            s_ring_entry_corner_col = valley_col;
-        }
-        /* 谷底消失或谷底行号降到阈值以下 → 入环完成 */
+        { s_ring_entry_corner_row = valley_row; s_ring_entry_corner_col = valley_col; }
         if (valley_row < 0 || valley_row < VALLEY_MIN_ROW + 5)
-        {
-            if (s_ring_feature_count < 3U) s_ring_feature_count++;
-        }
+        { if (s_ring_feature_count < 3U) s_ring_feature_count++; }
         else
-        {
-            s_ring_feature_count = 0U;
-        }
-        if (s_ring_feature_count >= 3U
-            || s_ring_state_frames >= RING_ENTRY_MAX_FRAMES)
-        {
+        { s_ring_feature_count = 0U; }
+        if (s_ring_feature_count >= 3U || s_ring_state_frames >= RING_ENTRY_MAX_FRAMES)
             Ring_Set_State(RING_STATE_INSIDE);
-        }
         break;
 
     case RING_STATE_INSIDE:
-        /* 检测出口侧丢线 */
         if ((direction == 1U && ImageStatus.Miss_Right_lines >= EXIT_LOST_MIN)
             || (direction == 2U && ImageStatus.Miss_Left_lines >= EXIT_LOST_MIN)
             || ImageStatus.OFFLine >= EXIT_LOST_MIN)
-        {
             s_ring_exit_loss_seen = 1U;
-        }
         if (s_ring_exit_loss_seen && Ring_Has_Exit_Feature(direction))
-        {
-            if (s_ring_feature_count < RING_EXIT_CONFIRM_FRAMES)
-                s_ring_feature_count++;
-        }
+        { if (s_ring_feature_count < RING_EXIT_CONFIRM_FRAMES) s_ring_feature_count++; }
         else
-        {
-            s_ring_feature_count = 0U;
-        }
+        { s_ring_feature_count = 0U; }
         if (s_ring_feature_count >= RING_EXIT_CONFIRM_FRAMES
             || s_ring_state_frames >= RING_INSIDE_MAX_FRAMES)
-        {
             Ring_Set_State(RING_STATE_EXIT);
-        }
         break;
 
     case RING_STATE_EXIT:
         if (Ring_Is_Stable_Road())
-        {
-            if (s_ring_stable_count < RING_EXIT_STABLE_FRAMES)
-                s_ring_stable_count++;
-        }
+        { if (s_ring_stable_count < RING_EXIT_STABLE_FRAMES) s_ring_stable_count++; }
         else
-        {
-            s_ring_stable_count = 0U;
-        }
+        { s_ring_stable_count = 0U; }
         if (s_ring_stable_count >= RING_EXIT_STABLE_FRAMES
             || s_ring_state_frames >= RING_EXIT_MAX_FRAMES)
-        {
             Ring_Set_State(RING_STATE_RECOVERY);
-        }
         break;
 
     case RING_STATE_RECOVERY:
-        /* 恢复期：检测到正常直道稳定后退出 */
-        if (ImageStatus.Miss_Left_lines < 4
-            && ImageStatus.Miss_Right_lines < 4
+        if (ImageStatus.Miss_Left_lines < 4 && ImageStatus.Miss_Right_lines < 4
             && ImageStatus.OFFLine <= 2)
-        {
-            if (s_ring_stable_count < 4U) s_ring_stable_count++;
-        }
+        { if (s_ring_stable_count < 4U) s_ring_stable_count++; }
         else
-        {
-            s_ring_stable_count = 0U;
-        }
-        if ((s_ring_state_frames >= RING_RECOVERY_FRAMES
-             && s_ring_stable_count >= 4U)
+        { s_ring_stable_count = 0U; }
+        if ((s_ring_state_frames >= RING_RECOVERY_FRAMES && s_ring_stable_count >= 4U)
             || s_ring_state_frames >= RING_RECOVERY_MAX_FRAMES)
-        {
             Ring_Clear_State();
-        }
         break;
 
     default:
@@ -1253,157 +1143,40 @@ static void Ring_State_Update(void)
 /* ---- 左圆环判断：黑洞检测触发 ---- */
 void Element_Judgment_Left_Rings(void)
 {
-    /* 已有元素冲突检查 */
     if (ImageStatus.Miss_Right_lines > 5
         || ImageStatus.Miss_Left_lines < 10
         || ImageStatus.OFFLine > 2
-        || ImageFlag.image_element_rings
-        || ImageFlag.Out_Road == 1)
+        || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
         return;
 
-    /* 底部黑块验证 */
-    {
-        int r;
-        for (r = SCAN_BASE_START_ROW; r >= SCAN_BASE_END_ROW; r--)
-        {
-            if (ImageDeal[r].IsLeftFind == 'W') return;
-        }
-    }
+    { int r; for (r = SCAN_BASE_START_ROW; r >= SCAN_BASE_END_ROW; r--)
+    { if (ImageDeal[r].IsLeftFind == 'W') return; } }
 
-    /* 黑洞检测：左下角存在连续黑色区域则触发 */
     if (BlackHole_Check_Bottom(1U))
-    {
-        ImageFlag.image_element_rings = 1;
-        Ring_Set_State(RING_STATE_CONFIRM);
-    }
+    { ImageFlag.image_element_rings = 1; Ring_Set_State(RING_STATE_CONFIRM); }
 }
 
 /* ---- 右圆环判断：黑洞检测触发 ---- */
 void Element_Judgment_Right_Rings(void)
 {
-    /* 已有元素冲突检查 */
     if (ImageStatus.Miss_Left_lines > 5
         || ImageStatus.Miss_Right_lines < 10
         || ImageStatus.OFFLine > 2
-        || ImageFlag.image_element_rings
-        || ImageFlag.Out_Road == 1)
+        || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
         return;
 
-    /* 底部黑块验证 */
-    {
-        int r;
-        for (r = SCAN_BASE_START_ROW; r >= SCAN_BASE_END_ROW; r--)
-        {
-            if (ImageDeal[r].IsRightFind == 'W') return;
-        }
-    }
+    { int r; for (r = SCAN_BASE_START_ROW; r >= SCAN_BASE_END_ROW; r--)
+    { if (ImageDeal[r].IsRightFind == 'W') return; } }
 
-    /* 黑洞检测：右下角存在连续黑色区域则触发 */
     if (BlackHole_Check_Bottom(2U))
-    {
-        ImageFlag.image_element_rings = 2;
-        Ring_Set_State(RING_STATE_CONFIRM);
-    }
+    { ImageFlag.image_element_rings = 2; Ring_Set_State(RING_STATE_CONFIRM); }
 }
 
-/* 函数说明：Element_Handle_Left_Rings。 */
-void Element_Handle_Left_Rings(void)
-{
-    Ring_State_Update();
-    if (ImageFlag.image_element_rings == 1)
-    {
-        Ring_Rebuild_Fill(1U);
-    }
-}
-
-/* 函数说明：Element_Handle_Right_Rings。 */
-void Element_Handle_Right_Rings(void)
-{
-    Ring_State_Update();
-    if (ImageFlag.image_element_rings == 2)
-    {
-        Ring_Rebuild_Fill(2U);
-    }
-}
-
-/* 函数说明：Element_Judgment_Zebra。 */
-/* 函数说明：Element_Judgment_Zebra，基于边线宽度差值之和判断斑马线。 */
-/* 函数说明：Element_Judgment_Zebra，多重防误判的斑马线检测。 */
-/* 函数说明：Element_Judgment_Zebra，近处宽+远处窄=斑马线。 */
-/* 函数说明：Element_Judgment_Zebra，车身近处宽+远处窄=斑马线。 */
-/* 函数说明：Element_Judgment_Zebra，近处宽+远处异常(窄或丢线)+非弯道=斑马线。 */
-/* 函数说明：Element_Judgment_Zebra，基于原始灰度相邻像素差分检测斑马线。
-   斑马线特征：赛道区内相邻像素灰度剧烈交替（黑白条纹），差分绝对值>50。
-   完全不依赖二值化阈值，直接使用Image_Use原始灰度数组。 */
-/* 函数说明：Element_Judgment_Zebra，二值图黑白跳变计数检测斑马线。 */
-/* 函数说明：Element_Judgment_Zebra，二值图双向跳变+局部低阈值兜底。 */
-/* 函数说明：Element_Judgment_Zebra，边线丢失时用固定宽度兜底扫描。 */
-/* 函数说明：Element_Judgment_Zebra */
-/* 函数说明：Element_Judgment_Zebra：斑马线识别——基于行内黑白跳变计数。 */
-/* 函数说明：Element_Judgment_Zebra：实际斑马线9条黑线，靠赛道边缘1条等效路沿，可识别8条黑线。 */
-/* 函数说明：Element_Judgment_Zebra：8条黑线->每行约有7~8次黑->白跳变（黑线进入白线区域）。 */
-/* 函数说明：Element_Judgment_Zebra：压缩图(94x60)中最小检测阈值取每行>=5次黑->白跳变。 */
-/* 函数说明：Element_Judgment_Zebra：连续2帧确认防止误判，通过左右丢线数量判断斑马线位于左侧还是右侧。 */
-/* 函数说明：Element_Judgment_Zebra：已处于斑马线状态时，重新扫描跳变数，连续3帧低跳变则退出。 */
-/* 函数说明：Element_Judgment_Zebra */
-/* 函数说明：Element_Judgment_Zebra：斑马线识别——基于行内黑白跳变计数。 */
-/* 函数说明：Element_Judgment_Zebra：实际斑马线9条黑线，靠赛道边缘1条等效路沿，可识别8条黑线。 */
-/* 函数说明：Element_Judgment_Zebra：8条黑线->每行约有7~8次黑->白跳变（黑线进入白线区域）。 */
-/* 函数说明：Element_Judgment_Zebra：压缩图(94x60)中最小检测阈值取每行>=5次黑->白跳变。 */
-/* 函数说明：Element_Judgment_Zebra：连续2帧确认防止误判，通过左右丢线数量判断斑马线位于左侧还是右侧。 */
-/* 函数说明：Element_Judgment_Zebra */
-/* 函数说明：Element_Judgment_Zebra：斑马线识别——基于行内黑白跳变计数。 */
-/* 函数说明：Element_Judgment_Zebra：实际斑马线9条黑线，靠赛道边缘1条等效路沿，可识别8条黑线。 */
-/* 函数说明：Element_Judgment_Zebra：8条黑线->每行约有7~8次黑->白跳变（黑线进入白线区域）。 */
-/* 函数说明：Element_Judgment_Zebra：压缩图(94x60)中最小检测阈值取每行>=5次黑->白跳变。 */
-/* 函数说明：Element_Judgment_Zebra：连续2帧确认防止误判。斑马线位于直道上，无需区分左右库。 */
-/* 函数说明：Element_Judgment_Zebra */
-/* 函数说明：Element_Judgment_Zebra：斑马线识别——基于行内黑白跳变计数。 */
-/* 函数说明：Element_Judgment_Zebra：实际斑马线9条黑线，靠赛道边缘1条等效路沿，可识别8条黑线。 */
-/* 函数说明：Element_Judgment_Zebra：8条黑线->每行约有7~8次黑->白跳变（黑线进入白线区域）。 */
-/* 函数说明：Element_Judgment_Zebra：压缩图(94x60)中最小检测阈值取每行>=5次黑->白跳变。 */
-/* 函数说明：Element_Judgment_Zebra：连续2帧确认防误判。斑马线位于直道上，无需区分左右库。 */
-/* 函数说明：Element_Judgment_Zebra：边界预检——>=8行有效边界才允许扫描，防止十字/弯道全图误判。 */
-/* 函数说明：Element_Judgment_Zebra */
-/* 函数说明：Element_Judgment_Zebra：斑马线识别——基于行内黑白跳变计数。 */
-/* 函数说明：Element_Judgment_Zebra：实际斑马线9条黑线，靠赛道边缘1条等效路沿，可识别8条黑线。 */
-/* 函数说明：Element_Judgment_Zebra：8条黑线->每行约有7~8次黑->白跳变（黑线进入白线区域）。 */
-/* 函数说明：Element_Judgment_Zebra：压缩图(94x60)中最小检测阈值取每行>=5次黑->白跳变。 */
-/* 函数说明：Element_Judgment_Zebra：连续2帧确认防误判。斑马线位于直道，无需区分左右库。 */
-/* 函数说明：Element_Judgment_Zebra：扫线范围固定为图像中央60px窗口——斑马线在直道正中，不依赖边界检测。 */
-#define ZEBRA_SCAN_MARGIN  30     /* ImageSensorMid左右各30px，共60px窗口 */
-#define ZEBRA_SCAN_LEFT    (ImageSensorMid - ZEBRA_SCAN_MARGIN)  /* 47-30=17 */
-#define ZEBRA_SCAN_RIGHT   (ImageSensorMid + ZEBRA_SCAN_MARGIN)  /* 47+30=77 */
-/* 函数说明：Element_Judgment_Zebra */
-/* 函数说明：Element_Judgment_Zebra：斑马线识别——基于行内黑白跳变计数。 */
-/* 函数说明：Element_Judgment_Zebra：实际斑马线9条黑线，靠赛道边缘1条等效路沿，可识别8条黑线。 */
-/* 函数说明：Element_Judgment_Zebra：8条黑线->每行约有7~8次黑->白跳变（黑线进入白线区域）。 */
-/* 函数说明：Element_Judgment_Zebra：压缩图(94x60)中最小检测阈值取每行>=5次黑->白跳变。 */
-/* 函数说明：Element_Judgment_Zebra：连续2帧确认防误判。斑马线位于直道，无需区分左右库。 */
-/* 函数说明：Element_Judgment_Zebra：扫描行30~42（中远场），验证>=8行有赛道边界才允许检测，
-                             防止车尾抬起时对地板纹理的误判。 */
-#define ZEBRA_SCAN_START   30     /* 扫描起始行（中远场，避免近场地板纹理） */
-#define ZEBRA_SCAN_END     42     /* 扫描结束行 */
-#define ZEBRA_SCAN_MARGIN  30     /* ImageSensorMid左右各30px，共60px窗口 */
-#define ZEBRA_SCAN_LEFT    (ImageSensorMid - ZEBRA_SCAN_MARGIN)  /* 47-30=17 */
-#define ZEBRA_SCAN_RIGHT   (ImageSensorMid + ZEBRA_SCAN_MARGIN)  /* 47+30=77 */
-/* 函数说明：Element_Judgment_Zebra */
-/* 函数说明：Element_Judgment_Zebra：斑马线识别——基于行内黑白跳变计数。 */
-/* 函数说明：Element_Judgment_Zebra：实际斑马线9条黑线，靠赛道边缘1条等效路沿，可识别8条黑线。 */
-/* 函数说明：Element_Judgment_Zebra：8条黑线->每行约15次全方向跳变（8次黑->白 + 7次白->黑）。 */
-/* 函数说明：Element_Judgment_Zebra：压缩图(94x60)取>=8次全方向跳变/行，>=5有效行，连续2帧确认。 */
-/* 函数说明：Element_Judgment_Zebra：不移除边界预检——斑马线自身条纹会干扰边线检测，反噬真实识别。 */
-/* 函数说明：Element_Judgment_Zebra：扫描行30~42中远场，60px固定中央窗口。 */
-#define ZEBRA_SCAN_START   30     /* 扫描起始行（中远场） */
-#define ZEBRA_SCAN_END     42     /* 扫描结束行 */
-#define ZEBRA_SCAN_MARGIN  30     /* ImageSensorMid左右各30px，共60px窗口 */
-#define ZEBRA_SCAN_LEFT    (ImageSensorMid - ZEBRA_SCAN_MARGIN)  /* 47-30=17 */
-#define ZEBRA_SCAN_RIGHT   (ImageSensorMid + ZEBRA_SCAN_MARGIN)  /* 47+30=77 */
 void Element_Judgment_Zebra(void)
 {
     int Ysite, Xsite;
-    int trans_count;        /* 当前行全方向跳变次数(0->1 + 1->0) */
-    int valid_rows = 0;     /* 有效行数(跳变>=8的行) */
+    int trans_count;        /* 当前行黑->白跳变次数 */
+    int valid_rows = 0;     /* 有效行数(跳变>=5的行) */
     static int confirm_cnt = 0;     /* 连续确认帧计数(用于防抖) */
 
     /* 环岛/出库等元素激活或已处于斑马线状态时不检测 */
@@ -1411,27 +1184,25 @@ void Element_Judgment_Zebra(void)
      || ImageFlag.Zebra_Flag != 0)
         return;
 
-    /* 固定中央窗口扫描行30~42，统计全方向黑白跳变。
-     * 8条黑线在54px路面中->约15次全方向跳变(8黑->白+7白->黑)。
-     * 取>=8跳变/行、>=5行有效——预留充足噪声裕量。
-     * 不使用边界预检：斑马线条纹会干扰Get_BaseLine，导致LeftBorder/RightBorder
-     * 在真实斑马线上异常，boundary_ok检查反噬真实检测。 */
-    for (Ysite = ZEBRA_SCAN_START; Ysite <= ZEBRA_SCAN_END; Ysite++)
+    /* 固定中央窗口扫描行20~32，仅统计黑->白跳变(0->1)。
+     * 斑马线在直道正中，路面宽度30~52px落在60px窗口内。
+     * 不依赖边界检测，天然免疫十字路口和弯道背景噪声。 */
+    for (Ysite = 20; Ysite < 33; Ysite++)
     {
         trans_count = 0;
         for (Xsite = ZEBRA_SCAN_LEFT; Xsite < ZEBRA_SCAN_RIGHT; Xsite++)
         {
-            if (Pixle[Ysite][Xsite] != Pixle[Ysite][Xsite + 1])
+            if (Pixle[Ysite][Xsite] == 0 && Pixle[Ysite][Xsite + 1] == 1)
                 trans_count++;
         }
 
-        if (trans_count >= 8) valid_rows++;
+        if (trans_count >= 5) valid_rows++;
     }
 
     g_ZebraSum = valid_rows;
 
-    /* 有效行>=5时疑似斑马线，需连续2帧确认防误判 */
-    if (valid_rows >= 5)
+    /* 有效行>=6时疑似斑马线，需连续2帧确认防误判 */
+    if (valid_rows >= 6)
     {
         confirm_cnt++;
         if (confirm_cnt >= 2)
@@ -1455,14 +1226,6 @@ void Element_Judgment_Zebra(void)
 
 
 
-
-
-
-
-/* 函数说明：Element_Handle_Zebra */
-/* 函数说明：Element_Handle_Zebra：斑马线处理——直道斑马线，锁定中线为图像中点直行，并检测退出条件。 */
-/* 函数说明：Element_Handle_Zebra */
-/* 函数说明：Element_Handle_Zebra：斑马线处理——直道斑马线，锁定中线为图像中点直行，并检测退出条件。 */
 /* 函数说明：Element_Handle_Zebra */
 /* 函数说明：Element_Handle_Zebra：斑马线处理——直道斑马线，锁定中线为图像中点直行，并检测退出条件。 */
 /* 函数说明：Element_Handle_Zebra */
@@ -1474,16 +1237,16 @@ void Element_Handle_Zebra(void)
     int exit_rows = 0;
     static int lost_cnt = 0;        /* 连续未检测到斑马线帧计数(用于退出) */
 
-    /* 第一步：固定中央窗口重扫全方向跳变，检测斑马线是否已消失 */
-    for (Ysite = ZEBRA_SCAN_START; Ysite <= ZEBRA_SCAN_END; Ysite++)
+    /* 第一步：固定中央窗口重扫跳变，检测斑马线是否已消失 */
+    for (Ysite = 20; Ysite < 33; Ysite++)
     {
         trans_count = 0;
         for (Xsite = ZEBRA_SCAN_LEFT; Xsite < ZEBRA_SCAN_RIGHT; Xsite++)
         {
-            if (Pixle[Ysite][Xsite] != Pixle[Ysite][Xsite + 1])
+            if (Pixle[Ysite][Xsite] == 0 && Pixle[Ysite][Xsite + 1] == 1)
                 trans_count++;
         }
-        if (trans_count >= 8) exit_rows++;
+        if (trans_count >= 5) exit_rows++;
     }
 
     g_ZebraSum = exit_rows;

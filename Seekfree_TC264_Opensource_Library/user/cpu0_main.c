@@ -141,6 +141,29 @@ int core0_main(void)
                         RGB565_BLUE);
                 }
             }
+            /* ??????????????????? */
+            {
+                int row;
+                for (row = SCAN_BASE_START_ROW; (row - 1) > ImageStatus.OFFLine; row--)
+                {
+                    if (ImageDeal[row].LeftBorder >= 0 && ImageDeal[row].LeftBorder < LCDW
+                     && ImageDeal[row-1].LeftBorder >= 0 && ImageDeal[row-1].LeftBorder < LCDW)
+                    {
+                        ips200_draw_line(
+                            xo + (uint16)ImageDeal[row].LeftBorder,   (uint16)row,
+                            xo + (uint16)ImageDeal[row-1].LeftBorder, (uint16)(row-1),
+                            RGB565_RED);
+                    }
+                    if (ImageDeal[row].RightBorder >= 0 && ImageDeal[row].RightBorder < LCDW
+                     && ImageDeal[row-1].RightBorder >= 0 && ImageDeal[row-1].RightBorder < LCDW)
+                    {
+                        ips200_draw_line(
+                            xo + (uint16)ImageDeal[row].RightBorder,   (uint16)row,
+                            xo + (uint16)ImageDeal[row-1].RightBorder, (uint16)(row-1),
+                            RGB565_GREEN);
+                    }
+                }
+            }
             /* 车身中线：红色竖线固定在图像水平中心 */
             ips200_draw_line(94, 0, 94, 59, RGB565_RED);
             if (++encoder_display_cnt >= ENCODER_DISPLAY_DIV)
@@ -171,6 +194,23 @@ int core0_main(void)
                 ips200_show_int(50U, 208U, (int32)Camera_Threshold, 3U);
                 ips200_show_int(50U, 222U, (int32)g_ZebraSum, 3U);
             }
+                /* ringflag: 0=?? 1=CONFIRM 2=APPROACH 3=ENTRY 4=INSIDE 5=EXIT */
+                {
+                    uint8 rf = 0;
+                    if (ImageFlag.image_element_rings != 0)
+                    {
+                        switch ((uint8)ImageFlag.image_element_rings_flag)
+                        {
+                            case 1: rf = 1; break;
+                            case 2: rf = 2; break;
+                            case 3: rf = 3; break;
+                            case 4: rf = 4; break;
+                            default: rf = 5; break;
+                        }
+                    }
+                    ips200_show_string(2U, 236U, "RF:");
+                    ips200_show_uint(28U, 236U, rf, 1U);
+                }
 #endif
         }
     }

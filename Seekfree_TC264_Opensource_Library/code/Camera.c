@@ -1182,7 +1182,7 @@ static void Ring_State_Update(void)
         if (s_ring_confirm_count >= RING_CONFIRM_FRAMES)
             Ring_Set_State(RING_STATE_APPROACH);
         else if (s_ring_state_frames >= RING_CONFIRM_MAX_FRAMES)
-            Ring_Clear_State();
+            Ring_Set_State(RING_STATE_APPROACH);
         break;
 
     case RING_STATE_APPROACH:

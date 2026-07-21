@@ -18,13 +18,17 @@ volatile uint8_t StopRequest = 0U;
 /* 压缩图行号越小前瞻越远；40～42行兼顾弯道提前量和远场稳定性。 */
 #define STEERING_LOOKAHEAD_ROW 40
 /* 比赛默认关闭IPS200，调试时改为1；关闭后编译器移除全部屏幕调用。 */
-#define IPS200_DISPLAY_ENABLE 1
+#define IPS200_DISPLAY_ENABLE 0
 #if IPS200_DISPLAY_ENABLE
 /* 摄像头50帧时每5帧刷新一次编码器数值，避免文字刷新拖慢画面。 */
 #define ENCODER_DISPLAY_DIV 5U
 #endif
 /* 连续两帧确认可滤除单帧误判，确认后保持全速8帧再停车越过终点线。 */
 /* 斑马线检测到后立即停车，不再需要确认和延迟帧 */
+
+/* 斑马线停车延迟帧数：检测到斑马线后延迟N帧再停车，
+   让车模通过斑马线(终点)后再停下。50fps下1帧=20ms。 */
+#define ZEBRA_STOP_DELAY_FRAMES  15
 
 #pragma section all "cpu0_dsram"
 
@@ -77,10 +81,27 @@ int core0_main(void)
             Scan_Element();
             Element_Handle();
 
-            /* 斑马线检测到后立即停车，之后不再启动 */
-            if (ImageFlag.Zebra_Flag != 0 && StopRequest == 0U)
+            /* 斑马线检测后延迟停车：触发后倒数N帧，让车完整通过斑马线终点 */
             {
-                StopRequest = 1U;
+                static uint8_t zebra_triggered = 0;  /* 是否已触发斑马线 */
+                static uint8_t zebra_delay_cnt = 0;  /* 触发后累计帧数 */
+
+                if (ImageFlag.Zebra_Flag != 0 && zebra_triggered == 0
+                 && StopRequest == 0U)
+                {
+                    zebra_triggered = 1;     /* 锁存触发状态 */
+                    zebra_delay_cnt = 0;     /* 开始倒数 */
+                }
+
+                if (zebra_triggered == 1)
+                {
+                    zebra_delay_cnt++;
+                    if (zebra_delay_cnt >= ZEBRA_STOP_DELAY_FRAMES)
+                    {
+                        StopRequest = 1U;
+                        zebra_triggered = 0;
+                    }
+                }
             }
 
             /* ---- 计算 Err (图像偏差) 供 CPU1 使用 ---- */

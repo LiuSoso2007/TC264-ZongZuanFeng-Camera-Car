@@ -1158,13 +1158,21 @@ void Element_Handle_Right_Rings(void)
 /* 函数说明：Element_Judgment_Zebra：压缩图(94x60)中最小检测阈值取每行>=5次黑->白跳变。 */
 /* 函数说明：Element_Judgment_Zebra：连续2帧确认防误判。斑马线位于直道上，无需区分左右库。 */
 /* 函数说明：Element_Judgment_Zebra：边界预检——>=8行有效边界才允许扫描，防止十字/弯道全图误判。 */
+/* 函数说明：Element_Judgment_Zebra */
+/* 函数说明：Element_Judgment_Zebra：斑马线识别——基于行内黑白跳变计数。 */
+/* 函数说明：Element_Judgment_Zebra：实际斑马线9条黑线，靠赛道边缘1条等效路沿，可识别8条黑线。 */
+/* 函数说明：Element_Judgment_Zebra：8条黑线->每行约有7~8次黑->白跳变（黑线进入白线区域）。 */
+/* 函数说明：Element_Judgment_Zebra：压缩图(94x60)中最小检测阈值取每行>=5次黑->白跳变。 */
+/* 函数说明：Element_Judgment_Zebra：连续2帧确认防误判。斑马线位于直道，无需区分左右库。 */
+/* 函数说明：Element_Judgment_Zebra：扫线范围固定为图像中央60px窗口——斑马线在直道正中，不依赖边界检测。 */
+#define ZEBRA_SCAN_MARGIN  30     /* ImageSensorMid左右各30px，共60px窗口 */
+#define ZEBRA_SCAN_LEFT    (ImageSensorMid - ZEBRA_SCAN_MARGIN)  /* 47-30=17 */
+#define ZEBRA_SCAN_RIGHT   (ImageSensorMid + ZEBRA_SCAN_MARGIN)  /* 47+30=77 */
 void Element_Judgment_Zebra(void)
 {
-    int Ysite, Xsite, L, R;
+    int Ysite, Xsite;
     int trans_count;        /* 当前行黑->白跳变次数 */
     int valid_rows = 0;     /* 有效行数(跳变>=5的行) */
-    int total_rows = 0;     /* 扫描的总行数 */
-    int boundary_ok = 0;    /* 有效边界行数(预检用) */
     static int confirm_cnt = 0;     /* 连续确认帧计数(用于防抖) */
 
     /* 环岛/出库等元素激活或已处于斑马线状态时不检测 */
@@ -1172,52 +1180,22 @@ void Element_Judgment_Zebra(void)
      || ImageFlag.Zebra_Flag != 0)
         return;
 
-    /* 边界预检：统计扫描范围内有效边界的行数。
-     * 十字路口/弯道丢线时大量行边界无效，全图扫描极易误判为斑马线。
-     * 斑马线位于直道，边界应大部分有效（>=8行/13行）。 */
+    /* 固定中央窗口扫描行20~32，仅统计黑->白跳变(0->1)。
+     * 斑马线在直道正中，路面宽度30~52px落在60px窗口内。
+     * 不依赖边界检测，天然免疫十字路口和弯道背景噪声。 */
     for (Ysite = 20; Ysite < 33; Ysite++)
     {
-        L = ImageDeal[Ysite].LeftBorder;
-        R = ImageDeal[Ysite].RightBorder;
-        if (L >= 0 && R >= 0 && (R - L) >= 6)
-            boundary_ok++;
-    }
-    if (boundary_ok < 8)     /* 不足8行有效边界 -> 非正常直道 -> 跳过 */
-    {
-        g_ZebraSum = -1;
-        confirm_cnt = 0;
-        return;
-    }
-
-    /* 正常检测：扫描行20~32，仅统计黑->白跳变(0->1) */
-    for (Ysite = 20; Ysite < 33; Ysite++)
-    {
-        L = ImageDeal[Ysite].LeftBorder;
-        R = ImageDeal[Ysite].RightBorder;
-
-        /* 边界有效时使用赛道范围并缩进去毛刺，无效时跳过该行 */
-        if (L >= 0 && R >= 0 && R - L >= 6)
-        {
-            L += 2;     /* 避开左边界毛刺 */
-            R -= 3;     /* 避开右边界毛刺 */
-        }
-        else
-        {
-            continue;   /* 边界无效的行直接跳过，不参与跳变统计 */
-        }
-
         trans_count = 0;
-        for (Xsite = L; Xsite < R; Xsite++)
+        for (Xsite = ZEBRA_SCAN_LEFT; Xsite < ZEBRA_SCAN_RIGHT; Xsite++)
         {
             if (Pixle[Ysite][Xsite] == 0 && Pixle[Ysite][Xsite + 1] == 1)
                 trans_count++;
         }
 
         if (trans_count >= 5) valid_rows++;
-        total_rows++;
     }
 
-    g_ZebraSum = (total_rows > 0) ? valid_rows : -1;
+    g_ZebraSum = valid_rows;
 
     /* 有效行>=6时疑似斑马线，需连续2帧确认防误判 */
     if (valid_rows >= 6)
@@ -1242,26 +1220,24 @@ void Element_Judgment_Zebra(void)
 
 
 
+
+
+/* 函数说明：Element_Handle_Zebra */
+/* 函数说明：Element_Handle_Zebra：斑马线处理——直道斑马线，锁定中线为图像中点直行，并检测退出条件。 */
 /* 函数说明：Element_Handle_Zebra */
 /* 函数说明：Element_Handle_Zebra：斑马线处理——直道斑马线，锁定中线为图像中点直行，并检测退出条件。 */
 void Element_Handle_Zebra(void)
 {
-    int row, Ysite, Xsite, L, R;
+    int row, Ysite, Xsite;
     int trans_count;
     int exit_rows = 0;
     static int lost_cnt = 0;        /* 连续未检测到斑马线帧计数(用于退出) */
 
-    /* 第一步：重新扫描跳变数，检测斑马线是否已消失 */
+    /* 第一步：固定中央窗口重扫跳变，检测斑马线是否已消失 */
     for (Ysite = 20; Ysite < 33; Ysite++)
     {
-        L = ImageDeal[Ysite].LeftBorder;
-        R = ImageDeal[Ysite].RightBorder;
-        /* 边界有效时缩进去毛刺，无效时跳过该行 */
-        if (L >= 0 && R >= 0 && R - L >= 6) { L += 2; R -= 3; }
-        else { continue; }
-
         trans_count = 0;
-        for (Xsite = L; Xsite < R; Xsite++)
+        for (Xsite = ZEBRA_SCAN_LEFT; Xsite < ZEBRA_SCAN_RIGHT; Xsite++)
         {
             if (Pixle[Ysite][Xsite] == 0 && Pixle[Ysite][Xsite + 1] == 1)
                 trans_count++;
@@ -1298,6 +1274,7 @@ void Element_Handle_Zebra(void)
         LimitH(ImageDeal[row].RightBorder);
     }
 }
+
 
 void Element_Judgment_Ramp(void)
 {

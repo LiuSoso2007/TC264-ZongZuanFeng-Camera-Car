@@ -1214,10 +1214,10 @@ void Element_Judgment_Zebra(void)
      || ImageFlag.Zebra_Flag != 0)
         return;
 
-    /* 固定中央窗口扫描行20~32，仅统计黑->白跳变(0->1)。
+    /* 固定中央窗口扫描行44~57，仅统计黑->白跳变(0->1)。
      * 斑马线在直道正中，路面宽度30~52px落在60px窗口内。
      * 不依赖边界检测，天然免疫十字路口和弯道背景噪声。 */
-    for (Ysite = 20; Ysite < 33; Ysite++)
+    for (Ysite = 44; Ysite < 58 ; Ysite++)
     {
         trans_count = 0;
         for (Xsite = ZEBRA_SCAN_LEFT; Xsite < ZEBRA_SCAN_RIGHT; Xsite++)
@@ -1231,8 +1231,8 @@ void Element_Judgment_Zebra(void)
 
     g_ZebraSum = valid_rows;
 
-    /* 有效行>=6时疑似斑马线，需连续2帧确认防误判 */
-    if (valid_rows >= 6)
+    /* 有效行>=5时疑似斑马线，需连续2帧确认防误判 */
+    if (valid_rows >= 5)
     {
         confirm_cnt++;
         if (confirm_cnt >= 2)

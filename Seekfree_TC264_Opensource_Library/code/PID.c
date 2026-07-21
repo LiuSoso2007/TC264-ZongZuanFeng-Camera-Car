@@ -49,7 +49,7 @@ int8_t PI_Update(PI_t *pi, float pos_err, int16_t act_spd, int16_t str_spd)
     if (abs_err > 100) abs_err = 100;
 
     int16_t target;
-    if (abs_err <= 5)
+    if (abs_err <= 2)
         target = str_spd;
     else
         target = pi->MinSpeed + (int16_t)((int32_t)(str_spd - pi->MinSpeed)

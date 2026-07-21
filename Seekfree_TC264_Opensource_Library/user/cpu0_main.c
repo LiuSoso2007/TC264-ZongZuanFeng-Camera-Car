@@ -18,7 +18,7 @@ volatile uint8_t StopRequest = 0U;
 /* 压缩图行号越小前瞻越远；40～42行兼顾弯道提前量和远场稳定性。 */
 #define STEERING_LOOKAHEAD_ROW 40
 /* 比赛默认关闭IPS200，调试时改为1；关闭后编译器移除全部屏幕调用。 */
-#define IPS200_DISPLAY_ENABLE 0
+#define IPS200_DISPLAY_ENABLE 1
 #if IPS200_DISPLAY_ENABLE
 /* 摄像头50帧时每5帧刷新一次编码器数值，避免文字刷新拖慢画面。 */
 #define ENCODER_DISPLAY_DIV 5U

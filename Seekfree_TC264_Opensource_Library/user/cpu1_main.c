@@ -45,7 +45,7 @@ static int16_t  EncCount        = 0;
 #define CURVE_SPEED    0
 /* ---- PD参数 ---- */
 #define PD_KP          0.9f
-#define PD_KD          0.9f
+#define PD_KD          1.1f
 
 static PI_t s_PI_Left, s_PI_Right;   /* Left/Right motor PI controllers */
 
@@ -121,6 +121,9 @@ int core1_main(void)
 
         /* ---- Track error (CPU0 image output, 0 when no image) ---- */
         position_err = Err;
+        uint8_t Err_abs;
+        if(Err>0)Err_abs=Err;
+        if(Err<0)Err_abs=-Err;
 
         /* CPU0识别斑马线后锁存停车，双电机清零并让舵机回中，复位后才重新运行。 */
         if (StopRequest != 0U)
@@ -161,8 +164,8 @@ int core1_main(void)
         pwm_left  = PI_Update(&s_PI_Left,  position_err, enc_left,  StraightSpeed);
         pwm_right = PI_Update(&s_PI_Right, position_err, enc_right, StraightSpeed);
 
-        Motor_SetLeftPWM(StraightSpeed);
-        Motor_SetRightPWM(StraightSpeed);
+        Motor_SetLeftPWM(StraightSpeed-0.4*Err_abs);
+        Motor_SetRightPWM(StraightSpeed-0.4*Err_abs);
 
         /* ---- Servo output (currently fixed mid, future PD control) ---- */
         PD_Update(PD_KP, PD_KD);

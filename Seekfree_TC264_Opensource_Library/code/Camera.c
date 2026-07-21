@@ -964,6 +964,49 @@ static uint8 Ring_Has_Exit_Feature(uint8 direction)
     return Ring_Is_Stable_Road();
 }
 
+/* ---- ????????????? + ???????ImageDeal ---- */
+static void Ring_DrawAndUpdate(uint8 direction, int s_row, int s_col,
+                               int e_row, int e_col, uint8 border_side)
+{
+    int row, col;
+    float k;
+    int b, r_start, r_end;
+
+    if (s_row < e_row) { r_start = s_row; r_end = e_row; }
+    else               { r_start = e_row; r_end = s_row; }
+
+    if (s_row != e_row)
+    {
+        k = (float)(e_col - s_col) / (float)(e_row - s_row);
+        b = s_col - (int)(k * s_row);
+    }
+    else { k = 0.0f; b = s_col; }
+
+    for (row = r_start; row <= r_end; row++)
+    {
+        col = (int)(k * row) + b;
+        if (col >= 0 && col < LCDW)
+            Pixle[row][col] = IMG_WHITE;     /* ??????????????? */
+
+        /* ???????ImageDeal??Err?????? */
+        if (row <= SCAN_BASE_START_ROW && row > ImageStatus.OFFLine)
+        {
+            if (border_side == 'L')
+            {
+                ImageDeal[row].LeftBorder = col;
+                LimitL(ImageDeal[row].LeftBorder);
+            }
+            else
+            {
+                ImageDeal[row].RightBorder = col;
+                LimitH(ImageDeal[row].RightBorder);
+            }
+            ImageDeal[row].Center = (ImageDeal[row].LeftBorder
+                                   + ImageDeal[row].RightBorder) / 2;
+        }
+    }
+}
+
 /* ---- 补线偏移量 ---- */
 static int Ring_Get_Fill_Offset(uint8 ring_state)
 {
@@ -979,7 +1022,6 @@ static int Ring_Get_Fill_Offset(uint8 ring_state)
     }
 }
 
-/* ---- 分段补线：入口/环内/出口/恢复 各阶段策略不同 ---- */
 static void Ring_Rebuild_Fill(uint8 direction)
 {
     int row;
@@ -991,8 +1033,7 @@ static void Ring_Rebuild_Fill(uint8 direction)
     switch (ring_state)
     {
     case RING_STATE_CONFIRM:
-    case RING_STATE_APPROACH:
-    case RING_STATE_ENTRY:
+        /* ??????????????????? */
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
         {
             if (direction == 1U)
@@ -1003,6 +1044,60 @@ static void Ring_Rebuild_Fill(uint8 direction)
                                       + Half_Bend_Wide[row] + fill_offset;
             LimitL(ImageDeal[row].Center);
             LimitH(ImageDeal[row].Center);
+        }
+        break;
+    case RING_STATE_APPROACH:
+        /* ????????????????????(??)?????? */
+        if (has_valley)
+        {
+            if (direction == 1U) /* ?????? ? ??????? */
+                Ring_DrawAndUpdate(direction, LCDH - 1, 2,
+                                   valley_row, valley_col, 'L');
+            else                 /* ?????? ? ??????? */
+                Ring_DrawAndUpdate(direction, LCDH - 1, LCDW - 3,
+                                   valley_row, valley_col, 'R');
+        }
+        else
+        {
+            /* ??????????? */
+            for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
+            {
+                if (direction == 1U)
+                    ImageDeal[row].Center = ImageDeal[row].RightBorder
+                                          - Half_Bend_Wide[row] - fill_offset;
+                else
+                    ImageDeal[row].Center = ImageDeal[row].LeftBorder
+                                          + Half_Bend_Wide[row] + fill_offset;
+                LimitL(ImageDeal[row].Center);
+                LimitH(ImageDeal[row].Center);
+            }
+        }
+        break;
+    case RING_STATE_ENTRY:
+        /* ???????????????????????? */
+        if (has_valley)
+        {
+            if (direction == 1U) /* ?????? ? ???????? */
+                Ring_DrawAndUpdate(direction, LCDH - 1, LCDW - 3,
+                                   valley_row, valley_col, 'R');
+            else                 /* ?????? ? ???????? */
+                Ring_DrawAndUpdate(direction, LCDH - 1, 2,
+                                   valley_row, valley_col, 'L');
+        }
+        else
+        {
+            /* ??????????? */
+            for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
+            {
+                if (direction == 1U)
+                    ImageDeal[row].Center = ImageDeal[row].RightBorder
+                                          - Half_Bend_Wide[row] - fill_offset;
+                else
+                    ImageDeal[row].Center = ImageDeal[row].LeftBorder
+                                          + Half_Bend_Wide[row] + fill_offset;
+                LimitL(ImageDeal[row].Center);
+                LimitH(ImageDeal[row].Center);
+            }
         }
         break;
     case RING_STATE_INSIDE:

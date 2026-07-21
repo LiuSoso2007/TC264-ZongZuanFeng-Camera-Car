@@ -889,6 +889,16 @@ static int BlackHole_Track_Valley(uint8 direction, int *valley_row, int *valley_
     return 0;
 }
 
+/* ---- 稳定直道检测：双边不丢线 + 斜率正常 ---- */
+static uint8 Ring_Is_Stable_Road(void)
+{
+    return (uint8)(ImageStatus.OFFLine <= 2
+                && ImageStatus.Miss_Left_lines < 4
+                && ImageStatus.Miss_Right_lines < 4
+                && Straight_Judge(1, 5, SCAN_BASE_END_ROW) < 2.0f
+                && Straight_Judge(2, 5, SCAN_BASE_END_ROW) < 2.0f);
+}
+
 /* ---- 候选检测：黑洞底部 + 丢线特征 ---- */
 static uint8 Ring_Is_Candidate(uint8 direction)
 {

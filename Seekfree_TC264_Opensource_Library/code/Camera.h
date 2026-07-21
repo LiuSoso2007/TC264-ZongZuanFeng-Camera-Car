@@ -99,6 +99,9 @@ void  Camera_ShowBinaryFast(void);              // 快速显示二值图 (优化, SPI传输
 void  Camera_ShowElementStatus(void);            // 显示当前元素状态(缩写标识)
 void  Get_BaseLine(void);                       // 获取基准线: 从56->52, 5行
 // 搜索区间: 在当前行上一行边线位置+/-ImageScanInterval范围内
+#define ZEBRA_SCAN_LEFT            17
+#define ZEBRA_SCAN_RIGHT           77
+
 #define ImageScanInterval  5                   // 搜索区间(像素)
 
 /* ---- 跳变点结构 ---- */
@@ -122,6 +125,26 @@ typedef struct {
 extern ImageStatustypedef ImageStatus;         // 图像状态全局变量
 
 /* 圆环只按七个阶段单向推进，方向由image_element_rings单独保存。 */
+
+/* ---- 黑洞检测法常量 ---- */
+#define IMG_BLACK                   0
+#define IMG_WHITE                   1
+#define BH_BOTTOM_START_ROW        55
+#define BH_LEFT_COL_MIN             1
+#define BH_LEFT_COL_MAX             8
+#define BH_RIGHT_COL_MIN           86
+#define BH_RIGHT_COL_MAX           93
+#define VALLEY_SCAN_START_ROW      30
+#define VALLEY_SCAN_COL_LEFT       19
+#define VALLEY_SCAN_COL_RIGHT      75
+#define VALLEY_MAX_ROW             35
+#define VALLEY_MIN_ROW             10
+#define EXIT_LOST_MIN               8
+#define FILL_ENTRY_OFFSET          10
+#define FILL_INSIDE_OFFSET         14
+#define FILL_EXIT_OFFSET            8
+#define FILL_RECOVERY_OFFSET        0
+
 #define RING_STATE_IDLE       0
 #define RING_STATE_CONFIRM    1
 #define RING_STATE_APPROACH   2

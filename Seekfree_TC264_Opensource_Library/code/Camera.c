@@ -1181,12 +1181,23 @@ void Element_Handle_Right_Rings(void)
 #define ZEBRA_SCAN_MARGIN  30     /* ImageSensorMid左右各30px，共60px窗口 */
 #define ZEBRA_SCAN_LEFT    (ImageSensorMid - ZEBRA_SCAN_MARGIN)  /* 47-30=17 */
 #define ZEBRA_SCAN_RIGHT   (ImageSensorMid + ZEBRA_SCAN_MARGIN)  /* 47+30=77 */
+/* 函数说明：Element_Judgment_Zebra */
+/* 函数说明：Element_Judgment_Zebra：斑马线识别——基于行内黑白跳变计数。 */
+/* 函数说明：Element_Judgment_Zebra：实际斑马线9条黑线，靠赛道边缘1条等效路沿，可识别8条黑线。 */
+/* 函数说明：Element_Judgment_Zebra：8条黑线->每行约15次全方向跳变（8次黑->白 + 7次白->黑）。 */
+/* 函数说明：Element_Judgment_Zebra：压缩图(94x60)取>=8次全方向跳变/行，>=5有效行，连续2帧确认。 */
+/* 函数说明：Element_Judgment_Zebra：不移除边界预检——斑马线自身条纹会干扰边线检测，反噬真实识别。 */
+/* 函数说明：Element_Judgment_Zebra：扫描行30~42中远场，60px固定中央窗口。 */
+#define ZEBRA_SCAN_START   30     /* 扫描起始行（中远场） */
+#define ZEBRA_SCAN_END     42     /* 扫描结束行 */
+#define ZEBRA_SCAN_MARGIN  30     /* ImageSensorMid左右各30px，共60px窗口 */
+#define ZEBRA_SCAN_LEFT    (ImageSensorMid - ZEBRA_SCAN_MARGIN)  /* 47-30=17 */
+#define ZEBRA_SCAN_RIGHT   (ImageSensorMid + ZEBRA_SCAN_MARGIN)  /* 47+30=77 */
 void Element_Judgment_Zebra(void)
 {
     int Ysite, Xsite;
-    int trans_count;        /* 当前行黑->白跳变次数 */
-    int valid_rows = 0;     /* 有效行数(跳变>=5的行) */
-    int boundary_ok = 0;    /* 有赛道边界的行数 */
+    int trans_count;        /* 当前行全方向跳变次数(0->1 + 1->0) */
+    int valid_rows = 0;     /* 有效行数(跳变>=8的行) */
     static int confirm_cnt = 0;     /* 连续确认帧计数(用于防抖) */
 
     /* 环岛/出库等元素激活或已处于斑马线状态时不检测 */
@@ -1194,39 +1205,27 @@ void Element_Judgment_Zebra(void)
      || ImageFlag.Zebra_Flag != 0)
         return;
 
-    /* 赛道存在性验证：统计扫描行中有几条存在有效赛道边界。
-     * 没有边界=没在赛道上（地板、桌面等），直接跳过防止误判。 */
-    for (Ysite = ZEBRA_SCAN_START; Ysite <= ZEBRA_SCAN_END; Ysite++)
-    {
-        if (ImageDeal[Ysite].LeftBorder >= 0
-         && ImageDeal[Ysite].RightBorder >= 0
-         && (ImageDeal[Ysite].RightBorder - ImageDeal[Ysite].LeftBorder) >= 6)
-            boundary_ok++;
-    }
-    if (boundary_ok < 8)     /* 不足8行有边界 -> 不在赛道上 -> 跳过 */
-    {
-        g_ZebraSum = -1;
-        confirm_cnt = 0;
-        return;
-    }
-
-    /* 赛道已确认存在，固定中央窗口扫描行30~42，统计黑->白跳变(0->1)。 */
+    /* 固定中央窗口扫描行30~42，统计全方向黑白跳变。
+     * 8条黑线在54px路面中->约15次全方向跳变(8黑->白+7白->黑)。
+     * 取>=8跳变/行、>=5行有效——预留充足噪声裕量。
+     * 不使用边界预检：斑马线条纹会干扰Get_BaseLine，导致LeftBorder/RightBorder
+     * 在真实斑马线上异常，boundary_ok检查反噬真实检测。 */
     for (Ysite = ZEBRA_SCAN_START; Ysite <= ZEBRA_SCAN_END; Ysite++)
     {
         trans_count = 0;
         for (Xsite = ZEBRA_SCAN_LEFT; Xsite < ZEBRA_SCAN_RIGHT; Xsite++)
         {
-            if (Pixle[Ysite][Xsite] == 0 && Pixle[Ysite][Xsite + 1] == 1)
+            if (Pixle[Ysite][Xsite] != Pixle[Ysite][Xsite + 1])
                 trans_count++;
         }
 
-        if (trans_count >= 5) valid_rows++;
+        if (trans_count >= 8) valid_rows++;
     }
 
     g_ZebraSum = valid_rows;
 
-    /* 有效行>=6时疑似斑马线，需连续2帧确认防误判 */
-    if (valid_rows >= 6)
+    /* 有效行>=5时疑似斑马线，需连续2帧确认防误判 */
+    if (valid_rows >= 5)
     {
         confirm_cnt++;
         if (confirm_cnt >= 2)
@@ -1252,6 +1251,10 @@ void Element_Judgment_Zebra(void)
 
 
 
+
+
+/* 函数说明：Element_Handle_Zebra */
+/* 函数说明：Element_Handle_Zebra：斑马线处理——直道斑马线，锁定中线为图像中点直行，并检测退出条件。 */
 /* 函数说明：Element_Handle_Zebra */
 /* 函数说明：Element_Handle_Zebra：斑马线处理——直道斑马线，锁定中线为图像中点直行，并检测退出条件。 */
 /* 函数说明：Element_Handle_Zebra */
@@ -1265,16 +1268,16 @@ void Element_Handle_Zebra(void)
     int exit_rows = 0;
     static int lost_cnt = 0;        /* 连续未检测到斑马线帧计数(用于退出) */
 
-    /* 第一步：固定中央窗口重扫跳变，检测斑马线是否已消失 */
+    /* 第一步：固定中央窗口重扫全方向跳变，检测斑马线是否已消失 */
     for (Ysite = ZEBRA_SCAN_START; Ysite <= ZEBRA_SCAN_END; Ysite++)
     {
         trans_count = 0;
         for (Xsite = ZEBRA_SCAN_LEFT; Xsite < ZEBRA_SCAN_RIGHT; Xsite++)
         {
-            if (Pixle[Ysite][Xsite] == 0 && Pixle[Ysite][Xsite + 1] == 1)
+            if (Pixle[Ysite][Xsite] != Pixle[Ysite][Xsite + 1])
                 trans_count++;
         }
-        if (trans_count >= 5) exit_rows++;
+        if (trans_count >= 8) exit_rows++;
     }
 
     g_ZebraSum = exit_rows;

@@ -140,21 +140,11 @@ extern ImageStatustypedef ImageStatus;         // 图像状态全局变量
 #define RING_CONFIRM_MAX_FRAMES   8U
 #define RING_APPROACH_MAX_FRAMES  24U
 #define RING_ENTRY_MAX_FRAMES     30U
-#define RING_INSIDE_MAX_FRAMES    90U
+#define RING_INSIDE_MAX_FRAMES    120U
 #define RING_EXIT_MAX_FRAMES      60U
 #define RING_RECOVERY_MAX_FRAMES  40U
 
-/* 94x60图像的初始标定值，实车只需调整这些参数。 */
-#define RING_ENTRY_CORNER_ROW        38
-#define RING_INSIDE_CORNER_ROW       48
-#define RING_EXIT_MISS_MIN            8
-#define RING_APPROACH_CENTER_OFFSET   4
-#define RING_ENTRY_CENTER_OFFSET     10
-#define RING_INSIDE_CENTER_OFFSET    14
-#define RING_EXIT_CENTER_OFFSET       8
-#define RING_RECOVERY_CENTER_OFFSET   4
-
-/* ---- 图像处理数据结构 ---- */
+/* ---- \u9ed1\u6d1e\u68c0\u6d4b\u6cd5\u5e38\u91cf ---- */\r\n#define IMG_BLACK                   0\r\n#define IMG_WHITE                   1\r\n#define BH_BOTTOM_START_ROW        55\r\n#define BH_LEFT_COL_MIN             1\r\n#define BH_LEFT_COL_MAX             8\r\n#define BH_RIGHT_COL_MIN           86\r\n#define BH_RIGHT_COL_MAX           93\r\n#define BH_BOTTOM_CHECK_ROWS        5\r\n#define VALLEY_SCAN_START_ROW      30\r\n#define VALLEY_SCAN_COL_LEFT       19\r\n#define VALLEY_SCAN_COL_RIGHT      75\r\n#define VALLEY_MAX_ROW             35\r\n#define VALLEY_MIN_ROW             10\r\n#define EXIT_LOST_MIN               8\r\n#define EXIT_INFLECTION_MIN_ROW    50\r\n#define FILL_ENTRY_OFFSET          10\r\n#define FILL_INSIDE_OFFSET         14\r\n#define FILL_EXIT_OFFSET            8\r\n#define FILL_RECOVERY_OFFSET        0\r\n
 void  Get_Border_And_SideType(uint8* p, uint8 type, int L, int H, JumpPointtypedef* Q);
                                                // 获取跳变点与边线类型
 void  Get_AllLine(void);                       // 全行扫描: 从51行向下扫到0

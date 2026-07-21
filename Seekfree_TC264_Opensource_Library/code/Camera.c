@@ -746,74 +746,213 @@ static void Ring_Clear_State(void)
     s_ring_entry_corner_col = -1;
 }
 
+
+/*
+ *******************************************************************************************
+ ** 黑洞检测法 —— 圆环识别核心函数组
+ ** 基于 hao-yue-1/SmartCar (广东工业大学霹雳火队) 纯视觉方案
+ ** 适配 TC264 + MT9V03X + 94x60压缩图
+ ** 无IMU、无电磁 —— 纯二值图像素分析
+ *******************************************************************************************
+ */
+
+/* ---- 黑洞底部检测：检查图像底部角落是否存在黑色区域 ---- */
+static uint8 BlackHole_Check_Bottom(uint8 direction)
+{
+    int row, col;
+    int black_count;
+    
+    if (direction == 1U) /* 左环岛：检查左下角 */
+    {
+        for (row = LCDH - 1; row >= BH_BOTTOM_START_ROW; row--)
+        {
+            black_count = 0;
+            for (col = BH_LEFT_COL_MIN; col <= BH_LEFT_COL_MAX; col++)
+            {
+                if (Pixle[row][col] == IMG_BLACK) black_count++;
+            }
+            /* 连续黑像素数量足够，确认左下黑洞存在 */
+            if (black_count >= (BH_LEFT_COL_MAX - BH_LEFT_COL_MIN + 1))
+                return 1;
+        }
+    }
+    else /* 右环岛：检查右下角 */
+    {
+        for (row = LCDH - 1; row >= BH_BOTTOM_START_ROW; row--)
+        {
+            black_count = 0;
+            for (col = BH_RIGHT_COL_MIN; col <= BH_RIGHT_COL_MAX; col++)
+            {
+                if (Pixle[row][col] == IMG_BLACK) black_count++;
+            }
+            if (black_count >= (BH_RIGHT_COL_MAX - BH_RIGHT_COL_MIN + 1))
+                return 1;
+        }
+    }
+    return 0;
+}
+
+/* ---- 验证拐点上方是否存在黑洞 —— 区分普通弯道与圆环 ---- */
+static uint8 BlackHole_Check_Above(int inflection_row, int inflection_col)
+{
+    int row;
+    int black_count;
+    int bh_top = inflection_row;
+    
+    /* 在拐点列向上扫描，寻找三段式黑白交替（白→黑→白→黑），确认为黑洞 */
+    for (row = inflection_row - 2; row > BH_BOTTOM_START_ROW + 10; row--)
+    {
+        if (Pixle[row][inflection_col] == IMG_WHITE
+            && Pixle[row + 1][inflection_col] == IMG_BLACK)
+        {
+            /* 白→黑跳变（黑洞上边界） */
+            for (; row > BH_BOTTOM_START_ROW + 5; row--)
+            {
+                if (Pixle[row][inflection_col] == IMG_BLACK
+                    && Pixle[row + 1][inflection_col] == IMG_WHITE)
+                {
+                    /* 黑→白跳变（黑洞内部出） */
+                    return 1;
+                }
+            }
+            break;
+        }
+    }
+    return 0;
+}
+
+/* ---- 谷底追踪：从白→黑跳变点向右下/左下追踪到谷底 ---- */
+static int BlackHole_Track_Valley(uint8 direction, int *valley_row, int *valley_col)
+{
+    int row, col;
+    int moved;
+    int scan_col;
+    
+    /* 确定扫描起始列 */
+    scan_col = (direction == 1U) ? VALLEY_SCAN_COL_LEFT : VALLEY_SCAN_COL_RIGHT;
+    
+    /* 从扫描起始行向上搜索，寻找白→黑跳变（黑洞下边界） */
+    for (row = VALLEY_SCAN_START_ROW; row > VALLEY_MIN_ROW; row--)
+    {
+        if (Pixle[row][scan_col] == IMG_WHITE
+            && Pixle[row - 1][scan_col] == IMG_BLACK)
+        {
+            col = scan_col;
+            
+            /* 向右/左下方向追踪到谷底 */
+            if (direction == 1U)
+            {
+                /* 左环岛：向右下追踪 */
+                /* 先将指针移到黑色区域最右端 */
+                for (; col + 1 < LCDW - 1; col++)
+                {
+                    if (Pixle[row][col + 1] == IMG_WHITE) break;
+                }
+                /* 向右下方逐像素追踪 */
+                do {
+                    moved = 0;
+                    if (col + 1 < LCDW - 1 && row + 1 < LCDH - 1
+                        && Pixle[row][col + 1] == IMG_BLACK)
+                    {
+                        col++;
+                        moved = 1;
+                    }
+                    if (row + 1 < LCDH - 1
+                        && Pixle[row + 1][col] == IMG_BLACK)
+                    {
+                        row++;
+                        moved = 1;
+                    }
+                } while (moved);
+            }
+            else
+            {
+                /* 右环岛：向左下追踪 */
+                for (; col - 1 > 0; col--)
+                {
+                    if (Pixle[row][col - 1] == IMG_WHITE) break;
+                }
+                do {
+                    moved = 0;
+                    if (col - 1 > 0 && row + 1 < LCDH - 1
+                        && Pixle[row][col - 1] == IMG_BLACK)
+                    {
+                        col--;
+                        moved = 1;
+                    }
+                    if (row + 1 < LCDH - 1
+                        && Pixle[row + 1][col] == IMG_BLACK)
+                    {
+                        row++;
+                        moved = 1;
+                    }
+                } while (moved);
+            }
+            
+            /* 谷底坐标有效性校验 */
+            if (row > VALLEY_MIN_ROW && row < VALLEY_MAX_ROW
+                && col > 0 && col < LCDW - 1)
+            {
+                *valley_row = row;
+                *valley_col = col;
+                return 1;
+            }
+            return 0;
+        }
+    }
+    return 0;
+}
+
+/* ---- 候选检测：黑洞底部 + 丢线特征 ---- */
 static uint8 Ring_Is_Candidate(uint8 direction)
 {
     if (ImageStatus.OFFLine > 2)
-    {
         return 0U;
-    }
+    
+    /* 黑洞底部检测 */
+    if (!BlackHole_Check_Bottom(direction))
+        return 0U;
+    
     if (direction == 1U)
     {
-        return (uint8)(ImageStatus.Miss_Left_lines >= 13
-                    && ImageStatus.Miss_Right_lines <= 3);
+        return (uint8)(ImageStatus.Miss_Left_lines >= 10);
     }
     if (direction == 2U)
     {
-        return (uint8)(ImageStatus.Miss_Right_lines >= 15
-                    && ImageStatus.Miss_Left_lines <= 3);
+        return (uint8)(ImageStatus.Miss_Right_lines >= 10);
     }
     return 0U;
 }
 
-/* 从近端向远端寻找本侧边界突变，返回入口拐点所在行。 */
-static int Ring_Find_Entry_Corner(uint8 direction, int *corner_col)
+/* ---- 寻找入口谷底点：用谷底追踪替代边线跳变检测 ---- */
+static int Ring_Find_Valley_Point(uint8 direction, int *valley_col)
 {
-    int row;
-
-    for (row = SCAN_BASE_START_ROW - 1; row > 25; row--)
+    int valley_row = -1;
+    int vcol = -1;
+    
+    if (BlackHole_Track_Valley(direction, &valley_row, &vcol) == 0)
     {
-        if (direction == 1U
-            && ImageDeal[row].IsLeftFind == 'T'
-            && ImageDeal[row - 1].IsLeftFind == 'T'
-            && abs(ImageDeal[row].LeftBorder - ImageDeal[row - 1].LeftBorder) > 4)
-        {
-            *corner_col = ImageDeal[row].LeftBorder;
-            return row;
-        }
-        if (direction == 2U
-            && ImageDeal[row].IsRightFind == 'T'
-            && ImageDeal[row - 1].IsRightFind == 'T'
-            && abs(ImageDeal[row].RightBorder - ImageDeal[row - 1].RightBorder) > 4)
-        {
-            *corner_col = ImageDeal[row].RightBorder;
-            return row;
-        }
+        *valley_col = -1;
+        return -1;
     }
-
-    *corner_col = -1;
-    return -1;
+    
+    *valley_col = vcol;
+    return valley_row;
 }
 
-static uint8 Ring_Is_Stable_Road(void)
-{
-    return (uint8)(ImageStatus.OFFLine <= 2
-                && ImageStatus.Miss_Left_lines < 4
-                && ImageStatus.Miss_Right_lines < 4
-                && Straight_Judge(1, 5, SCAN_BASE_END_ROW) < 2.0f
-                && Straight_Judge(2, 5, SCAN_BASE_END_ROW) < 2.0f);
-}
-
-/* 出口侧必须先丢失再恢复，避免环内短暂双边可见时提前出环。 */
+/* ---- 出环特征检测：出口侧边线恢复 + 黑洞验证 ---- */
 static uint8 Ring_Has_Exit_Feature(uint8 direction)
 {
     int row;
-
+    
+    /* 出口侧丢线数检查 */
     if ((direction == 1U && ImageStatus.Miss_Right_lines > 4)
         || (direction == 2U && ImageStatus.Miss_Left_lines > 4))
     {
         return 0U;
     }
-
+    
+    /* 扫描出口侧边线恢复 */
     for (row = SCAN_BASE_START_ROW - 1; row > 5; row--)
     {
         if (direction == 1U
@@ -821,61 +960,150 @@ static uint8 Ring_Has_Exit_Feature(uint8 direction)
             && ImageDeal[row - 1].IsRightFind != 'T'
             && ImageDeal[row - 2].IsRightFind != 'T')
         {
-            return 1U;
+            /* 黑洞验证：拐点上方是否有黑洞 */
+            if (BlackHole_Check_Above(row, ImageDeal[row].RightBorder))
+                return 1U;
         }
         if (direction == 2U
             && ImageDeal[row].IsLeftFind == 'T'
             && ImageDeal[row - 1].IsLeftFind != 'T'
             && ImageDeal[row - 2].IsLeftFind != 'T')
         {
-            return 1U;
+            if (BlackHole_Check_Above(row, ImageDeal[row].LeftBorder))
+                return 1U;
         }
     }
-
+    
     return Ring_Is_Stable_Road();
 }
 
-static int Ring_Get_Center_Offset(uint8 state)
+/* ---- 补线偏移量 ---- */
+static int Ring_Get_Fill_Offset(uint8 ring_state)
 {
-    switch (state)
+    switch (ring_state)
     {
-    case RING_STATE_APPROACH: return RING_APPROACH_CENTER_OFFSET;
-    case RING_STATE_ENTRY:    return RING_ENTRY_CENTER_OFFSET;
-    case RING_STATE_INSIDE:   return RING_INSIDE_CENTER_OFFSET;
-    case RING_STATE_EXIT:     return RING_EXIT_CENTER_OFFSET;
-    case RING_STATE_RECOVERY: return RING_RECOVERY_CENTER_OFFSET;
+    case RING_STATE_CONFIRM:
+    case RING_STATE_APPROACH: return FILL_ENTRY_OFFSET;
+    case RING_STATE_ENTRY:    return FILL_ENTRY_OFFSET;
+    case RING_STATE_INSIDE:   return FILL_INSIDE_OFFSET;
+    case RING_STATE_EXIT:     return FILL_EXIT_OFFSET;
+    case RING_STATE_RECOVERY: return FILL_RECOVERY_OFFSET;
     default:                  return 0;
     }
 }
 
-/* 左右圆环共用镜像补线，固定偏移确保舵机误差越过现有死区。 */
-static void Ring_Rebuild_Center(uint8 direction)
+/* ---- 分段补线：入口/环内/出口/恢复 各阶段策略不同 ---- */
+static void Ring_Rebuild_Fill(uint8 direction)
 {
     int row;
-    int center_offset = Ring_Get_Center_Offset((uint8)ImageFlag.image_element_rings_flag);
-
-    for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
+    int valley_row, valley_col;
+    uint8 ring_state = (uint8)ImageFlag.image_element_rings_flag;
+    int fill_offset = Ring_Get_Fill_Offset(ring_state);
+    
+    /* 获取谷底点 */
+    int has_valley = BlackHole_Track_Valley(direction, &valley_row, &valley_col);
+    
+    switch (ring_state)
     {
-        if (direction == 1U)
+    case RING_STATE_CONFIRM:
+    case RING_STATE_APPROACH:
+    case RING_STATE_ENTRY:
+        /* 入环阶段：锁定外环边线补线 */
+        for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
         {
-            ImageDeal[row].Center = ImageDeal[row].RightBorder
-                                  - Half_Bend_Wide[row] - center_offset;
+            if (direction == 1U)
+            {
+                /* 左环岛：右边界锁定外环 */
+                ImageDeal[row].Center = ImageDeal[row].RightBorder
+                                      - Half_Bend_Wide[row] - fill_offset;
+            }
+            else
+            {
+                /* 右环岛：左边界锁定外环 */
+                ImageDeal[row].Center = ImageDeal[row].LeftBorder
+                                      + Half_Bend_Wide[row] + fill_offset;
+            }
             LimitL(ImageDeal[row].Center);
-        }
-        else
-        {
-            ImageDeal[row].Center = ImageDeal[row].LeftBorder
-                                  + Half_Bend_Wide[row] + center_offset;
             LimitH(ImageDeal[row].Center);
         }
+        break;
+        
+    case RING_STATE_INSIDE:
+        /* 环内阶段：保持外环锁定，加大偏移 */
+        for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
+        {
+            if (direction == 1U)
+            {
+                ImageDeal[row].Center = ImageDeal[row].RightBorder
+                                      - Half_Bend_Wide[row] - fill_offset;
+            }
+            else
+            {
+                ImageDeal[row].Center = ImageDeal[row].LeftBorder
+                                      + Half_Bend_Wide[row] + fill_offset;
+            }
+            LimitL(ImageDeal[row].Center);
+            LimitH(ImageDeal[row].Center);
+        }
+        break;
+        
+    case RING_STATE_EXIT:
+        /* 出环阶段：从拐点补到上边界 */
+        for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
+        {
+            if (direction == 1U)
+            {
+                if (has_valley && row <= valley_row)
+                    ImageDeal[row].Center = ImageDeal[row].RightBorder
+                                          - Half_Bend_Wide[row] - fill_offset;
+                else
+                    ImageDeal[row].Center = ImageDeal[row].RightBorder
+                                          - Half_Bend_Wide[row] - FILL_INSIDE_OFFSET;
+            }
+            else
+            {
+                if (has_valley && row <= valley_row)
+                    ImageDeal[row].Center = ImageDeal[row].LeftBorder
+                                          + Half_Bend_Wide[row] + fill_offset;
+                else
+                    ImageDeal[row].Center = ImageDeal[row].LeftBorder
+                                          + Half_Bend_Wide[row] + FILL_INSIDE_OFFSET;
+            }
+            LimitL(ImageDeal[row].Center);
+            LimitH(ImageDeal[row].Center);
+        }
+        break;
+        
+    case RING_STATE_RECOVERY:
+    default:
+        /* 恢复阶段：补直线忽略二次入口 */
+        for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
+        {
+            if (direction == 1U)
+            {
+                ImageDeal[row].Center = (ImageDeal[row].RightBorder > 0)
+                    ? ImageDeal[row].RightBorder - Half_Road_Wide[row] - fill_offset
+                    : ImageSensorMid;
+            }
+            else
+            {
+                ImageDeal[row].Center = (ImageDeal[row].LeftBorder < LCDW - 1)
+                    ? ImageDeal[row].LeftBorder + Half_Road_Wide[row] + fill_offset
+                    : ImageSensorMid;
+            }
+            LimitL(ImageDeal[row].Center);
+            LimitH(ImageDeal[row].Center);
+        }
+        break;
     }
 }
 
+/* ---- 状态机更新 (使用谷底追踪) ---- */
 static void Ring_State_Update(void)
 {
     uint8 direction = (uint8)ImageFlag.image_element_rings;
-    int corner_col = -1;
-    int corner_row;
+    int valley_col = -1;
+    int valley_row;
 
     if (direction != 1U && direction != 2U)
     {
@@ -893,9 +1121,7 @@ static void Ring_State_Update(void)
         if (Ring_Is_Candidate(direction))
         {
             if (s_ring_confirm_count < RING_CONFIRM_FRAMES)
-            {
                 s_ring_confirm_count++;
-            }
         }
         else
         {
@@ -912,21 +1138,22 @@ static void Ring_State_Update(void)
         break;
 
     case RING_STATE_APPROACH:
-        corner_row = Ring_Find_Entry_Corner(direction, &corner_col);
-        if (corner_row >= 0)
+        valley_row = Ring_Find_Valley_Point(direction, &valley_col);
+        if (valley_row >= 0)
         {
-            s_ring_entry_corner_row = corner_row;
-            s_ring_entry_corner_col = corner_col;
+            s_ring_entry_corner_row = valley_row;
+            s_ring_entry_corner_col = valley_col;
         }
-        if (corner_row >= RING_ENTRY_CORNER_ROW)
+        /* 谷底点进入有效范围或超时，进入下一状态 */
+        if (valley_row >= 0 && valley_row < VALLEY_MAX_ROW)
         {
-            if (s_ring_feature_count < 2U) s_ring_feature_count++;
+            if (s_ring_feature_count < 3U) s_ring_feature_count++;
         }
         else
         {
             s_ring_feature_count = 0U;
         }
-        if (s_ring_feature_count >= 2U
+        if (s_ring_feature_count >= 3U
             || s_ring_state_frames >= RING_APPROACH_MAX_FRAMES)
         {
             Ring_Set_State(RING_STATE_ENTRY);
@@ -934,14 +1161,14 @@ static void Ring_State_Update(void)
         break;
 
     case RING_STATE_ENTRY:
-        corner_row = Ring_Find_Entry_Corner(direction, &corner_col);
-        if (corner_row >= 0)
+        valley_row = Ring_Find_Valley_Point(direction, &valley_col);
+        if (valley_row >= 0)
         {
-            s_ring_entry_corner_row = corner_row;
-            s_ring_entry_corner_col = corner_col;
+            s_ring_entry_corner_row = valley_row;
+            s_ring_entry_corner_col = valley_col;
         }
-        if (corner_row >= RING_INSIDE_CORNER_ROW
-            || (corner_row < 0 && s_ring_state_frames >= 6U))
+        /* 谷底消失或谷底行号降到阈值以下 → 入环完成 */
+        if (valley_row < 0 || valley_row < VALLEY_MIN_ROW + 5)
         {
             if (s_ring_feature_count < 3U) s_ring_feature_count++;
         }
@@ -957,18 +1184,17 @@ static void Ring_State_Update(void)
         break;
 
     case RING_STATE_INSIDE:
-        if ((direction == 1U && ImageStatus.Miss_Right_lines >= RING_EXIT_MISS_MIN)
-            || (direction == 2U && ImageStatus.Miss_Left_lines >= RING_EXIT_MISS_MIN)
-            || ImageStatus.OFFLine >= RING_EXIT_MISS_MIN)
+        /* 检测出口侧丢线 */
+        if ((direction == 1U && ImageStatus.Miss_Right_lines >= EXIT_LOST_MIN)
+            || (direction == 2U && ImageStatus.Miss_Left_lines >= EXIT_LOST_MIN)
+            || ImageStatus.OFFLine >= EXIT_LOST_MIN)
         {
             s_ring_exit_loss_seen = 1U;
         }
         if (s_ring_exit_loss_seen && Ring_Has_Exit_Feature(direction))
         {
             if (s_ring_feature_count < RING_EXIT_CONFIRM_FRAMES)
-            {
                 s_ring_feature_count++;
-            }
         }
         else
         {
@@ -985,9 +1211,7 @@ static void Ring_State_Update(void)
         if (Ring_Is_Stable_Road())
         {
             if (s_ring_stable_count < RING_EXIT_STABLE_FRAMES)
-            {
                 s_ring_stable_count++;
-            }
         }
         else
         {
@@ -1001,7 +1225,10 @@ static void Ring_State_Update(void)
         break;
 
     case RING_STATE_RECOVERY:
-        if (Ring_Is_Stable_Road())
+        /* 恢复期：检测到正常直道稳定后退出 */
+        if (ImageStatus.Miss_Left_lines < 4
+            && ImageStatus.Miss_Right_lines < 4
+            && ImageStatus.OFFLine <= 2)
         {
             if (s_ring_stable_count < 4U) s_ring_stable_count++;
         }
@@ -1023,79 +1250,58 @@ static void Ring_State_Update(void)
     }
 }
 
+/* ---- 左圆环判断：黑洞检测触发 ---- */
 void Element_Judgment_Left_Rings(void)
 {
-    int Ysite, ring_ysite = 25;
-    int Left_Less_Num = 0;
+    /* 已有元素冲突检查 */
+    if (ImageStatus.Miss_Right_lines > 5
+        || ImageStatus.Miss_Left_lines < 10
+        || ImageStatus.OFFLine > 2
+        || ImageFlag.image_element_rings
+        || ImageFlag.Out_Road == 1)
+        return;
 
-    /* 安财同源门槛：左圆环必须先出现左侧连续丢线，直道噪声不得触发。 */
-    if (ImageStatus.Miss_Right_lines > 3
-        || ImageStatus.Miss_Left_lines < 13
-        || ImageStatus.OFFLine > 2 || Straight_Judge(2, 5, SCAN_BASE_END_ROW) > 3.0f   /* 执行当前图像处理步骤。 */
-        || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
-        return;  /* 条件不足时禁止进入圆环补线，防止覆盖直道中心。 */
-
-    /* 执行当前图像处理步骤。 */
+    /* 底部黑块验证 */
     {
         int r;
-        for (r = SCAN_BASE_START_ROW; r >= SCAN_BASE_END_ROW; r--)   /* 处理当前扫描行的边线数据。 */
+        for (r = SCAN_BASE_START_ROW; r >= SCAN_BASE_END_ROW; r--)
         {
             if (ImageDeal[r].IsLeftFind == 'W') return;
         }
     }
 
-    /* 处理当前扫描行的边线数据。 */
-    for (Ysite = (SCAN_BASE_START_ROW - 1); Ysite > ring_ysite; Ysite--)
+    /* 黑洞检测：左下角存在连续黑色区域则触发 */
+    if (BlackHole_Check_Bottom(1U))
     {
-        if (abs(ImageDeal[Ysite].LeftBorder - ImageDeal[Ysite - 1].LeftBorder) > 4  /* 执行当前图像处理步骤。 */)
-        {
-            Left_Less_Num++;
-            /* 执行当前图像处理步骤。 */
-            if (Left_Less_Num == 1) {
-                /* 执行当前图像处理步骤。 */
-            }
-        }
-    }
-
-    if (Left_Less_Num >= 2)
-    {
-        ImageFlag.image_element_rings = 1;    /* 执行当前图像处理步骤。 */
+        ImageFlag.image_element_rings = 1;
         Ring_Set_State(RING_STATE_CONFIRM);
     }
 }
 
-/* 函数说明：Element_Judgment_Right_Rings。 */
+/* ---- 右圆环判断：黑洞检测触发 ---- */
 void Element_Judgment_Right_Rings(void)
 {
-    int Ysite, ring_ysite = 25;
-    int Right_Less_Num = 0;
+    /* 已有元素冲突检查 */
+    if (ImageStatus.Miss_Left_lines > 5
+        || ImageStatus.Miss_Right_lines < 10
+        || ImageStatus.OFFLine > 2
+        || ImageFlag.image_element_rings
+        || ImageFlag.Out_Road == 1)
+        return;
 
-    /* 安财同源门槛：右圆环必须先出现右侧连续丢线，直道噪声不得触发。 */
-    if (ImageStatus.Miss_Left_lines > 3
-        || ImageStatus.Miss_Right_lines < 15
-        || ImageStatus.OFFLine > 2 || Straight_Judge(1, 5, SCAN_BASE_END_ROW) > 3.0f   /* 执行当前图像处理步骤。 */
-        || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
-        return;  /* 条件不足时禁止进入圆环补线，防止覆盖直道中心。 */
-
+    /* 底部黑块验证 */
     {
         int r;
-        for (r = SCAN_BASE_START_ROW; r >= SCAN_BASE_END_ROW; r--)   /* 处理当前扫描行的边线数据。 */
+        for (r = SCAN_BASE_START_ROW; r >= SCAN_BASE_END_ROW; r--)
         {
             if (ImageDeal[r].IsRightFind == 'W') return;
         }
     }
 
-    for (Ysite = (SCAN_BASE_START_ROW - 1); Ysite > ring_ysite; Ysite--)
+    /* 黑洞检测：右下角存在连续黑色区域则触发 */
+    if (BlackHole_Check_Bottom(2U))
     {
-        if (abs(ImageDeal[Ysite].RightBorder - ImageDeal[Ysite - 1].RightBorder) > 4  /* 执行当前图像处理步骤。 */)
-        {
-            Right_Less_Num++;
-        }
-    }
-
-    if (Right_Less_Num >= 2)
-    {
-        ImageFlag.image_element_rings = 2;    /* 执行当前图像处理步骤。 */
+        ImageFlag.image_element_rings = 2;
         Ring_Set_State(RING_STATE_CONFIRM);
     }
 }
@@ -1106,7 +1312,7 @@ void Element_Handle_Left_Rings(void)
     Ring_State_Update();
     if (ImageFlag.image_element_rings == 1)
     {
-        Ring_Rebuild_Center(1U);
+        Ring_Rebuild_Fill(1U);
     }
 }
 
@@ -1116,7 +1322,7 @@ void Element_Handle_Right_Rings(void)
     Ring_State_Update();
     if (ImageFlag.image_element_rings == 2)
     {
-        Ring_Rebuild_Center(2U);
+        Ring_Rebuild_Fill(2U);
     }
 }
 

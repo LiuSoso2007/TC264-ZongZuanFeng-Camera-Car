@@ -1181,6 +1181,26 @@ void Element_Judgment_Right_Rings(void)
     if (BlackHole_Check_Bottom(2U))
     { ImageFlag.image_element_rings = 2; Ring_Set_State(RING_STATE_CONFIRM); }
 }
+/* Element_Handle_Left_Rings */
+void Element_Handle_Left_Rings(void)
+{
+    Ring_State_Update();
+    if (ImageFlag.image_element_rings == 1)
+    {
+        Ring_Rebuild_Fill(1U);
+    }
+}
+
+/* Element_Handle_Right_Rings */
+void Element_Handle_Right_Rings(void)
+{
+    Ring_State_Update();
+    if (ImageFlag.image_element_rings == 2)
+    {
+        Ring_Rebuild_Fill(2U);
+    }
+}
+
 
 void Element_Judgment_Zebra(void)
 {

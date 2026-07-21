@@ -27,7 +27,6 @@
 /* ---- 原始图像尺寸 (来自逐飞库) ---- */
 #define CAMERA_W       MT9V03X_W        // 188
 #define CAMERA_H       MT9V03X_H        // 120
-#define CAMERA_SIZE    (CAMERA_W * CAMERA_H)
 
 /* ---- 压缩后图像尺寸 (2:1 等比压缩) ---- */
 #define LCDW           94               // 压缩后宽度 (列) = 188/2
@@ -53,7 +52,6 @@
 // 5行全扫一遍, 确定基础边线
 #define SCAN_BASE_START_ROW    59              // 扫描起始行 (最底部,距离车最近,数据最可靠,AnCai借鉴)
 #define SCAN_BASE_END_ROW      55              // 扫描结束行 (共5行基线: 59,58,57,56,55)
-#define SCAN_VALIDATE_COUNT    5               // 验证行数
 
 // 限幅宏, 将L/H限制在[0, LCDW-1]
 #define LimitL(L)  ((L) = ((L) < 1)  ? 1  : (L))    // AnCai: L>=1保证p[i-1]不越界
@@ -144,7 +142,6 @@ extern ImageStatustypedef ImageStatus;         // 图像状态全局变量
 #define RING_EXIT_MAX_FRAMES      60U
 #define RING_RECOVERY_MAX_FRAMES  40U
 
-/* ---- \u9ed1\u6d1e\u68c0\u6d4b\u6cd5\u5e38\u91cf ---- */\r\n#define IMG_BLACK                   0\r\n#define IMG_WHITE                   1\r\n#define BH_BOTTOM_START_ROW        55\r\n#define BH_LEFT_COL_MIN             1\r\n#define BH_LEFT_COL_MAX             8\r\n#define BH_RIGHT_COL_MIN           86\r\n#define BH_RIGHT_COL_MAX           93\r\n#define BH_BOTTOM_CHECK_ROWS        5\r\n#define VALLEY_SCAN_START_ROW      30\r\n#define VALLEY_SCAN_COL_LEFT       19\r\n#define VALLEY_SCAN_COL_RIGHT      75\r\n#define VALLEY_MAX_ROW             35\r\n#define VALLEY_MIN_ROW             10\r\n#define EXIT_LOST_MIN               8\r\n#define EXIT_INFLECTION_MIN_ROW    50\r\n#define FILL_ENTRY_OFFSET          10\r\n#define FILL_INSIDE_OFFSET         14\r\n#define FILL_EXIT_OFFSET            8\r\n#define FILL_RECOVERY_OFFSET        0\r\n
 void  Get_Border_And_SideType(uint8* p, uint8 type, int L, int H, JumpPointtypedef* Q);
                                                // 获取跳变点与边线类型
 void  Get_AllLine(void);                       // 全行扫描: 从51行向下扫到0

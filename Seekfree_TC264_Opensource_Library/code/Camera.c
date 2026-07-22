@@ -7,7 +7,10 @@ static uint8 s_ring_feature_count = 0U;      /* 入口或出口特征确认帧数 */
 static uint8 s_ring_stable_count = 0U;       /* 出环后稳定直道帧数 */
 static uint8 s_ring_exit_loss_seen = 0U;     /* 环内是否见过出口侧丢线 */
 static int s_ring_entry_corner_row = -1;     /* 最近一次入口拐点行 */
-static int s_ring_entry_corner_col = -1;     /* 最近一次入口拐点列 */
+static int s_ring_entry_corner_col = -1;     /* ????????? */
+volatile int g_corner_black_max = 0;   /* ??????: ???????? */
+volatile int g_bottom_black_width = 0; /* ??????: W-B???? */
+volatile int g_ring_miss_cnt = 0;      /* ????????(Miss_Left?Miss_Right) */
 uint8  Pixle[LCDH][LCDW];
 uint8 *Image_Use[LCDH][LCDW];
 uint8  Camera_Threshold = 128;
@@ -584,7 +587,7 @@ float Straight_Judge(uint8 dir, uint8 start, uint8 end)
 /* 函数说明：Straight_long_judge。 */
 void Straight_long_judge(void)
 {
-    if (ImageFlag.Bend_Road || ImageFlag.Zebra_Flag || ImageFlag.Out_Road == 1
+    if (ImageFlag.Bend_Road || ImageFlag.Zebra_Flag
         || ImageFlag.image_element_rings)
         return;
 
@@ -649,7 +652,7 @@ void Element_Judgment_Bend(void)
 {
     /* 执行当前图像处理步骤。 */
     if (ImageFlag.image_element_rings != 0
-        || ImageFlag.Zebra_Flag || ImageFlag.Out_Road == 1)
+        || ImageFlag.Zebra_Flag)
         return;
     /* ponytail直道守卫: OFFLine<5时赛道完全可见，不可能是弯道
        防止噪声导致Miss计数累积引发误判 (安财原始OFFLine>=14, TC264适配60行->5) */
@@ -777,6 +780,7 @@ static uint8 BlackHole_Check_Corner(uint8 direction)
                 black_cnt++;
         }
         /* ????>=4???????????? */
+        if (black_cnt > g_corner_black_max) g_corner_black_max = black_cnt;
         if (black_cnt >= 4)
             return 1;
     }
@@ -803,6 +807,7 @@ static uint8 BlackHole_Check_Bottom(uint8 direction)
         {
             if (Pixle[row][col] == IMG_WHITE)
             {
+                                    g_bottom_black_width = black_cnt;
                 if (state == 2 && black_cnt >= 3)
                     return 1;   /* ???(>=5?)???????? */
                 state = 1;
@@ -1228,7 +1233,7 @@ static void Ring_State_Update(void)
         valley_row = Ring_Find_Valley_Point(direction, &valley_col);
         if (valley_row >= 0)
         { s_ring_entry_corner_row = valley_row; s_ring_entry_corner_col = valley_col; }
-        if (valley_row >= VALLEY_MAX_ROW && valley_row < 60)
+        if (valley_row >= 30 && valley_row < 60)
             Ring_Set_State(RING_STATE_ENTRY);
         break;
 
@@ -1290,11 +1295,12 @@ void Element_Judgment_Left_Rings(void)
 {
     if (ImageStatus.Miss_Right_lines > 15
         || ImageStatus.Miss_Left_lines < 3
-        || ImageStatus.OFFLine > 12
-        || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
+        || ImageStatus.OFFLine > 16
+        || ImageFlag.image_element_rings)
         return;
 
 
+    g_ring_miss_cnt = ImageStatus.Miss_Left_lines;
     if (BlackHole_Check_Corner(1U) || BlackHole_Check_Bottom(1U))
     { ImageFlag.image_element_rings = 1; Ring_Set_State(RING_STATE_CONFIRM); }
 }
@@ -1304,11 +1310,12 @@ void Element_Judgment_Right_Rings(void)
 {
     if (ImageStatus.Miss_Left_lines > 15
         || ImageStatus.Miss_Right_lines < 3
-        || ImageStatus.OFFLine > 12
-        || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
+        || ImageStatus.OFFLine > 16
+        || ImageFlag.image_element_rings)
         return;
 
 
+    g_ring_miss_cnt = ImageStatus.Miss_Right_lines;
     if (BlackHole_Check_Corner(2U) || BlackHole_Check_Bottom(2U))
     { ImageFlag.image_element_rings = 2; Ring_Set_State(RING_STATE_CONFIRM); }
 }
@@ -1341,7 +1348,7 @@ void Element_Judgment_Zebra(void)
     static int confirm_cnt = 0;     /* 连续确认帧计数(用于防抖) */
 
     /* 环岛/出库等元素激活或已处于斑马线状态时不检测 */
-    if (ImageFlag.image_element_rings || ImageFlag.Out_Road == 1
+    if (ImageFlag.image_element_rings
      || ImageFlag.Zebra_Flag != 0)
         return;
 
@@ -1483,48 +1490,48 @@ void Element_Handle_Ramp(void)
 }
 
 /* 函数说明：Element_Judgment_OutRoad。 */
-void Element_Judgment_OutRoad(void)
-{
-    int Right_Num = 0, Left_Num = 0;
-    int Ysite;
 
-    if (ImageFlag.Out_Road) return;
 
-    if (ImageStatus.OFFLine > 20)
-    {
-        for (Ysite = ImageStatus.OFFLine + 1;
-             Ysite < ImageStatus.OFFLine + 11; Ysite++)
-        {
-            if (ImageDeal[Ysite].IsLeftFind == 'T')  Left_Num++;
-            if (ImageDeal[Ysite].IsRightFind == 'T') Right_Num++;
-        }
+
+
+
+
+
+
+
+
+
+
+
+
+
     }
 
     if (Left_Num > 7 && Right_Num > 7)
     {
-        ImageFlag.Out_Road = 1;
+
     }
 }
 
 /* 函数说明：Element_Handle_OutRoad。 */
-void Element_Handle_OutRoad(void)
-{
-    int Ysite, Xsite;
-    int gray_sum = 0;
 
-    /* 执行当前图像处理步骤。 */
-    for (Ysite = 35; Ysite < 55; Ysite++)
-    {
-        for (Xsite = 30; Xsite < 64; Xsite++) /* 处理当前扫描行的边线数据。 */
-        {
-            gray_sum += Pixle[Ysite][Xsite];
-        }
+
+
+
+
+
+
+
+
+
+
+
     }
 
     /* 更新图像识别状态。 */
     if (gray_sum > 400 && ImageStatus.OFFLine < 20)
     {
-        ImageFlag.Out_Road = 0;
+
     }
 }
 
@@ -1654,11 +1661,11 @@ void Get_ExtensionLine(void)
 void Scan_Element(void)
 {
     /* 执行当前图像处理步骤。 */
-    if (ImageFlag.Out_Road == 0 && ImageFlag.Zebra_Flag == 0
+    if (ImageFlag.Zebra_Flag == 0
      && ImageFlag.image_element_rings == 0
      && ImageFlag.Ramp == 0)  /* 更新圆环识别状态机。 */
     {
-        Element_Judgment_OutRoad();           /* 更新圆环识别状态机。 */
+
         Element_Judgment_Left_Rings();        /* 更新圆环识别状态机。 */
         Element_Judgment_Right_Rings();       /* 执行当前图像处理步骤。 */
         Element_Judgment_Zebra();             /* 执行当前图像处理步骤。 */
@@ -1670,8 +1677,8 @@ void Scan_Element(void)
     /* 执行当前图像处理步骤。 */
     if (ImageFlag.Bend_Road)
     {
-        Element_Judgment_OutRoad();
-        if (ImageFlag.Out_Road) ImageFlag.Bend_Road = 0;
+
+
     }
 
     /* 执行当前图像处理步骤。 */
@@ -1685,11 +1692,11 @@ void Scan_Element(void)
 /* 函数说明：Element_Handle。 */
 void Element_Handle(void)
 {
-    if (ImageFlag.Out_Road != 0)
-        Element_Handle_OutRoad();
-    else if (ImageFlag.image_element_rings == 1)
+    if (ImageFlag.image_element_rings == 1)
+
+    if (ImageFlag.image_element_rings == 1)
         Element_Handle_Left_Rings();
-    else if (ImageFlag.image_element_rings == 2)
+    if (ImageFlag.image_element_rings == 2)
         Element_Handle_Right_Rings();
     else if (ImageFlag.Zebra_Flag != 0)
         Element_Handle_Zebra();
@@ -1710,7 +1717,7 @@ void Flag_init(void)
     ImageFlag.Ramp                   = 0;
     ImageFlag.straight_xie           = 0;
     ImageFlag.straight_long          = 0;
-    ImageFlag.Out_Road               = 0;
+
 }
 
 

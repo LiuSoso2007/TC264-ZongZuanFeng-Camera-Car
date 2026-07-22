@@ -179,7 +179,7 @@ typedef struct {
     int16 straight_xie;                        /* 斜入直道标志 */
     int16 Zebra_Flag;                          /* 斑马线: 0=无 1=左侧 2=右侧 */
     int16 Ramp;                                /* 坡道: 0=无 1=检测到 */
-    int16 Out_Road;                            /* 断路: 0=无 1=断路 */
+
 } ImageFlagtypedef;
 
 /* ---- 图像处理数据结构 ---- */
@@ -188,6 +188,9 @@ typedef struct {
 
 extern ImageFlagtypedef ImageFlag;             /* 图像标志全局变量 */
 extern int16_t g_ZebraSum;          /* 斑马线检测差值之和，供屏幕显示 */
+extern volatile int g_corner_black_max;   /* ???????????? */
+extern volatile int g_bottom_black_width; /* ????W-B???? */
+extern volatile int g_ring_miss_cnt;      /* ?????? */
 
 /* ---- 道路宽度常量 (TC264列宽94, AnCai原版x1.175倍映射) ---- */
 extern const uint8 Half_Road_Wide[60];         /* 半道路宽度: 近景~远景 */
@@ -208,8 +211,8 @@ void  Element_Judgment_Zebra(void);                          // 斑马线识别
 void  Element_Handle_Zebra(void);                            // 斑马线处理
 void  Element_Judgment_Ramp(void);                           // 坡道识别
 void  Element_Handle_Ramp(void);                             // 坡道处理
-void  Element_Judgment_OutRoad(void);                        // 断路识别
-void  Element_Handle_OutRoad(void);                          // 断路处理
+
+
 void  Get_ExtensionLine(void);                               // 十字补线
 void  Scan_Element(void);                                    // 元素扫描入口
 void  Element_Handle(void);                                  // 元素处理入口

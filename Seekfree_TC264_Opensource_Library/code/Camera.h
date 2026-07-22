@@ -134,11 +134,11 @@ extern ImageStatustypedef ImageStatus;         // 图像状态全局变量
 #define BH_LEFT_COL_MAX            12
 #define BH_RIGHT_COL_MIN           82
 #define BH_RIGHT_COL_MAX           93
-#define VALLEY_SCAN_START_ROW      45
+#define VALLEY_SCAN_START_ROW      54
 #define VALLEY_SCAN_COL_LEFT       19
 #define VALLEY_SCAN_COL_RIGHT      75
-#define VALLEY_MAX_ROW             46
-#define VALLEY_MIN_ROW             28
+#define VALLEY_MAX_ROW             55
+#define VALLEY_MIN_ROW             10
 #define EXIT_LOST_MIN               8
 #define FILL_ENTRY_OFFSET          10
 #define FILL_INSIDE_OFFSET         14

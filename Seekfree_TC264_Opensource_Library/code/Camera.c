@@ -1259,8 +1259,6 @@ void Element_Judgment_Left_Rings(void)
         || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
         return;
 
-    { int r; for (r = SCAN_BASE_START_ROW; r >= SCAN_BASE_END_ROW; r--)
-    { if (ImageDeal[r].IsLeftFind == 'W') return; } }
 
     if (BlackHole_Check_Bottom(1U))
     { ImageFlag.image_element_rings = 1; Ring_Set_State(RING_STATE_CONFIRM); }
@@ -1275,8 +1273,6 @@ void Element_Judgment_Right_Rings(void)
         || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
         return;
 
-    { int r; for (r = SCAN_BASE_START_ROW; r >= SCAN_BASE_END_ROW; r--)
-    { if (ImageDeal[r].IsRightFind == 'W') return; } }
 
     if (BlackHole_Check_Bottom(2U))
     { ImageFlag.image_element_rings = 2; Ring_Set_State(RING_STATE_CONFIRM); }

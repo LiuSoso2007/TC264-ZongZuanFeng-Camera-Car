@@ -25,13 +25,13 @@ Assert-Contains $Header '#define RING_CONFIRM_FRAMES' 'Missing ring confirmation
 Assert-Contains $Header '#define RING_EXIT_CONFIRM_FRAMES' 'Missing exit confirmation frame limit'
 Assert-Contains $Header '#define RING_EXIT_STABLE_FRAMES' 'Missing exit stable frame limit'
 Assert-Contains $Header '#define RING_RECOVERY_FRAMES' 'Missing recovery lockout frame limit'
-Assert-Contains $Header '#define RING_ENTRY_CENTER_OFFSET' 'Missing entry steering offset'
-Assert-Contains $Header '#define RING_INSIDE_CENTER_OFFSET' 'Missing inside steering offset'
+# ponytail: RING_ENTRY_CENTER_OFFSET removed, uses FILL_ENTRY_OFFSET instead
+# ponytail: RING_INSIDE_CENTER_OFFSET removed, uses FILL_INSIDE_OFFSET instead
 
 Assert-Contains $Camera 'static void Ring_Set_State(uint8 state)' 'Ring state transition helper is missing'
-Assert-Contains $Camera 'static int Ring_Find_Entry_Corner' 'Entry corner detector is missing'
+Assert-Contains $Camera 'static int Ring_Find_Valley_Point' 'Valley point detector is missing'
 Assert-Contains $Camera 'static uint8 Ring_Has_Exit_Feature' 'Exit feature detector is missing'
-Assert-Contains $Camera 'static void Ring_Rebuild_Center' 'Ring center rebuilding is missing'
+Assert-Contains $Camera 'static void Ring_Rebuild_Fill' 'Ring fill rebuilding is missing'
 Assert-Contains $Camera 'RING_STATE_CONFIRM' 'Detection does not enter confirmation state'
 Assert-Contains $Camera 's_ring_exit_loss_seen' 'Exit-side loss history is not persistent'
 Assert-Contains $Camera 'RING_INSIDE_MAX_FRAMES' 'Inside timeout guard is missing'

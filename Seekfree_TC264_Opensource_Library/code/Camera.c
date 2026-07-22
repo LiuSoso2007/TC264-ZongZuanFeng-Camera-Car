@@ -913,7 +913,7 @@ static int BlackHole_Track_Valley(uint8 direction, int *valley_row, int *valley_
                 *valley_col = col;
                 return 1;
             }
-            return 0;
+            continue;
         }
     }
     return 0;
@@ -1228,11 +1228,7 @@ static void Ring_State_Update(void)
         valley_row = Ring_Find_Valley_Point(direction, &valley_col);
         if (valley_row >= 0)
         { s_ring_entry_corner_row = valley_row; s_ring_entry_corner_col = valley_col; }
-        if (valley_row >= 0 && valley_row < VALLEY_MAX_ROW)
-        { if (s_ring_feature_count < 3U) s_ring_feature_count++; }
-        else
-        { s_ring_feature_count = 0U; }
-        if (s_ring_feature_count >= 3U || s_ring_state_frames >= RING_APPROACH_MAX_FRAMES)
+        if (valley_row >= VALLEY_MAX_ROW && valley_row < 60)
             Ring_Set_State(RING_STATE_ENTRY);
         break;
 

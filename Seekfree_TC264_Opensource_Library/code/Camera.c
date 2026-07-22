@@ -8,9 +8,6 @@ static uint8 s_ring_stable_count = 0U;       /* 出环后稳定直道帧数 */
 static uint8 s_ring_exit_loss_seen = 0U;     /* 环内是否见过出口侧丢线 */
 static int s_ring_entry_corner_row = -1;     /* 最近一次入口拐点行 */
 static int s_ring_entry_corner_col = -1;     /* ????????? */
-volatile int g_corner_black_max = 0;   /* ??????: ???????? */
-volatile int g_bottom_black_width = 0; /* ??????: W-B???? */
-volatile int g_ring_miss_cnt = 0;      /* ????????(Miss_Left?Miss_Right) */
 uint8  Pixle[LCDH][LCDW];
 uint8 *Image_Use[LCDH][LCDW];
 uint8  Camera_Threshold = 128;
@@ -780,7 +777,6 @@ static uint8 BlackHole_Check_Corner(uint8 direction)
                 black_cnt++;
         }
         /* ????>=4???????????? */
-        if (black_cnt > g_corner_black_max) g_corner_black_max = black_cnt;
         if (black_cnt >= 4)
             return 1;
     }
@@ -807,7 +803,6 @@ static uint8 BlackHole_Check_Bottom(uint8 direction)
         {
             if (Pixle[row][col] == IMG_WHITE)
             {
-                                    g_bottom_black_width = black_cnt;
                 if (state == 2 && black_cnt >= 3)
                     return 1;   /* ???(>=5?)???????? */
                 state = 1;
@@ -1300,7 +1295,6 @@ void Element_Judgment_Left_Rings(void)
         return;
 
 
-    g_ring_miss_cnt = ImageStatus.Miss_Left_lines;
     if (BlackHole_Check_Corner(1U) || BlackHole_Check_Bottom(1U))
     { ImageFlag.image_element_rings = 1; Ring_Set_State(RING_STATE_CONFIRM); }
 }
@@ -1315,7 +1309,6 @@ void Element_Judgment_Right_Rings(void)
         return;
 
 
-    g_ring_miss_cnt = ImageStatus.Miss_Right_lines;
     if (BlackHole_Check_Corner(2U) || BlackHole_Check_Bottom(2U))
     { ImageFlag.image_element_rings = 2; Ring_Set_State(RING_STATE_CONFIRM); }
 }

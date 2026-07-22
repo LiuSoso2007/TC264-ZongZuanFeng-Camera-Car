@@ -211,12 +211,6 @@ int core0_main(void)
                     }
                     ips200_show_string(2U, 236U, "RF:");
                     ips200_show_uint(28U, 236U, rf, 1U);
-                ips200_show_string(50U, 236U, "CB:");
-                ips200_show_uint(74U, 236U, (uint32)g_corner_black_max, 2U);
-                ips200_show_string(100U, 236U, "BW:");
-                ips200_show_uint(124U, 236U, (uint32)g_bottom_black_width, 2U);
-                ips200_show_string(150U, 236U, "MS:");
-                ips200_show_uint(174U, 236U, (uint32)g_ring_miss_cnt, 2U);
                 }
 #endif
         }

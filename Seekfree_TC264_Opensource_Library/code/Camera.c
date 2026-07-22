@@ -1063,10 +1063,10 @@ static void Ring_Rebuild_Fill(uint8 direction)
         {
             if (direction == 1U)
                 ImageDeal[row].Center = ImageDeal[row].RightBorder
-                                      - Half_Bend_Wide[row] - fill_offset;
+                                      - Half_Bend_Wide[row] * 2 / 3 - fill_offset;
             else
                 ImageDeal[row].Center = ImageDeal[row].LeftBorder
-                                      + Half_Bend_Wide[row] + fill_offset;
+                                      + Half_Bend_Wide[row] * 2 / 3 + fill_offset;
             LimitL(ImageDeal[row].Center);
             LimitH(ImageDeal[row].Center);
         }
@@ -1076,10 +1076,10 @@ static void Ring_Rebuild_Fill(uint8 direction)
         if (has_valley)
         {
             if (direction == 1U) /* ?????? ? ??????? */
-                Ring_DrawAndUpdate(direction, LCDH - 1, 2,
+                Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW, ImageDeal[SCAN_BASE_START_ROW].LeftBorder,
                                    valley_row, valley_col, 'L');
             else                 /* ?????? ? ??????? */
-                Ring_DrawAndUpdate(direction, LCDH - 1, LCDW - 3,
+                Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW, ImageDeal[SCAN_BASE_START_ROW].RightBorder,
                                    valley_row, valley_col, 'R');
         }
         else
@@ -1089,10 +1089,10 @@ static void Ring_Rebuild_Fill(uint8 direction)
             {
                 if (direction == 1U)
                     ImageDeal[row].Center = ImageDeal[row].RightBorder
-                                          - Half_Bend_Wide[row] - fill_offset;
+                                          - Half_Bend_Wide[row] * 2 / 3 - fill_offset;
                 else
                     ImageDeal[row].Center = ImageDeal[row].LeftBorder
-                                          + Half_Bend_Wide[row] + fill_offset;
+                                          + Half_Bend_Wide[row] * 2 / 3 + fill_offset;
                 LimitL(ImageDeal[row].Center);
                 LimitH(ImageDeal[row].Center);
             }
@@ -1103,10 +1103,10 @@ static void Ring_Rebuild_Fill(uint8 direction)
         if (has_valley)
         {
             if (direction == 1U) /* ?????? ? ???????? */
-                Ring_DrawAndUpdate(direction, LCDH - 1, LCDW - 3,
+                Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW, ImageDeal[SCAN_BASE_START_ROW].RightBorder,
                                    valley_row, valley_col, 'R');
             else                 /* ?????? ? ???????? */
-                Ring_DrawAndUpdate(direction, LCDH - 1, 2,
+                Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW, ImageDeal[SCAN_BASE_START_ROW].LeftBorder,
                                    valley_row, valley_col, 'L');
         }
         else
@@ -1116,10 +1116,10 @@ static void Ring_Rebuild_Fill(uint8 direction)
             {
                 if (direction == 1U)
                     ImageDeal[row].Center = ImageDeal[row].RightBorder
-                                          - Half_Bend_Wide[row] - fill_offset;
+                                          - Half_Bend_Wide[row] * 2 / 3 - fill_offset;
                 else
                     ImageDeal[row].Center = ImageDeal[row].LeftBorder
-                                          + Half_Bend_Wide[row] + fill_offset;
+                                          + Half_Bend_Wide[row] * 2 / 3 + fill_offset;
                 LimitL(ImageDeal[row].Center);
                 LimitH(ImageDeal[row].Center);
             }
@@ -1130,10 +1130,10 @@ static void Ring_Rebuild_Fill(uint8 direction)
         {
             if (direction == 1U)
                 ImageDeal[row].Center = ImageDeal[row].RightBorder
-                                      - Half_Bend_Wide[row] - fill_offset;
+                                      - Half_Bend_Wide[row] * 2 / 3 - fill_offset;
             else
                 ImageDeal[row].Center = ImageDeal[row].LeftBorder
-                                      + Half_Bend_Wide[row] + fill_offset;
+                                      + Half_Bend_Wide[row] * 2 / 3 + fill_offset;
             LimitL(ImageDeal[row].Center);
             LimitH(ImageDeal[row].Center);
         }
@@ -1145,19 +1145,19 @@ static void Ring_Rebuild_Fill(uint8 direction)
             {
                 if (has_valley && row <= valley_row)
                     ImageDeal[row].Center = ImageDeal[row].RightBorder
-                                          - Half_Bend_Wide[row] - fill_offset;
+                                          - Half_Bend_Wide[row] * 2 / 3 - fill_offset;
                 else
                     ImageDeal[row].Center = ImageDeal[row].RightBorder
-                                          - Half_Bend_Wide[row] - FILL_INSIDE_OFFSET;
+                                          - Half_Bend_Wide[row] * 2 / 3 - FILL_INSIDE_OFFSET;
             }
             else
             {
                 if (has_valley && row <= valley_row)
                     ImageDeal[row].Center = ImageDeal[row].LeftBorder
-                                          + Half_Bend_Wide[row] + fill_offset;
+                                          + Half_Bend_Wide[row] * 2 / 3 + fill_offset;
                 else
                     ImageDeal[row].Center = ImageDeal[row].LeftBorder
-                                          + Half_Bend_Wide[row] + FILL_INSIDE_OFFSET;
+                                          + Half_Bend_Wide[row] * 2 / 3 + FILL_INSIDE_OFFSET;
             }
             LimitL(ImageDeal[row].Center);
             LimitH(ImageDeal[row].Center);
@@ -1169,11 +1169,11 @@ static void Ring_Rebuild_Fill(uint8 direction)
         {
             if (direction == 1U)
                 ImageDeal[row].Center = (ImageDeal[row].RightBorder > 0)
-                    ? ImageDeal[row].RightBorder - Half_Road_Wide[row] - fill_offset
+                    ? ImageDeal[row].RightBorder - Half_Bend_Wide[row] - fill_offset
                     : ImageSensorMid;
             else
                 ImageDeal[row].Center = (ImageDeal[row].LeftBorder < LCDW - 1)
-                    ? ImageDeal[row].LeftBorder + Half_Road_Wide[row] + fill_offset
+                    ? ImageDeal[row].LeftBorder + Half_Bend_Wide[row] + fill_offset
                     : ImageSensorMid;
             LimitL(ImageDeal[row].Center);
             LimitH(ImageDeal[row].Center);

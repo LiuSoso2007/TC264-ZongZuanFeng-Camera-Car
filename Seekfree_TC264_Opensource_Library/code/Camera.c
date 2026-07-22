@@ -777,7 +777,7 @@ static uint8 BlackHole_Check_Corner(uint8 direction)
                 black_cnt++;
         }
         /* ????>=4???????????? */
-        if (black_cnt >= 3)
+        if (black_cnt >= 4)
             return 1;
     }
     return 0;
@@ -803,7 +803,7 @@ static uint8 BlackHole_Check_Bottom(uint8 direction)
         {
             if (Pixle[row][col] == IMG_WHITE)
             {
-                if (state == 2 && black_cnt >= 2)
+                if (state == 2 && black_cnt >= 3)
                     return 1;   /* ???(>=5?)???????? */
                 state = 1;
                 black_cnt = 0;
@@ -932,7 +932,7 @@ static uint8 Ring_Is_Stable_Road(void)
 /* ---- ºòÑ¡¼ì²â£ººÚ¶´µ×²¿ + ¶ªÏßÌØÕ÷ ---- */
 static uint8 Ring_Is_Candidate(uint8 direction)
 {
-    if (ImageStatus.OFFLine > 12)
+    if (ImageStatus.OFFLine > 10)
         return 0U;
     if ((!BlackHole_Check_Corner(direction) && !BlackHole_Check_Bottom(direction)))
         return 0U;
@@ -1289,7 +1289,7 @@ static void Ring_State_Update(void)
 void Element_Judgment_Left_Rings(void)
 {
     if (ImageStatus.Miss_Right_lines > 15
-        || ImageStatus.Miss_Left_lines < 2
+        || ImageStatus.Miss_Left_lines < 3
         || ImageStatus.OFFLine > 12
         || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
         return;
@@ -1303,7 +1303,7 @@ void Element_Judgment_Left_Rings(void)
 void Element_Judgment_Right_Rings(void)
 {
     if (ImageStatus.Miss_Left_lines > 15
-        || ImageStatus.Miss_Right_lines < 2
+        || ImageStatus.Miss_Right_lines < 3
         || ImageStatus.OFFLine > 12
         || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
         return;

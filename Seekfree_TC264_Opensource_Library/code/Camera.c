@@ -1119,7 +1119,7 @@ static void Ring_Rebuild_Fill(uint8 direction)
         break;
     case RING_STATE_ENTRY:
         /* ???????????????????????? */
-        if (has_valley)
+        if (has_valley && s_ring_entry_corner_row > 0)
         {
             if (direction == 1U) /* ?????? ? ???????? */
                 Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW, ImageDeal[SCAN_BASE_START_ROW].RightBorder,

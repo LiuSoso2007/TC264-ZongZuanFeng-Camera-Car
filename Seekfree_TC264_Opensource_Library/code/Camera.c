@@ -768,10 +768,10 @@ static uint8 BlackHole_Check_Corner(uint8 direction)
 
     /* ponytail: ?????????????????????
        ?? BlackHole_Check_Bottom ????????? */
-    if (direction == 1U) { start_col = 0; end_col = 9; }      /* ???: ??? */
-    else                 { start_col = LCDW - 10; end_col = LCDW - 1; } /* ???: ??? */
+    if (direction == 1U) { start_col = 0; end_col = 5; }      /* ???: ??? */
+    else                 { start_col = LCDW - 7; end_col = LCDW - 1; } /* ???: ??? */
 
-    for (row = LCDH - 1; row >= LCDH - 6; row--)
+    for (row = LCDH - 1; row >= LCDH - 4; row--)
     {
         black_cnt = 0;
         for (col = start_col; col <= end_col; col++)
@@ -794,7 +794,7 @@ static uint8 BlackHole_Check_Bottom(uint8 direction)
     int start_col, end_col, step;
 
     /* ????3??LCDH-1(59), LCDH-2(58), LCDH-3(57) */
-    for (row = LCDH - 1; row >= LCDH - 6; row--)
+    for (row = LCDH - 1; row >= LCDH - 4; row--)
     {
         state = 0;
         black_cnt = 0;

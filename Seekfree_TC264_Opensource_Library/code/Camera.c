@@ -1505,13 +1505,13 @@ void Element_Handle_Ramp(void)
 
 
 
-    }
 
-    if (Left_Num > 7 && Right_Num > 7)
-    {
 
-    }
-}
+
+
+
+
+
 
 /* 函数说明：Element_Handle_OutRoad。 */
 
@@ -1526,14 +1526,14 @@ void Element_Handle_Ramp(void)
 
 
 
-    }
+
 
     /* 更新图像识别状态。 */
-    if (gray_sum > 400 && ImageStatus.OFFLine < 20)
-    {
 
-    }
-}
+
+
+
+
 
 /* 执行当前图像处理步骤。 */
 #define CROSS_WHITE_LINE_MIN 8

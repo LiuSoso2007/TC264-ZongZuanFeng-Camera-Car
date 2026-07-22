@@ -188,6 +188,9 @@ typedef struct {
 
 extern ImageFlagtypedef ImageFlag;             /* 图像标志全局变量 */
 extern int16_t g_ZebraSum;          /* 斑马线检测差值之和，供屏幕显示 */
+extern volatile int g_corner_black_max;   /* ???????????? */
+extern volatile int g_bottom_black_width; /* ????W-B???? */
+extern volatile int g_ring_miss_cnt;      /* ?????? */
 
 /* ---- 道路宽度常量 (TC264列宽94, AnCai原版x1.175倍映射) ---- */
 extern const uint8 Half_Road_Wide[60];         /* 半道路宽度: 近景~远景 */

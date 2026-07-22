@@ -1075,12 +1075,26 @@ static void Ring_Rebuild_Fill(uint8 direction)
         /* ????????????????????(??)?????? */
         if (has_valley)
         {
-            if (direction == 1U) /* ?????? ? ??????? */
-                Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW, ImageDeal[SCAN_BASE_START_ROW].LeftBorder,
-                                   valley_row, valley_col, 'L');
-            else                 /* ?????? ? ??????? */
-                Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW, ImageDeal[SCAN_BASE_START_ROW].RightBorder,
-                                   valley_row, valley_col, 'R');
+            if (direction == 1U) /* ???: ??????????? */
+            {
+                int edge_col = valley_col;
+                /* ??????????? = ????? */
+                while (edge_col + 1 < LCDW - 1
+                    && Pixle[valley_row][edge_col + 1] == IMG_BLACK)
+                    edge_col++;
+                Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW, 0,
+                                   valley_row, edge_col, 'L');
+            }
+            else                 /* ???: ??????????? */
+            {
+                int edge_col = valley_col;
+                /* ??????????? = ????? */
+                while (edge_col - 1 > 0
+                    && Pixle[valley_row][edge_col - 1] == IMG_BLACK)
+                    edge_col--;
+                Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW, LCDW - 1,
+                                   valley_row, edge_col, 'R');
+            }
         }
         else
         {

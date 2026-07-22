@@ -12,10 +12,10 @@ $Camera = [IO.File]::ReadAllText($CameraPath, $Gbk)
 # ponytail: ??????????????????????????????
 # ?????? + BlackHole_Check_Bottom ??????????????
 Assert-Contains $Camera `
-    'ImageStatus.Miss_Right_lines > 5' `
+    'ImageStatus.Miss_Right_lines > 12' `
     'Left ring detection lacks opposite-side loss guard'
 Assert-Contains $Camera `
-    'ImageStatus.Miss_Left_lines > 5' `
+    'ImageStatus.Miss_Left_lines > 12' `
     'Right ring detection lacks opposite-side loss guard'
 Assert-Contains $Camera `
     'for (row = SCAN_BASE_START_ROW; (row - 2) > ImageStatus.OFFLine; row -= 2)' `
@@ -23,13 +23,13 @@ Assert-Contains $Camera `
 
 # ponytail: ?????>=6???<=5???
 function Test-RingCandidate([int]$SameSideMiss, [int]$OtherSideMiss, [int]$JumpCount) {
-    return $SameSideMiss -ge 6 -and $OtherSideMiss -le 5 -and $JumpCount -ge 1
+    return $SameSideMiss -ge 4 -and $OtherSideMiss -le 12 -and $JumpCount -ge 1
 }
 
 if (Test-RingCandidate -SameSideMiss 0 -OtherSideMiss 0 -JumpCount 1) {
     throw 'Straight-road noise is still accepted as a ring candidate'
 }
-if (-not (Test-RingCandidate -SameSideMiss 6 -OtherSideMiss 0 -JumpCount 1)) {
+if (-not (Test-RingCandidate -SameSideMiss 4 -OtherSideMiss 0 -JumpCount 1)) {
     throw 'A valid ring candidate is rejected by the regression model'
 }
 

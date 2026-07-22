@@ -757,6 +757,31 @@ static void Ring_Clear_State(void)
  */
 
 /* ---- ºÚ¶´µ×²¿¼ì²â£º¼ì²éÍ¼Ïñµ×²¿½ÇÂäÊÇ·ñ´æÔÚºÚÉ«ÇøÓò ---- */
+/* ---- ?????????????????????????? ---- */
+static uint8 BlackHole_Check_Corner(uint8 direction)
+{
+    int row, col, black_cnt;
+    int start_col, end_col;
+
+    /* ponytail: ?????????????????????
+       ?? BlackHole_Check_Bottom ????????? */
+    if (direction == 1U) { start_col = 0; end_col = 6; }      /* ???: ??? */
+    else                 { start_col = LCDW - 7; end_col = LCDW - 1; } /* ???: ??? */
+
+    for (row = LCDH - 1; row >= LCDH - 5; row--)
+    {
+        black_cnt = 0;
+        for (col = start_col; col <= end_col; col++)
+        {
+            if (Pixle[row][col] == IMG_BLACK)
+                black_cnt++;
+        }
+        /* ????>=4???????????? */
+        if (black_cnt >= 4)
+            return 1;
+    }
+    return 0;
+}
 static uint8 BlackHole_Check_Bottom(uint8 direction)
 {
     int row, col;
@@ -765,7 +790,7 @@ static uint8 BlackHole_Check_Bottom(uint8 direction)
     int start_col, end_col, step;
 
     /* ????3??LCDH-1(59), LCDH-2(58), LCDH-3(57) */
-    for (row = LCDH - 1; row >= LCDH - 3; row--)
+    for (row = LCDH - 1; row >= LCDH - 6; row--)
     {
         state = 0;
         black_cnt = 0;
@@ -778,7 +803,7 @@ static uint8 BlackHole_Check_Bottom(uint8 direction)
         {
             if (Pixle[row][col] == IMG_WHITE)
             {
-                if (state == 2 && black_cnt >= 5)
+                if (state == 2 && black_cnt >= 3)
                     return 1;   /* ???(>=5?)???????? */
                 state = 1;
                 black_cnt = 0;
@@ -907,14 +932,14 @@ static uint8 Ring_Is_Stable_Road(void)
 /* ---- ºòÑ¡¼ì²â£ººÚ¶´µ×²¿ + ¶ªÏßÌØÕ÷ ---- */
 static uint8 Ring_Is_Candidate(uint8 direction)
 {
-    if (ImageStatus.OFFLine > 2)
+    if (ImageStatus.OFFLine > 8)
         return 0U;
-    if (!BlackHole_Check_Bottom(direction))
+    if ((!BlackHole_Check_Corner(direction) && !BlackHole_Check_Bottom(direction)))
         return 0U;
     if (direction == 1U)
-        return (uint8)(ImageStatus.Miss_Left_lines >= 10);
+        return (uint8)(ImageStatus.Miss_Left_lines >= 6);
     if (direction == 2U)
-        return (uint8)(ImageStatus.Miss_Right_lines >= 10);
+        return (uint8)(ImageStatus.Miss_Right_lines >= 6);
     return 0U;
 }
 
@@ -1253,28 +1278,28 @@ static void Ring_State_Update(void)
 /* ---- ×óÔ²»·ÅÐ¶Ï£ººÚ¶´¼ì²â´¥·¢ ---- */
 void Element_Judgment_Left_Rings(void)
 {
-    if (ImageStatus.Miss_Right_lines > 5
-        || ImageStatus.Miss_Left_lines < 6
-        || ImageStatus.OFFLine > 2
+    if (ImageStatus.Miss_Right_lines > 12
+        || ImageStatus.Miss_Left_lines < 4
+        || ImageStatus.OFFLine > 8
         || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
         return;
 
 
-    if (BlackHole_Check_Bottom(1U))
+    if (BlackHole_Check_Corner(1U) || BlackHole_Check_Bottom(1U))
     { ImageFlag.image_element_rings = 1; Ring_Set_State(RING_STATE_CONFIRM); }
 }
 
 /* ---- ÓÒÔ²»·ÅÐ¶Ï£ººÚ¶´¼ì²â´¥·¢ ---- */
 void Element_Judgment_Right_Rings(void)
 {
-    if (ImageStatus.Miss_Left_lines > 5
-        || ImageStatus.Miss_Right_lines < 6
-        || ImageStatus.OFFLine > 2
+    if (ImageStatus.Miss_Left_lines > 12
+        || ImageStatus.Miss_Right_lines < 4
+        || ImageStatus.OFFLine > 8
         || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
         return;
 
 
-    if (BlackHole_Check_Bottom(2U))
+    if (BlackHole_Check_Corner(2U) || BlackHole_Check_Bottom(2U))
     { ImageFlag.image_element_rings = 2; Ring_Set_State(RING_STATE_CONFIRM); }
 }
 /* Element_Handle_Left_Rings */

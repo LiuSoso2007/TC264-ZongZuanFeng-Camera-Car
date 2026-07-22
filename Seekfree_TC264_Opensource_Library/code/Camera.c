@@ -1058,7 +1058,10 @@ static void Ring_Rebuild_Fill(uint8 direction)
     int valley_row, valley_col;
     uint8 ring_state = (uint8)ImageFlag.image_element_rings_flag;
     int fill_offset = Ring_Get_Fill_Offset(ring_state);
-    int has_valley = BlackHole_Track_Valley(direction, &valley_row, &valley_col, (ring_state == RING_STATE_ENTRY) ? VALLEY_SCAN_START_ROW - 15 : VALLEY_SCAN_START_ROW), (ring_state == RING_STATE_ENTRY) ? VALLEY_MIN_ROW - 15 : VALLEY_MIN_ROW);
+    int scan_arg, min_arg;
+    if (ring_state == RING_STATE_ENTRY) { scan_arg = VALLEY_SCAN_START_ROW - 15; min_arg = VALLEY_MIN_ROW - 15; }
+    else                                          { scan_arg = VALLEY_SCAN_START_ROW;      min_arg = VALLEY_MIN_ROW;      }
+    int has_valley = BlackHole_Track_Valley(direction, &valley_row, &valley_col, scan_arg, min_arg);
     
     switch (ring_state)
     {

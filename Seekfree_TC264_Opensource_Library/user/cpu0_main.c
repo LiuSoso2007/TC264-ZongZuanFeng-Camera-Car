@@ -215,9 +215,13 @@ int core0_main(void)
                 ips200_show_uint(74U, 236U, (uint32)g_corner_black_max, 2U);
                 ips200_show_string(100U, 236U, "BW:");
                 ips200_show_uint(124U, 236U, (uint32)g_bottom_black_width, 2U);
-                ips200_show_string(150U, 236U, "MS:");
-                ips200_show_uint(174U, 236U, (uint32)g_ring_miss_cnt, 2U);
-                }
+                ips200_show_string(150U, 236U, "MS");
+                ips200_show_uint(168U, 236U, (uint32)g_ring_miss_cnt, 2U);
+                ips200_show_string(2U, 238U, "ML");
+                ips200_show_uint(20U, 238U, (uint32)ImageStatus.Miss_Left_lines, 2U);
+                ips200_show_string(50U, 238U, "MR");
+                ips200_show_uint(68U, 238U, (uint32)ImageStatus.Miss_Right_lines, 2U);
+                 }
 #endif
         }
     }

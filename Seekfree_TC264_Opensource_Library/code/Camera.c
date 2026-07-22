@@ -851,7 +851,7 @@ static uint8 BlackHole_Check_Above(int inflection_row, int inflection_col)
 }
 
 /* ---- ¹Èµ××·×Ù£º´Ó°×ºÚÌø±äµãÏòÓÒÏÂ/×óÏÂ×·×Ùµ½¹Èµ× ---- */
-static int BlackHole_Track_Valley(uint8 direction, int *valley_row, int *valley_col)
+static int BlackHole_Track_Valley(uint8 direction, int *valley_row, int *valley_col, int scan_start)
 {
     int row, col;
     int moved;
@@ -859,7 +859,7 @@ static int BlackHole_Track_Valley(uint8 direction, int *valley_row, int *valley_
     
     scan_col = (direction == 1U) ? VALLEY_SCAN_COL_LEFT : VALLEY_SCAN_COL_RIGHT;
     
-    for (row = VALLEY_SCAN_START_ROW; row > VALLEY_MIN_ROW; row--)
+    for (row = scan_start; row > VALLEY_MIN_ROW; row--)
     {
         if (Pixle[row][scan_col] == IMG_WHITE
             && Pixle[row - 1][scan_col] == IMG_BLACK)
@@ -954,7 +954,7 @@ static int Ring_Find_Valley_Point(uint8 direction, int *valley_col)
     int valley_row = -1;
     int vcol = -1;
     
-    if (BlackHole_Track_Valley(direction, &valley_row, &vcol) == 0)
+    if (BlackHole_Track_Valley(direction, &valley_row, &vcol, VALLEY_SCAN_START_ROW) == 0)
     {
         *valley_col = -1;
         return -1;
@@ -1058,7 +1058,7 @@ static void Ring_Rebuild_Fill(uint8 direction)
     int valley_row, valley_col;
     uint8 ring_state = (uint8)ImageFlag.image_element_rings_flag;
     int fill_offset = Ring_Get_Fill_Offset(ring_state);
-    int has_valley = BlackHole_Track_Valley(direction, &valley_row, &valley_col);
+    int has_valley = BlackHole_Track_Valley(direction, &valley_row, &valley_col, (ring_state == RING_STATE_ENTRY) ? VALLEY_SCAN_START_ROW - 15 : VALLEY_SCAN_START_ROW);
     
     switch (ring_state)
     {
@@ -1123,10 +1123,10 @@ static void Ring_Rebuild_Fill(uint8 direction)
         {
             if (direction == 1U) /* ?????? ? ???????? */
                 Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW, ImageDeal[SCAN_BASE_START_ROW].RightBorder,
-                                   valley_row, valley_col, 'R');
+                                   s_ring_entry_corner_row, s_ring_entry_corner_col, 'R');
             else                 /* ?????? ? ???????? */
                 Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW, ImageDeal[SCAN_BASE_START_ROW].LeftBorder,
-                                   valley_row, valley_col, 'L');
+                                   s_ring_entry_corner_row, s_ring_entry_corner_col, 'L');
         }
         else
         {

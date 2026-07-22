@@ -937,9 +937,9 @@ static uint8 Ring_Is_Candidate(uint8 direction)
     if ((!BlackHole_Check_Corner(direction) && !BlackHole_Check_Bottom(direction)))
         return 0U;
     if (direction == 1U)
-        return (uint8)(ImageStatus.Miss_Right_lines >= 5);
-    if (direction == 2U)
         return (uint8)(ImageStatus.Miss_Left_lines >= 5);
+    if (direction == 2U)
+        return (uint8)(ImageStatus.Miss_Right_lines >= 5);
     return 0U;
 }
 
@@ -1278,8 +1278,8 @@ static void Ring_State_Update(void)
 /* ---- ×óÔ²»·ÅÐ¶Ï£ººÚ¶´¼ì²â´¥·¢ ---- */
 void Element_Judgment_Left_Rings(void)
 {
-    if (ImageStatus.Miss_Left_lines > 15
-        || ImageStatus.Miss_Right_lines < 2
+    if (ImageStatus.Miss_Right_lines > 15
+        || ImageStatus.Miss_Left_lines < 2
         || ImageStatus.OFFLine > 15
         || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
         return;
@@ -1292,8 +1292,8 @@ void Element_Judgment_Left_Rings(void)
 /* ---- ÓÒÔ²»·ÅÐ¶Ï£ººÚ¶´¼ì²â´¥·¢ ---- */
 void Element_Judgment_Right_Rings(void)
 {
-    if (ImageStatus.Miss_Right_lines > 15
-        || ImageStatus.Miss_Left_lines < 2
+    if (ImageStatus.Miss_Left_lines > 15
+        || ImageStatus.Miss_Right_lines < 2
         || ImageStatus.OFFLine > 15
         || ImageFlag.image_element_rings || ImageFlag.Out_Road == 1)
         return;

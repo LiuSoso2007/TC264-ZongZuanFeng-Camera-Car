@@ -12,10 +12,10 @@ $Camera = [IO.File]::ReadAllText($CameraPath, $Gbk)
 # ponytail: ??????????????????????????????
 # ?????? + BlackHole_Check_Bottom ??????????????
 Assert-Contains $Camera `
-    'ImageStatus.Miss_Left_lines > 15' `
+    'ImageStatus.Miss_Right_lines > 15' `
     'Left ring detection lacks opposite-side loss guard'
 Assert-Contains $Camera `
-    'ImageStatus.Miss_Right_lines > 15' `
+    'ImageStatus.Miss_Left_lines > 15' `
     'Right ring detection lacks opposite-side loss guard'
 Assert-Contains $Camera `
     'for (row = SCAN_BASE_START_ROW; (row - 2) > ImageStatus.OFFLine; row -= 2)' `

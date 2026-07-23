@@ -164,8 +164,8 @@ int core1_main(void)
         pwm_left  = PI_Update(&s_PI_Left,  position_err, enc_left,  StraightSpeed);
         pwm_right = PI_Update(&s_PI_Right, position_err, enc_right, StraightSpeed);
 
-        Motor_SetLeftPWM(StraightSpeed-0.4*Err_abs);
-        Motor_SetRightPWM(StraightSpeed-0.4*Err_abs);
+        Motor_SetLeftPWM(StraightSpeed-0.2*Err_abs);
+        Motor_SetRightPWM(StraightSpeed-0.2*Err_abs);
 
         /* ---- Servo output (currently fixed mid, future PD control) ---- */
         PD_Update(PD_KP, PD_KD);

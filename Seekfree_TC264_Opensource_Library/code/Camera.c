@@ -1545,11 +1545,11 @@ static void Ring_Rebuild_Fill(uint8 direction)
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
         {
             if (direction == 1U)
-                ImageDeal[row].Center = ImageDeal[row].LeftBorder
-                                      + Half_Bend_Wide[row] * 2 / 3 + fill_offset;
-            else
                 ImageDeal[row].Center = ImageDeal[row].RightBorder
                                       - Half_Bend_Wide[row] * 2 / 3 - fill_offset;
+            else
+                ImageDeal[row].Center = ImageDeal[row].LeftBorder
+                                      + Half_Bend_Wide[row] * 2 / 3 + fill_offset;
             LimitL(ImageDeal[row].Center);
             LimitH(ImageDeal[row].Center);
         }
@@ -1799,7 +1799,7 @@ static uint8 Ring_OtherSide_Too_Much_Edge(uint8 direction)
     int edge_rows = 0;
     const int margin = 8;
 
-    for (row = 45; row >= 15; row--)
+    for (row = 42; row >= 15; row--)
     {
         if (direction == 1U)
         {
@@ -2293,8 +2293,7 @@ void Camera_ShowElementStatus(void)
 
 /* [???] */
     {
-        static const char *rst_name[] = {"IDLE","CNFM","APRC","ENTR","INSD","EXIT",
-        "EX1T", "EX2T","RECV"};
+        static const char *rst_name[] = {"IDLE","CNFM","APRC","ENTR","INSD","EX1T","EX2T","EXIT","RECV"};
         uint8 rst = (uint8)ImageFlag.image_element_rings_flag;
         if (ImageFlag.image_element_rings == 1 && rst < 9)
         {

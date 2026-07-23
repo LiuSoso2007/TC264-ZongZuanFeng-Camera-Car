@@ -1738,7 +1738,9 @@ static void Ring_State_Update(void)
     {
         int c1r, c1c, c2r, c2c;
         if (!Ring_Find_Exit1_Corners(direction, &c1r, &c1c, &c2r, &c2c)
-            || c1r > 50)
+            || c1r > 50
+            || (direction == 2U && c1r >= 0 && s_ring_exit1_corner1_col >= 0 && c1c > s_ring_exit1_corner1_col)
+            || (direction == 1U && c1r >= 0 && s_ring_exit1_corner1_col >= 0 && c1c < s_ring_exit1_corner1_col))
         {
             s_ring_exit1_corner2_row = c2r; s_ring_exit1_corner2_col = c2c;
             Ring_Set_State(RING_STATE_EXIT2);

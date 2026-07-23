@@ -121,3 +121,8 @@ void IPS200_ShowGrayImageFast(const uint8 *image, uint16 width, uint16 height)
 
     MODULE_P15.OMR.U = IPS200_CS_SET_MASK | IPS200_SCL_CLEAR_MASK;
 }
+
+
+void IPS200_Backlight_Off(void) {
+    gpio_set(P15_3, 0);
+}

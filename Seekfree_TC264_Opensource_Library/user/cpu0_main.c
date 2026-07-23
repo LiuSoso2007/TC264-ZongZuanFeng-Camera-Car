@@ -29,10 +29,10 @@ volatile uint8_t StopRequest = 0U;
 #endif
 /* 斑马线帧确认: 退出斑马线帧计数，确认后保持全局8帧后停止，以越过终点线。 */
 
-/* 斑马线停止延迟帧数: 检测到斑马线后延迟N帧后停车，
-   该模式通过检测终点(终点)来停车。50fps，1帧=20ms。 */
-#define ZEBRA_STOP_DELAY_FRAMES  15
-
+/* 斑马线停止延迟帧数: 检测到斑马线后延迟N帧后停车。
+   斑马线同时充当终点线，延迟需略长以确保车体完全过线后再刹停。
+   50fps，1帧=20ms，22帧 ≈ 440ms。 */
+#define ZEBRA_STOP_DELAY_FRAMES  22
 /* 斑马线检测到第3次确认后延迟帧数 */
 
 #pragma section all "cpu0_dsram"

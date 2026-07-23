@@ -1726,8 +1726,8 @@ void Element_Judgment_Zebra(void)
         return;
 
     /* 扫描窗口: 行44~57, 每行统计黑->白(0->1)跳变次数 */
- * [???]
- * [???]
+
+
     for (Ysite = 44; Ysite < 58 ; Ysite++)
     {
         trans_count = 0;

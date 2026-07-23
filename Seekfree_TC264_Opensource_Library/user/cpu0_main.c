@@ -18,12 +18,12 @@ volatile uint8_t StopRequest = 0U;
 /* 压缩图中行号越小前瞻越远，40比42中间稍近但更稳定。 */
 #define STEERING_LOOKAHEAD_ROW 40
 
-/* 调试默认关闭IPS200，调试时将1改为1，关闭后可移除全部屏幕操作。 */
-#define IPS200_DISPLAY_ENABLE 1
-#define IPS200_DISPLAY_ENABLE2 0
+/* 文字仪表盘开关(轻量)，1=开 0=关。关闭后屏幕全黑，但会失去DMA同步延迟。 */
+#define IPS200_TEXT_DISPLAY_ENABLE 1
+#define IPS200_DISPLAY_IMAGE_ENABLE 0
 
 
-#if IPS200_DISPLAY_ENABLE
+#if IPS200_TEXT_DISPLAY_ENABLE
 /* 摄像头50帧时每5帧刷新一次编码器数值，避免刷新拖慢主循环。 */
 #define ENCODER_DISPLAY_DIV 5U
 #endif
@@ -39,7 +39,7 @@ volatile uint8_t StopRequest = 0U;
 
 int core0_main(void)
 {
-#if IPS200_DISPLAY_ENABLE
+#if IPS200_TEXT_DISPLAY_ENABLE
     static uint8_t encoder_display_cnt = 0U;
 #endif
 
@@ -52,7 +52,7 @@ int core0_main(void)
     Camera_Init();
     Camera_CompressInit();           /* 图像压缩初始化 (调用一次即可) */
 
-#if IPS200_DISPLAY_ENABLE
+#if IPS200_TEXT_DISPLAY_ENABLE
     /*
      * IPS200初始化放在CPU0, 与摄像头不在同一核,
      * 避免双核同时操作SPI导致冲突.
@@ -62,7 +62,7 @@ int core0_main(void)
 
     cpu_wait_event_ready();
 
-#if IPS200_DISPLAY_ENABLE
+#if IPS200_TEXT_DISPLAY_ENABLE
     ips200_full(RGB565_BLACK);  /* 清屏为黑色 */
     ips200_set_color(RGB565_WHITE, RGB565_BLACK);
     ips200_show_string(2U, 128U, "L_Enc:");
@@ -127,7 +127,7 @@ int core0_main(void)
             {
                 Err = 0.0f;
             }
-#if IPS200_DISPLAY_ENABLE2
+#if IPS200_DISPLAY_IMAGE_ENABLE
             /* 每帧只写QSPI2到达，避免直接刷新防止闪烁，节约带宽以显示路径线 */
             /* 显示二值图和赛道中线(蓝)车左侧边界(红)右侧边界(绿)的二值图 */
             Camera_ShowBinaryImage();
@@ -175,7 +175,7 @@ int core0_main(void)
 
 
 
-#if IPS200_DISPLAY_ENABLE
+#if IPS200_TEXT_DISPLAY_ENABLE
             if (++encoder_display_cnt >= ENCODER_DISPLAY_DIV)
             {
                 encoder_display_cnt = 0U;

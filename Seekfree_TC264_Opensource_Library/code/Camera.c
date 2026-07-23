@@ -1555,24 +1555,24 @@ static void Ring_Rebuild_Fill(uint8 direction)
         }
         break;
     case RING_STATE_EXIT2:
-        /* ??????????2 */
+        /* 状态6：EXIT1离开视野后，从图像底部继续连接EXIT2。 */
         if (s_ring_exit1_corner2_row >= 0)
         {
             if (direction == 1U)
                 Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW, LCDW - 1,
-                                   s_ring_exit1_corner2_row, s_ring_exit1_corner2_col, 'L');
+                                   s_ring_exit1_corner2_row, s_ring_exit1_corner2_col, 'R');
             else
                 Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW, 0,
-                                   s_ring_exit1_corner2_row, s_ring_exit1_corner2_col, 'R');
+                                   s_ring_exit1_corner2_row, s_ring_exit1_corner2_col, 'L');
         }
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
         {
             if (direction == 1U)
-                ImageDeal[row].Center = ImageDeal[row].LeftBorder
-                                      + Half_Bend_Wide[row] * 2 / 3 + fill_offset;
-            else
                 ImageDeal[row].Center = ImageDeal[row].RightBorder
                                       - Half_Bend_Wide[row] * 2 / 3 - fill_offset;
+            else
+                ImageDeal[row].Center = ImageDeal[row].LeftBorder
+                                      + Half_Bend_Wide[row] * 2 / 3 + fill_offset;
             LimitL(ImageDeal[row].Center);
             LimitH(ImageDeal[row].Center);
         }
@@ -1742,7 +1742,12 @@ static void Ring_State_Update(void)
             || (direction == 2U && c1r >= 0 && s_ring_exit1_corner1_col >= 0 && c1c > s_ring_exit1_corner1_col)
             || (direction == 1U && c1r >= 0 && s_ring_exit1_corner1_col >= 0 && c1c < s_ring_exit1_corner1_col))
         {
-            s_ring_exit1_corner2_row = c2r; s_ring_exit1_corner2_col = c2c;
+            /* 本帧EXIT2丢失时保留最后有效点，供状态6持续补线。 */
+            if (c2r >= 0)
+            {
+                s_ring_exit1_corner2_row = c2r;
+                s_ring_exit1_corner2_col = c2c;
+            }
             Ring_Set_State(RING_STATE_EXIT2);
             break;
         }

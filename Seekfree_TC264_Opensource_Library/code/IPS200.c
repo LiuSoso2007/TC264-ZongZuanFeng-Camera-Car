@@ -81,7 +81,7 @@ static void IPS200_InitGrayTable(void)
 void IPS200_Init(void)
 {
     ips200_init(IPS200_TYPE_SPI);           /* 按当前接线初始化软件SPI */
-    //ips200_clear();                         /* 清屏 */
+    ips200_clear();                         /* 清屏 */
     ips200_set_dir(IPS200_PORTAIT);        /* 竖屏模式 */
     ips200_set_font(IPS200_8X16_FONT);     /* 8x16字体 */
     IPS200_InitGrayTable();                 /* 预计算灰度到RGB565映射 */

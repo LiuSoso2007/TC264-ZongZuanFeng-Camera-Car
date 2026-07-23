@@ -167,9 +167,9 @@ extern ImageStatustypedef ImageStatus;         // 图像状态全局变量
 #define RING_CONFIRM_MAX_FRAMES   30U   // 确认阶段超时帧数
 #define RING_APPROACH_MAX_FRAMES  24U   // 接近阶段超时帧数
 #define RING_ENTRY_MAX_FRAMES     30U   // 入环阶段超时帧数
-#define RING_INSIDE_MAX_FRAMES    40U  // 环中阶段超时帧数
-#define RING_EXIT_MAX_FRAMES      20U   // 出环阶段超时帧数
-#define RING_RECOVERY_MAX_FRAMES  10U   // 恢复阶段超时帧数
+#define RING_INSIDE_MAX_FRAMES    60U  // 环中阶段超时帧数
+#define RING_EXIT_MAX_FRAMES      30U   // 出环阶段超时帧数
+#define RING_RECOVERY_MAX_FRAMES  20U   // 恢复阶段超时帧数
 
 void  Get_Border_And_SideType(uint8* p, uint8 type, int L, int H, JumpPointtypedef* Q);
                                                // 获取边界跳变点位置和类型

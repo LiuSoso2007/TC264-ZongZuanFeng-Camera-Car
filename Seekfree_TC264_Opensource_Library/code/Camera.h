@@ -160,14 +160,16 @@ extern ImageStatustypedef ImageStatus;         // 图像状态全局变量
 
 /* ---- 圆环帧计数超时 ---- */
 /* 一旦某阶段帧数超过最大值, 强制跳转到下一阶段防止卡死 */
+#define RING_CONFIRM_FRAMES       3U    // 确认阶段最小帧数
 #define RING_EXIT_CONFIRM_FRAMES  2U    // 出环确认最小帧数
 #define RING_EXIT_STABLE_FRAMES   8U    // 出环稳定最小帧数
 #define RING_RECOVERY_FRAMES      12U   // 恢复阶段最小帧数
-#define RING_CONFIRM_MAX_FRAMES   120U   // 确认阶段超时帧数
-#define RING_ENTRY_MAX_FRAMES     120U   // 入环阶段超时帧数
-#define RING_INSIDE_MAX_FRAMES    60U  // 环中阶段超时帧数
-#define RING_EXIT_MAX_FRAMES      40U   // 出环阶段超时帧数
-#define RING_RECOVERY_MAX_FRAMES  20U   // 恢复阶段超时帧数
+#define RING_CONFIRM_MAX_FRAMES   30U   // 确认阶段超时帧数
+#define RING_APPROACH_MAX_FRAMES  24U   // 接近阶段超时帧数
+#define RING_ENTRY_MAX_FRAMES     30U   // 入环阶段超时帧数
+#define RING_INSIDE_MAX_FRAMES    40U  // 环中阶段超时帧数
+#define RING_EXIT_MAX_FRAMES      20U   // 出环阶段超时帧数
+#define RING_RECOVERY_MAX_FRAMES  10U   // 恢复阶段超时帧数
 
 void  Get_Border_And_SideType(uint8* p, uint8 type, int L, int H, JumpPointtypedef* Q);
                                                // 获取边界跳变点位置和类型

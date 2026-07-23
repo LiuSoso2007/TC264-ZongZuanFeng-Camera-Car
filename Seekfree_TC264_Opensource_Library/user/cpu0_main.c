@@ -21,7 +21,7 @@ volatile uint8_t StopRequest = 0U;
 /* 文字仪表盘开关(轻量)，1=开 0=关。关闭后屏幕全黑，但会失去DMA同步延迟。 */
 #define IPS200_TEXT_DISPLAY_ENABLE 0
 #define IPS200_DISPLAY_IMAGE_ENABLE 0
-#define IPS200_BACKLIGHT_ENABLE    1   /* ????: 1=???, 0=?????(??/????) */
+#define IPS200_BACKLIGHT_ENABLE    0   /* ????: 1=???, 0=?????(??/????) */
 
 
 #if IPS200_TEXT_DISPLAY_ENABLE

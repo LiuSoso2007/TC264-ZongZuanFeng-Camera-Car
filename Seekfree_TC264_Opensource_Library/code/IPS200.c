@@ -10,6 +10,7 @@
  ******************************************************************************/
 #include "IPS200.h"
 #include "IfxPort_reg.h"
+#include "IfxPort.h"
 
 #define IPS200_SCREEN_WIDTH      (240U)
 #define IPS200_SCREEN_HEIGHT     (320U)
@@ -124,5 +125,6 @@ void IPS200_ShowGrayImageFast(const uint8 *image, uint16 width, uint16 height)
 
 
 void IPS200_Backlight_Off(void) {
-    gpio_set(P15_3, 0);
+    IfxPort_setPinModeOutput(&MODULE_P15, 3, IfxPort_OutputMode_pushPull, IfxPort_OutputIdx_general);
+    IfxPort_setPinLow(&MODULE_P15, 3);
 }

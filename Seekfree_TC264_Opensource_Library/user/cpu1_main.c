@@ -29,7 +29,7 @@
 /* PID_Flag: set by isr.c cc61_pit_ch0_isr, cleared here */
 volatile uint8_t PID_Flag = 0;
 
-/* CPU1ï¿½É¼ï¿½ï¿½ï¿½CPU0Ö»ï¿½ï¿½ï¿½ï¿½Ê¾ï¿½ï¿½ï¿½ï¿½ï¿½Ú¿ï¿½Ë¿É¼ï¿½ï¿½ï¿½Ä¬ï¿½ï¿½ï¿½ï¿½ï¿½Ý¶Î¡ï¿½ */
+/* CPU1±¾µØ±äÁ¿, CPU0Ö»¶ÁÓÃÓÚÏÔÊ¾, ÎÞÐè»¥³âËø */
 volatile int16_t EncLeft  = 0;
 volatile int16_t EncRight = 0;
 
@@ -39,11 +39,11 @@ volatile int16_t EncRight = 0;
 static int8_t   StraightSpeed = 30;
 static int16_t  EncCount        = 0;
 
-/* ---- PIï¿½ï¿½ï¿½ï¿½ ---- */
+/* ---- PI²ÎÊý ---- */
 #define PI_KP          0.4f
 #define PI_KI          0.02f
 #define CURVE_SPEED    0
-/* ---- PDï¿½ï¿½ï¿½ï¿½ ---- */
+/* ---- PD²ÎÊý ---- */
 #define PD_KP          0.9f
 #define PD_KD          1.15f
 
@@ -125,7 +125,7 @@ int core1_main(void)
         if(Err>0)Err_abs=Err;
         if(Err<0)Err_abs=-Err;
 
-        /* CPU0Ê¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ßºï¿½ï¿½ï¿½ï¿½ï¿½Í£ï¿½ï¿½ï¿½ï¿½Ë«ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ã²¢ï¿½Ã¶ï¿½ï¿½ï¿½ï¿½ï¿½Ð£ï¿½ï¿½ï¿½Î»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¡ï¿½ */
+        /* CPU0Ê¶±ðµ½°ßÂíÏß²¢Ëø¶¨ºó, ÒÀ´ÎÖÃÁãPWMºÍPIÆ«ÖÃ, È»ºóÉèÖÃ¶æ»úÖÐÎ»Í£³µ¡£ */
         if (StopRequest != 0U)
         {
             pwm_left = 0;

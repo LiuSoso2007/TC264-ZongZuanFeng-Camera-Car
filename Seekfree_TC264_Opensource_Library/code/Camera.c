@@ -1366,6 +1366,83 @@ static int Ring_Get_Fill_Offset(uint8 ring_state)
     }
 }
 
+/* ===== INSIDE阶段新扫线：边线跳变检测 + 连续相同列过滤 ===== */
+/* 右环:从右边界向左扫找第一个黑像素  左环:从左边界向右扫找第一个黑像素 */
+/* 连续>=3行跳变列相同时,该区域及以下行排除,继续向上扫至列变化行方为有效 */
+static void Ring_Inside_Scan(uint8 direction, int fill_offset)
+{
+    int row, col, jump;
+    int prev_jump = -1, same_cnt = 0;
+    int stuck_top = -1;
+
+    for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
+    {
+        jump = -1;
+        if (direction == 2U)
+        {
+            if (ImageDeal[row].IsRightFind == 'T')
+            {
+                int s = ImageDeal[row].RightBorder;
+                if (s > 0)
+                    for (col = s; col > 0; col--)
+                        if (Pixle[row][col] == IMG_BLACK) { jump = col; break; }
+            }
+        }
+        else
+        {
+            if (ImageDeal[row].IsLeftFind == 'T')
+            {
+                int s = ImageDeal[row].LeftBorder;
+                if (s < LCDW - 1)
+                    for (col = s; col < LCDW - 1; col++)
+                        if (Pixle[row][col] == IMG_BLACK) { jump = col; break; }
+            }
+        }
+        if (jump >= 0 && jump == prev_jump) same_cnt++;
+        else { prev_jump = jump; same_cnt = (jump >= 0) ? 1 : 0; }
+        if (same_cnt >= 3 && stuck_top < 0) stuck_top = row + same_cnt - 1;
+    }
+
+    for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
+    {
+        int valid = (stuck_top < 0 || row < stuck_top) ? 1 : 0;
+        if (direction == 2U)
+        {
+            if (ImageDeal[row].IsRightFind != 'T') valid = 0;
+            if (valid)
+            {
+                jump = -1;
+                for (col = ImageDeal[row].RightBorder; col > 0; col--)
+                    if (Pixle[row][col] == IMG_BLACK) { jump = col; break; }
+                if (jump >= 0)
+                    ImageDeal[row].Center = (jump + ImageDeal[row].RightBorder) / 2;
+                else
+                    ImageDeal[row].Center = ImageSensorMid - Half_Bend_Wide[row] * 2 / 3 - fill_offset / 2;
+            }
+            else
+                ImageDeal[row].Center = ImageDeal[row].RightBorder - Half_Bend_Wide[row] * 2 / 3 - fill_offset / 2;
+        }
+        else
+        {
+            if (ImageDeal[row].IsLeftFind != 'T') valid = 0;
+            if (valid)
+            {
+                jump = -1;
+                for (col = ImageDeal[row].LeftBorder; col < LCDW - 1; col++)
+                    if (Pixle[row][col] == IMG_BLACK) { jump = col; break; }
+                if (jump >= 0)
+                    ImageDeal[row].Center = (jump + ImageDeal[row].LeftBorder) / 2;
+                else
+                    ImageDeal[row].Center = ImageSensorMid - Half_Bend_Wide[row] * 2 / 3 - fill_offset / 2;
+            }
+            else
+                ImageDeal[row].Center = ImageDeal[row].LeftBorder + Half_Bend_Wide[row] * 2 / 3 + fill_offset;
+        }
+        LimitL(ImageDeal[row].Center);
+        LimitH(ImageDeal[row].Center);
+    }
+}
+
 static void Ring_Rebuild_Fill(uint8 direction)
 {
     int row;
@@ -1460,18 +1537,8 @@ static void Ring_Rebuild_Fill(uint8 direction)
         }
         break;
     case RING_STATE_INSIDE:
-        for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
-        {
-            if (direction == 1U)
-                /* ???????????-offset?Center????????? */
-                ImageDeal[row].Center = ImageSensorMid
-                                      - Half_Bend_Wide[row] * 2 / 3 - fill_offset / 2;
-            else
-                ImageDeal[row].Center = ImageDeal[row].LeftBorder
-                                      + Half_Bend_Wide[row] * 2 / 3 + fill_offset;
-            LimitL(ImageDeal[row].Center);
-            LimitH(ImageDeal[row].Center);
-        }
+        /* 新扫线方式：边线跳变检测 + 连续相同列过滤去重 */
+        Ring_Inside_Scan(direction, fill_offset);
         break;
     case RING_STATE_EXIT:
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)

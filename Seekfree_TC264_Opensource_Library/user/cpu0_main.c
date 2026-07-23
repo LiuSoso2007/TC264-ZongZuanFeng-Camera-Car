@@ -63,8 +63,7 @@ int core0_main(void)
     cpu_wait_event_ready();
 
 #if IPS200_TEXT_DISPLAY_ENABLE
-    ips200_full(RGB565_BLACK);  /* ÇåÆÁÎªºÚÉ« */
-    ips200_set_color(RGB565_WHITE, RGB565_BLACK);
+    ips200_set_color(RGB565_BLACK, RGB565_WHITE); /* ºÚ×Ö°×µ× */
     ips200_show_string(2U, 128U, "L_Enc:");
     ips200_show_string(2U, 144U, "R_Enc:");
     ips200_show_string(2U, 170U, "Err:");

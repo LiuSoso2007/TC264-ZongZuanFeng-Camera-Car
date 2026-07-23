@@ -1369,157 +1369,6 @@ static int Ring_Get_Fill_Offset(uint8 ring_state)
 
 /* ---- ????????????????????????? ---- */
 /* ponytail: ??????????ImageDeal????????? */
-static void Ring_Inside_Scan(uint8 direction)
-{
-    int row, col;
-    int transition_cols[LCDH];       /* ?????????? */
-    int scan_start;                  /* ?????? */
-    int bottom_transition_col;       /* ?3???????? */
-    int cut_off_row;                 /* ??????>???????Err?? */
-    int fill_offset = FILL_INSIDE_OFFSET;
-    
-    /* ?????????Err?? */
-    cut_off_row = SCAN_BASE_START_ROW + 1;
-    
-    /* ??????????????????????? */
-    for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
-    {
-        transition_cols[row] = -1;
-        
-        if (direction == 2U)  /* ??????????? */
-        {
-            /* ???? = ??????????????????? */
-            scan_start = ImageDeal[row].RightBorder;
-            if (scan_start <= 1 || scan_start >= LCDW - 1)
-                scan_start = LCDW - 2;
-            
-            for (col = scan_start; col > 0; col--)
-            {
-                /* ??????: ??????????? */
-                if (Pixle[row][col] != Pixle[row][col - 1])
-                {
-                    transition_cols[row] = col;
-                    break;
-                }
-            }
-            if (transition_cols[row] < 0)
-                transition_cols[row] = 0;  /* ?????????0 */
-        }
-        else  /* ??????????? */
-        {
-            scan_start = ImageDeal[row].LeftBorder;
-            if (scan_start <= 1 || scan_start >= LCDW - 1)
-                scan_start = 2;
-            
-            for (col = scan_start; col < LCDW - 1; col++)
-            {
-                /* ??????: ??????????? */
-                if (Pixle[row][col] != Pixle[row][col + 1])
-                {
-                    transition_cols[row] = col;
-                    break;
-                }
-            }
-            if (transition_cols[row] < 0)
-                transition_cols[row] = LCDW - 1;  /* ??????????? */
-        }
-    }
-    
-    /* ?????????3?????????? */
-    /* ponytail: SCAN_BASE_START_ROW=59??????????????? */
-    {
-        int row0 = SCAN_BASE_START_ROW;       /* ??? 59 */
-        int row1 = SCAN_BASE_START_ROW - 1;   /* ??? 58 */
-        int row2 = SCAN_BASE_START_ROW - 2;   /* ??? 57 */
-        int bottom_same = 0;
-        
-        if (row2 > ImageStatus.OFFLine)
-        {
-            if (transition_cols[row0] >= 0
-                && transition_cols[row0] == transition_cols[row1]
-                && transition_cols[row1] == transition_cols[row2])
-            {
-                bottom_transition_col = transition_cols[row0];
-                bottom_same = 1;
-            }
-            
-            /* ??3???????????"???" */
-            if (bottom_same)
-            {
-                if (direction == 2U)  /* ??????????????? */
-                {
-                    int edge_ref = ImageDeal[row0].RightBorder;
-                    if (edge_ref <= 1 || edge_ref >= LCDW - 1)
-                        edge_ref = LCDW - 1;
-                    /* ???????3?????"????" */
-                    if (bottom_transition_col < edge_ref - 3)
-                        bottom_same = 0;  /* ????????? */
-                }
-                else  /* ??????????????? */
-                {
-                    int edge_ref = ImageDeal[row0].LeftBorder;
-                    if (edge_ref <= 1 || edge_ref >= LCDW - 1)
-                        edge_ref = 0;
-                    if (bottom_transition_col > edge_ref + 3)
-                        bottom_same = 0;
-                }
-            }
-            
-            if (bottom_same)
-            {
-                /* ?????3?????????????????????? */
-                int found_row = -1;
-                for (row = row2 - 1; row > ImageStatus.OFFLine; row--)
-                {
-                    if (transition_cols[row] >= 0
-                        && transition_cols[row] != bottom_transition_col)
-                    {
-                        found_row = row;
-                        break;
-                    }
-                }
-                
-                if (found_row >= 0)
-                {
-                    /* ?????found_row???: ??>found_row????Err?? */
-                    cut_off_row = found_row;
-                }
-            }
-        }
-    }
-    
-    /* ??????????????? */
-    for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
-    {
-        if (row > cut_off_row)
-        {
-            /* ????????????????Err???? */
-            /* ponytail: ??ImageSensorMid?????Err??????? */
-            ImageDeal[row].Center = ImageSensorMid;
-        }
-        else if (transition_cols[row] >= 0)
-        {
-            if (direction == 2U)  /* ????????????(????) */
-            {
-                ImageDeal[row].Center = transition_cols[row] - fill_offset;
-            }
-            else  /* ????????????(????) */
-            {
-                ImageDeal[row].Center = transition_cols[row] + fill_offset;
-            }
-        }
-        else
-        {
-            /* ???????????? */
-            ImageDeal[row].Center = ImageSensorMid;
-        }
-        
-        /* ????????????? */
-        LimitL(ImageDeal[row].Center);
-        LimitH(ImageDeal[row].Center);
-    }
-}
-
 static void Ring_Rebuild_Fill(uint8 direction)
 {
     int row;
@@ -1614,10 +1463,21 @@ static void Ring_Rebuild_Fill(uint8 direction)
         }
         break;
     case RING_STATE_INSIDE:
-        /* ???????????????????????? */
-        Ring_Inside_Scan(direction);
+        for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
+        {
+            if (direction == 1U)
+                /* 右圆环：ImageSensorMid-offset作Center当做补线 */
+                ImageDeal[row].Center = ImageSensorMid
+                                      - Half_Bend_Wide[row] * 2 / 3 - fill_offset / 2;
+            else
+                ImageDeal[row].Center = ImageDeal[row].LeftBorder
+                                      + Half_Bend_Wide[row] * 2 / 3 + fill_offset;
+            LimitL(ImageDeal[row].Center);
+            LimitH(ImageDeal[row].Center);
+        }
         break;
-    case RING_STATE_EXIT:
+    
+        case RING_STATE_EXIT:
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
         {
             if (direction == 1U)
@@ -1715,27 +1575,31 @@ static void Ring_State_Update(void)
 
     case RING_STATE_ENTRY:
         valley_row = -1;
-    /* 斑马线/圆环优先级最高, 已触发时不重复检测 */
         if (Ring_Find_Entry_Corner(direction, &valley_row, &valley_col))
         {
             s_ring_entry_corner_row = valley_row;
             s_ring_entry_corner_col = valley_col;
-    /* 坡道: 仅在直道+无环+无斑马线下检测 */
-            if (valley_row > 48
-             || (direction == 1U && valley_col >= LCDW - 15)
-             || (direction == 2U && valley_col <= 15))
+        }
+        /* 入环进行了3针后在找到了拐点的情况下检测进入INSIDE */
+        if (s_ring_state_frames >= 3U && s_ring_entry_corner_row >= 0)
+        {
+            /* 连续两针拐点行数相差大于20 */
+            if (valley_row >= 0 && s_ring_prev_valley_row >= 0
+                && (valley_row - s_ring_prev_valley_row > 20
+                    || s_ring_prev_valley_row - valley_row > 20))
+            {
+                Ring_Set_State(RING_STATE_INSIDE);
+                break;
+            }
+            /* 下一针突然找不到拐点 */
+            if (valley_row < 0 && s_ring_prev_valley_row >= 0)
             {
                 Ring_Set_State(RING_STATE_INSIDE);
                 break;
             }
         }
-        else
-        {
-    /* 长直道判定 */
-            Ring_Set_State(RING_STATE_INSIDE);
-            break;
-        }
-        /* 瓒呮椂淇濇姢 */
+        s_ring_prev_valley_row = valley_row;
+        /* 超时保护 */
         if (s_ring_state_frames >= RING_ENTRY_MAX_FRAMES)
             Ring_Set_State(RING_STATE_INSIDE);
         break;

@@ -130,7 +130,7 @@ int core0_main(void)
 #if IPS200_DISPLAY_ENABLE2
             /* 每帧只写QSPI2到达，避免直接刷新防止闪烁，节约带宽以显示路径线 */
             /* 显示二值图和赛道中线(蓝)车左侧边界(红)右侧边界(绿)的二值图 */
-            Camera_ShowBinaryFast();
+            Camera_ShowBinaryImage();
             /* 绘制赛道中线：蓝色线从底部向上逐行画 (xo+Center, row)，每帧自然刷新 */
             {
                 uint16 xo = (uint16)((MT9V03X_W - LCDW) / 2);

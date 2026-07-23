@@ -92,7 +92,7 @@ void  Camera_GetBinaryImage(void);               // 灰度图 -> 二值图 (自适应OTSU
 
 /* ---- IPS200屏幕显示 ---- */
 void  Camera_ShowDebug(void);                    // IPS200 显示原始图+压缩图+二值
-void  Camera_ShowBinaryFast(void);              // 快速显示二值图 (轻量版, SPI传输量小)
+void  Camera_ShowBinaryImage(void);              // 快速显示二值图 (轻量版, SPI传输量小)
 
 
 /* ---- 图像巡线 ---- */

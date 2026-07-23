@@ -121,7 +121,7 @@ void Camera_GetBinaryImage(void) {
             Pixle[i][j] = (*Image_Use[i][j] > thr) ? 1 : 0;
 }
 
-void Camera_ShowBinaryFast(void) {
+void Camera_ShowBinaryImage(void) {
     uint16 xo = (uint16)((MT9V03X_W - LCDW) / 2);
     ips200_show_gray_image(xo, 0, Pixle[0], LCDW, LCDH, LCDW, LCDH, 1);
 }

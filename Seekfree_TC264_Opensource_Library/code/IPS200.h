@@ -26,5 +26,4 @@ void IPS200_ShowGrayImageFast(const uint8 *image, uint16 width, uint16 height);
 
 
 
-void IPS200_Backlight_Off(void);
 #endif

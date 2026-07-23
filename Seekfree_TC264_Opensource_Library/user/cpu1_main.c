@@ -29,23 +29,23 @@
 /* PID_Flag: set by isr.c cc61_pit_ch0_isr, cleared here */
 volatile uint8_t PID_Flag = 0;
 
-/* CPU1²É¼¯¡¢CPU0Ö»¶ÁÏÔÊ¾£¬·ÅÔÚ¿çºË¿É¼ûµÄÄ¬ÈÏÊý¾Ý¶Î¡£ */
+/* CPU1ï¿½É¼ï¿½ï¿½ï¿½CPU0Ö»ï¿½ï¿½ï¿½ï¿½Ê¾ï¿½ï¿½ï¿½ï¿½ï¿½Ú¿ï¿½Ë¿É¼ï¿½ï¿½ï¿½Ä¬ï¿½ï¿½ï¿½ï¿½ï¿½Ý¶Î¡ï¿½ */
 volatile int16_t EncLeft  = 0;
 volatile int16_t EncRight = 0;
 
 #pragma section all "cpu1_dsram"   /* ---- CPU1 private variables ---- */
 
 /* ---- CPU1 local parameters (future: key / IMU control) ---- */
-static int8_t   StraightSpeed = 40;
+static int8_t   StraightSpeed = 30;
 static int16_t  EncCount        = 0;
 
-/* ---- PI²ÎÊý ---- */
+/* ---- PIï¿½ï¿½ï¿½ï¿½ ---- */
 #define PI_KP          0.4f
 #define PI_KI          0.02f
 #define CURVE_SPEED    0
-/* ---- PD²ÎÊý ---- */
+/* ---- PDï¿½ï¿½ï¿½ï¿½ ---- */
 #define PD_KP          0.9f
-#define PD_KD          1.1f
+#define PD_KD          1.15f
 
 static PI_t s_PI_Left, s_PI_Right;   /* Left/Right motor PI controllers */
 
@@ -125,7 +125,7 @@ int core1_main(void)
         if(Err>0)Err_abs=Err;
         if(Err<0)Err_abs=-Err;
 
-        /* CPU0Ê¶±ð°ßÂíÏßºóËø´æÍ£³µ£¬Ë«µç»úÇåÁã²¢ÈÃ¶æ»ú»ØÖÐ£¬¸´Î»ºó²ÅÖØÐÂÔËÐÐ¡£ */
+        /* CPU0Ê¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ßºï¿½ï¿½ï¿½ï¿½ï¿½Í£ï¿½ï¿½ï¿½ï¿½Ë«ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ã²¢ï¿½Ã¶ï¿½ï¿½ï¿½ï¿½ï¿½Ð£ï¿½ï¿½ï¿½Î»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¡ï¿½ */
         if (StopRequest != 0U)
         {
             pwm_left = 0;

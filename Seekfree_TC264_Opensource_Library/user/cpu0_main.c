@@ -1,8 +1,8 @@
 /**
- * cpu0_main.c  ---  CPU0: ÉãÏñÍ·Í¼Ïñ²É¼¯ + Í¼Ïñ´¦Àí + ¿ÉÑ¡IPS200ÏÔÊ¾
+ * cpu0_main.c  ---  CPU0: ï¿½ï¿½ï¿½ï¿½Í·Í¼ï¿½ï¿½É¼ï¿½ + Í¼ï¿½ï¿½ï¿½ï¿½ + ï¿½ï¿½Ñ¡IPS200ï¿½ï¿½Ê¾
  *
- * Ã¿Ö¡: ¶þÖµ»¯ + ÔªËØÊ¶±ð£»½öÔÚÏÔÊ¾¿ª¹ØÆôÓÃÊ±Ë¢ÐÂIPS200
- * IPS200ÏÔÊ¾ÓÉCPU0¶ÀÕ¼¹ÜÀí, CPU1²»²Ù×÷ÏÔÊ¾ÆÁ
+ * Ã¿Ö¡: ï¿½ï¿½Öµï¿½ï¿½ + Ôªï¿½ï¿½Ê¶ï¿½ð£»½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±Ë¢ï¿½ï¿½IPS200
+ * IPS200ï¿½ï¿½Ê¾ï¿½ï¿½CPU0ï¿½ï¿½Õ¼ï¿½ï¿½ï¿½ï¿½, CPU1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¾ï¿½ï¿½
  */
 
 #include "zf_common_headfile.h"
@@ -15,21 +15,25 @@
 volatile float    Err             = 0.0f;
 volatile uint8_t StopRequest = 0U;
 
-/* Ñ¹ËõÍ¼ÐÐºÅÔ½Ð¡Ç°Õ°Ô½Ô¶£»40¡«42ÐÐ¼æ¹ËÍäµÀÌáÇ°Á¿ºÍÔ¶³¡ÎÈ¶¨ÐÔ¡£ */
+/* Ñ¹ï¿½ï¿½Í¼ï¿½Ðºï¿½Ô½Ð¡Ç°Õ°Ô½Ô¶ï¿½ï¿½40ï¿½ï¿½42ï¿½Ð¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç°ï¿½ï¿½ï¿½ï¿½Ô¶ï¿½ï¿½ï¿½È¶ï¿½ï¿½Ô¡ï¿½ */
 #define STEERING_LOOKAHEAD_ROW 40
-/* ±ÈÈüÄ¬ÈÏ¹Ø±ÕIPS200£¬µ÷ÊÔÊ±¸ÄÎª1£»¹Ø±Õºó±àÒëÆ÷ÒÆ³ýÈ«²¿ÆÁÄ»µ÷ÓÃ¡£ */
+
+/* ï¿½ï¿½ï¿½ï¿½Ä¬ï¿½Ï¹Ø±ï¿½IPS200ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½Îª1ï¿½ï¿½ï¿½Ø±Õºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ³ï¿½È«ï¿½ï¿½ï¿½ï¿½Ä»ï¿½ï¿½ï¿½Ã¡ï¿½ */
 #define IPS200_DISPLAY_ENABLE 1
+#define IPS200_DISPLAY_ENABLE2 0
+
+
 #if IPS200_DISPLAY_ENABLE
-/* ÉãÏñÍ·50Ö¡Ê±Ã¿5Ö¡Ë¢ÐÂÒ»´Î±àÂëÆ÷ÊýÖµ£¬±ÜÃâÎÄ×ÖË¢ÐÂÍÏÂý»­Ãæ¡£ */
+/* ï¿½ï¿½ï¿½ï¿½Í·50Ö¡Ê±Ã¿5Ö¡Ë¢ï¿½ï¿½Ò»ï¿½Î±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Öµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ë¢ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½æ¡£ */
 #define ENCODER_DISPLAY_DIV 5U
 #endif
-/* Á¬ÐøÁ½Ö¡È·ÈÏ¿ÉÂË³ýµ¥Ö¡ÎóÅÐ£¬È·ÈÏºó±£³ÖÈ«ËÙ8Ö¡ÔÙÍ£³µÔ½¹ýÖÕµãÏß¡£ */
+/* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¡È·ï¿½Ï¿ï¿½ï¿½Ë³ï¿½ï¿½ï¿½Ö¡ï¿½ï¿½ï¿½Ð£ï¿½È·ï¿½Ïºó±£³ï¿½È«ï¿½ï¿½8Ö¡ï¿½ï¿½Í£ï¿½ï¿½Ô½ï¿½ï¿½ï¿½Õµï¿½ï¿½ß¡ï¿½ */
 
-/* °ßÂíÏßÍ£³µÑÓ³ÙÖ¡Êý£º¼ì²âµ½°ßÂíÏßºóÑÓ³ÙNÖ¡ÔÙÍ£³µ£¬
-   ÈÃ³µÄ£Í¨¹ý°ßÂíÏß(ÖÕµã)ºóÔÙÍ£ÏÂ¡£50fpsÏÂ1Ö¡=20ms¡£ */
+/* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í£ï¿½ï¿½ï¿½Ó³ï¿½Ö¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½âµ½ï¿½ï¿½ï¿½ï¿½ï¿½ßºï¿½ï¿½Ó³ï¿½NÖ¡ï¿½ï¿½Í£ï¿½ï¿½ï¿½ï¿½
+   ï¿½Ã³ï¿½Ä£Í¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(ï¿½Õµï¿½)ï¿½ï¿½ï¿½ï¿½Í£ï¿½Â¡ï¿½50fpsï¿½ï¿½1Ö¡=20msï¿½ï¿½ */
 #define ZEBRA_STOP_DELAY_FRAMES  15
 
-/* °ßÂíÏß¼ì²âµ½ºóÁ¢¼´Í£³µ£¬²»ÔÙÐèÒªÈ·ÈÏºÍÑÓ³ÙÖ¡ */
+/* ï¿½ï¿½ï¿½ï¿½ï¿½ß¼ï¿½âµ½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÒªÈ·ï¿½Ïºï¿½ï¿½Ó³ï¿½Ö¡ */
 
 #pragma section all "cpu0_dsram"
 
@@ -46,12 +50,12 @@ int core0_main(void)
     interrupt_global_enable(1);
 
     Camera_Init();
-    Camera_CompressInit();           /* Í¼ÏñÑ¹Ëõ³õÊ¼»¯ (½öµ÷ÓÃÒ»´Î) */
+    Camera_CompressInit();           /* Í¼ï¿½ï¿½Ñ¹ï¿½ï¿½ï¿½ï¿½Ê¼ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½) */
 
 #if IPS200_DISPLAY_ENABLE
     /*
-     * IPS200³õÊ¼»¯·ÅÔÚCPU0, ºÍÉãÏñÍ·¹²ÏíÍ¬Ò»ºË,
-     * ±ÜÃâË«ºËÍ¬Ê±²Ù×÷SPIµ¼ÖÂ³åÍ».
+     * IPS200ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½CPU0, ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í·ï¿½ï¿½ï¿½ï¿½Í¬Ò»ï¿½ï¿½,
+     * ï¿½ï¿½ï¿½ï¿½Ë«ï¿½ï¿½Í¬Ê±ï¿½ï¿½ï¿½ï¿½SPIï¿½ï¿½ï¿½Â³ï¿½Í».
      */
     IPS200_Init();
 #endif
@@ -59,7 +63,7 @@ int core0_main(void)
     cpu_wait_event_ready();
 
 #if IPS200_DISPLAY_ENABLE
-    ips200_full(RGB565_BLACK);  /* ÇåÆÁÎªºÚÉ« */
+    ips200_full(RGB565_BLACK);  /* ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½É« */
     ips200_set_color(RGB565_WHITE, RGB565_BLACK);
     ips200_show_string(2U, 128U, "L_Enc:");
     ips200_show_string(2U, 144U, "R_Enc:");
@@ -75,23 +79,23 @@ int core0_main(void)
         {
             Camera_GetBinaryImage();
 
-            /* ---- Í¼Ïñ´¦ÀíÁ÷Ë®Ïß: ¶þÖµ»¯ -> ÔªËØÊ¶±ð ---- */
+            /* ---- Í¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ë®ï¿½ï¿½: ï¿½ï¿½Öµï¿½ï¿½ -> Ôªï¿½ï¿½Ê¶ï¿½ï¿½ ---- */
             Flag_init();
             Get_BaseLine();
             Get_AllLine();
             Scan_Element();
             Element_Handle();
 
-            /* °ßÂíÏß¼ì²âºóÑÓ³ÙÍ£³µ£º´¥·¢ºóµ¹ÊýNÖ¡£¬ÈÃ³µÍêÕûÍ¨¹ý°ßÂíÏßÖÕµã */
+            /* ï¿½ï¿½ï¿½ï¿½ï¿½ß¼ï¿½ï¿½ï¿½ï¿½Ó³ï¿½Í£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½NÖ¡ï¿½ï¿½ï¿½Ã³ï¿½ï¿½ï¿½ï¿½ï¿½Í¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Õµï¿½ */
             {
-                static uint8_t zebra_triggered = 0;  /* ÊÇ·ñÒÑ´¥·¢°ßÂíÏß */
-                static uint8_t zebra_delay_cnt = 0;  /* ´¥·¢ºóÀÛ¼ÆÖ¡Êý */
+                static uint8_t zebra_triggered = 0;  /* ï¿½Ç·ï¿½ï¿½Ñ´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
+                static uint8_t zebra_delay_cnt = 0;  /* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Û¼ï¿½Ö¡ï¿½ï¿½ */
 
                 if (ImageFlag.Zebra_Flag != 0 && zebra_triggered == 0
                  && StopRequest == 0U)
                 {
-                    zebra_triggered = 1;     /* Ëø´æ´¥·¢×´Ì¬ */
-                    zebra_delay_cnt = 0;     /* ¿ªÊ¼µ¹Êý */
+                    zebra_triggered = 1;     /* ï¿½ï¿½ï¿½æ´¥ï¿½ï¿½×´Ì¬ */
+                    zebra_delay_cnt = 0;     /* ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ */
                 }
 
                 if (zebra_triggered == 1)
@@ -105,8 +109,8 @@ int core0_main(void)
                 }
             }
 
-            /* ---- ¼ÆËã Err (Í¼ÏñÆ«²î) ¹© CPU1 Ê¹ÓÃ ---- */
-            /* Ç°Õ°3ÐÐÆ½¾ù£¬Err±£³ÖÏñËØµ¥Î»£¬ÓëCPU1µÄPD²ÎÊýÒ»ÖÂ¡£ */
+            /* ---- ï¿½ï¿½ï¿½ï¿½ Err (Í¼ï¿½ï¿½Æ«ï¿½ï¿½) ï¿½ï¿½ CPU1 Ê¹ï¿½ï¿½ ---- */
+            /* Ç°Õ°3ï¿½ï¿½Æ½ï¿½ï¿½ï¿½ï¿½Errï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Øµï¿½Î»ï¿½ï¿½ï¿½ï¿½CPU1ï¿½ï¿½PDï¿½ï¿½ï¿½ï¿½Ò»ï¿½Â¡ï¿½ */
             if (ImageStatus.OFFLine < STEERING_LOOKAHEAD_ROW)
             {
                 Err = (float)((ImageDeal[STEERING_LOOKAHEAD_ROW].Center
@@ -123,11 +127,11 @@ int core0_main(void)
             {
                 Err = 0.0f;
             }
-#if IPS200_DISPLAY_ENABLE
-            /* Ã¿Ö¡Ö»×ßQSPI2¼Ä´æÆ÷Á¬ÐøÖ±Ë¢£¬½ûÖ¹»Øµ½Öð×Ö½ÚµÈ´ýµÄµ÷ÊÔÏÔÊ¾Â·¾¶¡£ */
-            /* ÏÔÊ¾¶þÖµ»¯Í¼Ïñ£¬ÈüµÀÖÐÏß(À¶)Óë³µÉíÖÐÏß(ºì)µþ¼ÓÔÚ¶þÖµÍ¼ÉÏ */
+#if IPS200_DISPLAY_ENABLE2
+            /* Ã¿Ö¡Ö»ï¿½ï¿½QSPI2ï¿½Ä´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö±Ë¢ï¿½ï¿½ï¿½ï¿½Ö¹ï¿½Øµï¿½ï¿½ï¿½ï¿½Ö½ÚµÈ´ï¿½ï¿½Äµï¿½ï¿½ï¿½ï¿½ï¿½Ê¾Â·ï¿½ï¿½ï¿½ï¿½ */
+            /* ï¿½ï¿½Ê¾ï¿½ï¿½Öµï¿½ï¿½Í¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(ï¿½ï¿½)ï¿½ë³µï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(ï¿½ï¿½)ï¿½ï¿½ï¿½ï¿½ï¿½Ú¶ï¿½ÖµÍ¼ï¿½ï¿½ */
             Camera_ShowBinaryFast();
-            /* ÈüµÀÖÐÏß£ºÀ¶É«ÕÛÏß£¬×ø±êÓë¶þÖµÍ¼¶ÔÆë(xo+Center, row)£¬Ã¿Ö¡×ÔÈ»¸²¸Ç */
+            /* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ß£ï¿½ï¿½ï¿½É«ï¿½ï¿½ï¿½ß£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÖµÍ¼ï¿½ï¿½ï¿½ï¿½(xo+Center, row)ï¿½ï¿½Ã¿Ö¡ï¿½ï¿½È»ï¿½ï¿½ï¿½ï¿½ */
             {
                 uint16 xo = (uint16)((MT9V03X_W - LCDW) / 2);
                 int row;
@@ -165,15 +169,20 @@ int core0_main(void)
                     }
                 }
             }
-            /* ³µÉíÖÐÏß£ººìÉ«ÊúÏß¹Ì¶¨ÔÚÍ¼ÏñË®Æ½ÖÐÐÄ */
+            /* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ß£ï¿½ï¿½ï¿½É«ï¿½ï¿½ï¿½ß¹Ì¶ï¿½ï¿½ï¿½Í¼ï¿½ï¿½Ë®Æ½ï¿½ï¿½ï¿½ï¿½ */
             ips200_draw_line(94, 0, 94, 59, RGB565_RED);
+#endif
+
+
+
+#if IPS200_DISPLAY_ENABLE
             if (++encoder_display_cnt >= ENCODER_DISPLAY_DIV)
             {
                 encoder_display_cnt = 0U;
                 ips200_show_int(58U, 128U, (int32)EncLeft, 5U);
                 ips200_show_int(58U, 144U, (int32)EncRight, 5U);
                 ips200_show_int(58U, 170U, (int32)Err, 5U);
-                /* Ô²»··½ÏòºÍ½×¶Î±êÖ¾Î»ÏÔÊ¾£¬±ãÓÚµ÷ÊÔ×´Ì¬»úÇÐ»» */
+                /* Ô²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í½×¶Î±ï¿½Ö¾Î»ï¿½ï¿½Ê¾ï¿½ï¿½ï¿½ï¿½ï¿½Úµï¿½ï¿½ï¿½×´Ì¬ï¿½ï¿½ï¿½Ð»ï¿½ */
                 {
                     static const char *ring_st_name[] = {"IDLE","CNFM","APRC","ENTR","INSD","EXIT","RECV"};
                     uint8 ring_st = (uint8)ImageFlag.image_element_rings_flag;
@@ -217,10 +226,21 @@ int core0_main(void)
                 ips200_show_uint(124U, 236U, (uint32)g_bottom_black_width, 2U);
                 ips200_show_string(150U, 236U, "MS");
                 ips200_show_uint(168U, 236U, (uint32)g_ring_miss_cnt, 2U);
-                ips200_show_string(2U, 238U, "ML");
-                ips200_show_uint(20U, 238U, (uint32)ImageStatus.Miss_Left_lines, 2U);
-                ips200_show_string(50U, 238U, "MR");
-                ips200_show_uint(68U, 238U, (uint32)ImageStatus.Miss_Right_lines, 2U);
+                ips200_show_string(2U, 250U, "ML");
+                ips200_show_uint(20U, 250U, (uint32)ImageStatus.Miss_Left_lines, 2U);
+                ips200_show_string(50U, 250U, "MR");
+                ips200_show_uint(68U, 250U, (uint32)ImageStatus.Miss_Right_lines, 2U);
+                ips200_show_string(100U, 250U, "LJ:");
+                ips200_show_uint(124U, 250U, (uint32)g_left_jump_count, 2U);
+                ips200_show_string(150U, 250U, "RJ:");
+                ips200_show_uint(174U, 250U, (uint32)g_right_jump_count, 2U);
+                ips200_show_string(2U, 264U, "SQ:");
+                ips200_show_uint(24U, 264U, (uint32)g_edge_squeezed_dbg, 1U);
+                ips200_show_string(50U, 264U, "VR:");
+                ips200_show_int(74U, 264U, (int32)g_approach_valley_row, 3U);
+                ips200_show_string(100U, 264U, "PH:");
+                ips200_show_uint(122U, 264U, (uint32)g_ring_phase_dbg, 1U);
+
                  }
 #endif
         }

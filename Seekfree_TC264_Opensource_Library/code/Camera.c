@@ -764,6 +764,7 @@ static void Ring_Clear_State(void)
     s_ring_entry_corner_col = -1;
     s_ring_edge_squeezed = 0U;
     s_ring_edge_released = 0U;
+    s_ring_exit_cooldown = 50U;  /* ???50?(1?)??????? */
 }
 
 
@@ -1383,8 +1384,8 @@ static void Ring_Rebuild_Fill(uint8 direction)
         {
             if (direction == 1U)
                 /* ???????????-offset?Center????????? */
-                ImageDeal[row].Center = ImageDeal[row].LeftBorder
-                                      + Half_Bend_Wide[row] * 2 / 3 - fill_offset;
+                ImageDeal[row].Center = ImageSensorMid
+                                      - Half_Bend_Wide[row] * 2 / 3 - fill_offset / 2;
             else
                 ImageDeal[row].Center = ImageDeal[row].LeftBorder
                                       + Half_Bend_Wide[row] * 2 / 3 + fill_offset;
@@ -1419,8 +1420,8 @@ static void Ring_Rebuild_Fill(uint8 direction)
             {
                 if (direction == 1U)
                     /* ???????????????????? */
-                    ImageDeal[row].Center = ImageDeal[row].LeftBorder
-                                          + Half_Bend_Wide[row] * 2 / 3 - fill_offset;
+                    ImageDeal[row].Center = ImageSensorMid
+                                          - Half_Bend_Wide[row] * 2 / 3 - fill_offset / 2;
                 else
                     ImageDeal[row].Center = ImageDeal[row].LeftBorder
                                           + Half_Bend_Wide[row] * 2 / 3 + fill_offset;
@@ -1447,8 +1448,8 @@ static void Ring_Rebuild_Fill(uint8 direction)
             {
                 if (direction == 1U)
                     /* ?????????????????? */
-                    ImageDeal[row].Center = ImageDeal[row].LeftBorder
-                                          + Half_Bend_Wide[row] * 2 / 3 - fill_offset;
+                    ImageDeal[row].Center = ImageSensorMid
+                                          - Half_Bend_Wide[row] * 2 / 3 - fill_offset / 2;
                 else
                     ImageDeal[row].Center = ImageDeal[row].LeftBorder
                                           + Half_Bend_Wide[row] * 2 / 3 + fill_offset;
@@ -1462,8 +1463,8 @@ static void Ring_Rebuild_Fill(uint8 direction)
         {
             if (direction == 1U)
                 /* ???????????-offset?Center????????? */
-                ImageDeal[row].Center = ImageDeal[row].LeftBorder
-                                      + Half_Bend_Wide[row] * 2 / 3 - fill_offset;
+                ImageDeal[row].Center = ImageSensorMid
+                                      - Half_Bend_Wide[row] * 2 / 3 - fill_offset / 2;
             else
                 ImageDeal[row].Center = ImageDeal[row].LeftBorder
                                       + Half_Bend_Wide[row] * 2 / 3 + fill_offset;
@@ -1529,6 +1530,8 @@ static void Ring_State_Update(void)
         Ring_Clear_State();
         return;
     }
+    if (s_ring_exit_cooldown > 0U)
+        s_ring_exit_cooldown--;
     if (s_ring_state_frames < 65535U)
         s_ring_state_frames++;
 
@@ -1673,7 +1676,8 @@ void Element_Judgment_Left_Rings(void)
 
     if (g_left_jump_count >= 5
         && g_right_jump_count <= RING_JUMP_OTHER_MAX
-        && !Ring_OtherSide_Too_Much_Edge(1U))
+        && !Ring_OtherSide_Too_Much_Edge(1U)
+        && s_ring_exit_cooldown == 0U)
     {
         g_ring_miss_cnt = ImageStatus.Miss_Left_lines;
         ImageFlag.image_element_rings = 1;
@@ -1691,7 +1695,8 @@ void Element_Judgment_Right_Rings(void)
 
     if (g_right_jump_count >= 5
         && g_left_jump_count <= RING_JUMP_OTHER_MAX
-        && !Ring_OtherSide_Too_Much_Edge(2U))
+        && !Ring_OtherSide_Too_Much_Edge(2U)
+        && s_ring_exit_cooldown == 0U)
     {
         g_ring_miss_cnt = ImageStatus.Miss_Right_lines;
         ImageFlag.image_element_rings = 2;

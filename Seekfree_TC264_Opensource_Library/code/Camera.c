@@ -1383,7 +1383,7 @@ static void Ring_Rebuild_Fill(uint8 direction)
         {
             if (direction == 1U)
                 ImageDeal[row].Center = ImageDeal[row].RightBorder
-                                      - Half_Bend_Wide[row] * 2 / 3 - fill_offset;
+                                      - Half_Bend_Wide[row] * 2 / 3 + fill_offset;
             else
                 ImageDeal[row].Center = ImageDeal[row].LeftBorder
                                       + Half_Bend_Wide[row] * 2 / 3 + fill_offset;
@@ -1418,7 +1418,7 @@ static void Ring_Rebuild_Fill(uint8 direction)
             {
                 if (direction == 1U)
                     ImageDeal[row].Center = ImageDeal[row].RightBorder
-                                          - Half_Bend_Wide[row] * 2 / 3 - fill_offset;
+                                          - Half_Bend_Wide[row] * 2 / 3 + fill_offset;
                 else
                     ImageDeal[row].Center = ImageDeal[row].LeftBorder
                                           + Half_Bend_Wide[row] * 2 / 3 + fill_offset;
@@ -1445,7 +1445,7 @@ static void Ring_Rebuild_Fill(uint8 direction)
             {
                 if (direction == 1U)
                     ImageDeal[row].Center = ImageDeal[row].RightBorder
-                                          - Half_Bend_Wide[row] * 2 / 3 - fill_offset;
+                                          - Half_Bend_Wide[row] * 2 / 3 + fill_offset;
                 else
                     ImageDeal[row].Center = ImageDeal[row].LeftBorder
                                           + Half_Bend_Wide[row] * 2 / 3 + fill_offset;
@@ -1459,7 +1459,7 @@ static void Ring_Rebuild_Fill(uint8 direction)
         {
             if (direction == 1U)
                 ImageDeal[row].Center = ImageDeal[row].RightBorder
-                                      - Half_Bend_Wide[row] * 2 / 3 - fill_offset;
+                                      - Half_Bend_Wide[row] * 2 / 3 + fill_offset;
             else
                 ImageDeal[row].Center = ImageDeal[row].LeftBorder
                                       + Half_Bend_Wide[row] * 2 / 3 + fill_offset;
@@ -1474,10 +1474,10 @@ static void Ring_Rebuild_Fill(uint8 direction)
             {
                 if (has_valley && row <= valley_row)
                     ImageDeal[row].Center = ImageDeal[row].RightBorder
-                                          - Half_Bend_Wide[row] * 2 / 3 - fill_offset;
+                                          - Half_Bend_Wide[row] * 2 / 3 + fill_offset;
                 else
                     ImageDeal[row].Center = ImageDeal[row].RightBorder
-                                          - Half_Bend_Wide[row] * 2 / 3 - FILL_INSIDE_OFFSET;
+                                          - Half_Bend_Wide[row] * 2 / 3 + FILL_INSIDE_OFFSET;
             }
             else
             {

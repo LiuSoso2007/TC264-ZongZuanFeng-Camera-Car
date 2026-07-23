@@ -1374,10 +1374,10 @@ static uint8 Ring_Find_Exit1_Corners(uint8 direction,
     int increasing_seen;
     *corner1_row = -1; *corner1_col = -1;
     *corner2_row = -1; *corner2_col = -1;
-    /* ??1: 20~50????????? */
+    /* ??1: 35~55????????? */
     prev_col = -1;
     increasing_seen = 0;
-    for (row = 50; row >= 20; row--)
+    for (row = 55; row >= 35; row--)
     {
         if (direction == 2U) col = ImageDeal[row].LeftBorder;
         else                 col = ImageDeal[row].RightBorder;
@@ -1537,10 +1537,10 @@ static void Ring_Rebuild_Fill(uint8 direction)
         {
             if (direction == 1U)
                 Ring_DrawAndUpdate(direction, s_ring_exit1_corner1_row, s_ring_exit1_corner1_col,
-                                   s_ring_exit1_corner2_row, s_ring_exit1_corner2_col, 'L');
+                                   s_ring_exit1_corner2_row, s_ring_exit1_corner2_col, 'R');
             else
                 Ring_DrawAndUpdate(direction, s_ring_exit1_corner1_row, s_ring_exit1_corner1_col,
-                                   s_ring_exit1_corner2_row, s_ring_exit1_corner2_col, 'R');
+                                   s_ring_exit1_corner2_row, s_ring_exit1_corner2_col, 'L');
         }
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
         {

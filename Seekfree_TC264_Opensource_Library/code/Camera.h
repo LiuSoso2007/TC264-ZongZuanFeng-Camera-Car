@@ -141,7 +141,9 @@ extern ImageStatustypedef ImageStatus;         // 图像状态全局变量
 #define VALLEY_MIN_ROW             28   // 谷底扫描最小行
 #define EXIT_LOST_MIN               8   // 出环时最小丢线数
 #define FILL_ENTRY_OFFSET          10   // 入环补线偏移
-#define FILL_INSIDE_OFFSET         14   // 环中补线偏移
+#define FILL_INSIDE_OFFSET         14
+#define FILL_EXIT1_OFFSET          8
+#define FILL_EXIT2_OFFSET          6   // 环中补线偏移
 #define FILL_EXIT_OFFSET            8   // 出环补线偏移
 #define FILL_RECOVERY_OFFSET        0   // 恢复补线偏移
 
@@ -155,8 +157,10 @@ extern ImageStatustypedef ImageStatus;         // 图像状态全局变量
 #define RING_STATE_APPROACH   2    // 接近: 向环入口靠近
 #define RING_STATE_ENTRY      3    // 入环: 进入环形赛道
 #define RING_STATE_INSIDE     4    // 环中: 在环形赛道内部
-#define RING_STATE_EXIT       5    // 出环: 离开环形赛道
-#define RING_STATE_RECOVERY   6    // 恢复: 恢复直道巡线
+#define RING_STATE_EXIT1      5    /* ????1 */
+#define RING_STATE_EXIT2      6    /* ????2 */
+#define RING_STATE_EXIT       7    // 出环: 离开环形赛道
+#define RING_STATE_RECOVERY   8    // 恢复: 恢复直道巡线
 
 /* ---- 圆环帧计数超时 ---- */
 /* 一旦某阶段帧数超过最大值, 强制跳转到下一阶段防止卡死 */
@@ -167,7 +171,9 @@ extern ImageStatustypedef ImageStatus;         // 图像状态全局变量
 #define RING_CONFIRM_MAX_FRAMES   30U   // 确认阶段超时帧数
 #define RING_APPROACH_MAX_FRAMES  24U   // 接近阶段超时帧数
 #define RING_ENTRY_MAX_FRAMES     30U   // 入环阶段超时帧数
-#define RING_INSIDE_MAX_FRAMES    60U  // 环中阶段超时帧数
+#define RING_INSIDE_MAX_FRAMES    6000U
+#define RING_EXIT1_MAX_FRAMES     25U
+#define RING_EXIT2_MAX_FRAMES     30U  // 环中阶段超时帧数
 #define RING_EXIT_MAX_FRAMES      30U   // 出环阶段超时帧数
 #define RING_RECOVERY_MAX_FRAMES  20U   // 恢复阶段超时帧数
 

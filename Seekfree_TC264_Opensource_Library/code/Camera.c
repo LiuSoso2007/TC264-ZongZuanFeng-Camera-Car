@@ -11,6 +11,10 @@ static int s_ring_entry_corner_col = -1;     /* ????????? */
 static uint8 s_ring_edge_squeezed = 0U;      /* row50 edge squeezed */
 static uint8 s_ring_edge_released = 0U;      /* row50 edge released */
 static int s_ring_prev_valley_row = -1;
+static int s_ring_exit1_corner1_row = -1;  /* ????1 */
+static int s_ring_exit1_corner1_col = -1;
+static int s_ring_exit1_corner2_row = -1;  /* ????2 */
+static int s_ring_exit1_corner2_col = -1;
 static uint16 s_ring_exit_cooldown = 0U;     /* ring re-entry cooldown frames */     /* 上一帧谷底行号, APPROACH阶段用 */
 volatile int g_corner_black_max = 0;   /* ??????: ???????? */
 volatile int g_bottom_black_width = 0; /* ??????: W-B???? */
@@ -742,6 +746,10 @@ static void Ring_Set_State(uint8 state)
     {
         s_ring_confirm_count = 0U;
         s_ring_exit_loss_seen = 0U;
+        s_ring_exit1_corner1_row = -1;
+        s_ring_exit1_corner1_col = -1;
+        s_ring_exit1_corner2_row = -1;
+        s_ring_exit1_corner2_col = -1;
         s_ring_entry_corner_row = -1;
         s_ring_entry_corner_col = -1;
     }
@@ -761,6 +769,10 @@ static void Ring_Clear_State(void)
     s_ring_feature_count = 0U;
     s_ring_stable_count = 0U;
     s_ring_exit_loss_seen = 0U;
+    s_ring_exit1_corner1_row = -1;
+    s_ring_exit1_corner1_col = -1;
+    s_ring_exit1_corner2_row = -1;
+    s_ring_exit1_corner2_col = -1;
     s_ring_entry_corner_row = -1;
     s_ring_entry_corner_col = -1;
     s_ring_edge_squeezed = 0U;
@@ -1352,6 +1364,61 @@ static void Ring_DrawAndUpdate(uint8 direction, int s_row, int s_col,
 }
 
 /* [???] */
+/* ---- ?????? ---- */
+static uint8 Ring_Find_Exit1_Corners(uint8 direction,
+    int *corner1_row, int *corner1_col,
+    int *corner2_row, int *corner2_col)
+{
+    int row, col;
+    int prev_col;
+    int increasing_seen;
+    *corner1_row = -1; *corner1_col = -1;
+    *corner2_row = -1; *corner2_col = -1;
+    /* ??1: 20~50????????? */
+    prev_col = -1;
+    increasing_seen = 0;
+    for (row = 50; row >= 20; row--)
+    {
+        if (direction == 2U) col = ImageDeal[row].LeftBorder;
+        else                 col = ImageDeal[row].RightBorder;
+        if (col < 1 || col >= LCDW - 1) continue;
+        if (prev_col >= 0)
+        {
+            if (direction == 2U)
+            {
+                if (col > prev_col + 1) increasing_seen = 1;
+                if (increasing_seen && col < prev_col - 1)
+                { *corner1_row = row; *corner1_col = col; break; }
+            }
+            else
+            {
+                if (col < prev_col - 1) increasing_seen = 1;
+                if (increasing_seen && col > prev_col + 1)
+                { *corner1_row = row; *corner1_col = col; break; }
+            }
+        }
+        prev_col = col;
+    }
+    /* ??2: 1~45????????????? */
+    for (row = 45; row >= 1; row--)
+    {
+        if (direction == 2U)
+        {
+            for (col = LCDW - 1; col > LCDW - 8; col--)
+            { if (Pixle[row][col] == IMG_BLACK) { *corner2_row = row; *corner2_col = col; break; } }
+        }
+        else
+        {
+            for (col = 0; col < 8; col++)
+            { if (Pixle[row][col] == IMG_BLACK) { *corner2_row = row; *corner2_col = col; break; } }
+        }
+        if (*corner2_row >= 0) break;
+    }
+    if (*corner1_row >= 0 && *corner2_row >= 0) return 1U;
+    return 0U;
+}
+
+
 static int Ring_Get_Fill_Offset(uint8 ring_state)
 {
     switch (ring_state)
@@ -1360,6 +1427,8 @@ static int Ring_Get_Fill_Offset(uint8 ring_state)
     case RING_STATE_APPROACH: return FILL_ENTRY_OFFSET;
     case RING_STATE_ENTRY:    return FILL_ENTRY_OFFSET;
     case RING_STATE_INSIDE:   return FILL_INSIDE_OFFSET;
+    case RING_STATE_EXIT1:    return FILL_EXIT1_OFFSET;
+    case RING_STATE_EXIT2:    return FILL_EXIT2_OFFSET;
     case RING_STATE_EXIT:     return FILL_EXIT_OFFSET;
     case RING_STATE_RECOVERY: return FILL_RECOVERY_OFFSET;
     default:                  return 0;
@@ -1462,7 +1531,53 @@ static void Ring_Rebuild_Fill(uint8 direction)
             }
         }
         break;
-    case RING_STATE_INSIDE:
+    case RING_STATE_EXIT1:
+        /* ????1???2????? */
+        if (s_ring_exit1_corner1_row >= 0 && s_ring_exit1_corner2_row >= 0)
+        {
+            if (direction == 1U)
+                Ring_DrawAndUpdate(direction, s_ring_exit1_corner1_row, s_ring_exit1_corner1_col,
+                                   s_ring_exit1_corner2_row, s_ring_exit1_corner2_col, 'L');
+            else
+                Ring_DrawAndUpdate(direction, s_ring_exit1_corner1_row, s_ring_exit1_corner1_col,
+                                   s_ring_exit1_corner2_row, s_ring_exit1_corner2_col, 'R');
+        }
+        for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
+        {
+            if (direction == 1U)
+                ImageDeal[row].Center = ImageDeal[row].LeftBorder
+                                      + Half_Bend_Wide[row] * 2 / 3 + fill_offset;
+            else
+                ImageDeal[row].Center = ImageDeal[row].RightBorder
+                                      - Half_Bend_Wide[row] * 2 / 3 - fill_offset;
+            LimitL(ImageDeal[row].Center);
+            LimitH(ImageDeal[row].Center);
+        }
+        break;
+    case RING_STATE_EXIT2:
+        /* ??????????2 */
+        if (s_ring_exit1_corner2_row >= 0)
+        {
+            if (direction == 1U)
+                Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW, LCDW - 1,
+                                   s_ring_exit1_corner2_row, s_ring_exit1_corner2_col, 'L');
+            else
+                Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW, 0,
+                                   s_ring_exit1_corner2_row, s_ring_exit1_corner2_col, 'R');
+        }
+        for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
+        {
+            if (direction == 1U)
+                ImageDeal[row].Center = ImageDeal[row].LeftBorder
+                                      + Half_Bend_Wide[row] * 2 / 3 + fill_offset;
+            else
+                ImageDeal[row].Center = ImageDeal[row].RightBorder
+                                      - Half_Bend_Wide[row] * 2 / 3 - fill_offset;
+            LimitL(ImageDeal[row].Center);
+            LimitH(ImageDeal[row].Center);
+        }
+        break;
+        case RING_STATE_INSIDE:
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
         {
             if (direction == 1U)
@@ -1605,16 +1720,41 @@ static void Ring_State_Update(void)
         break;
 
     case RING_STATE_INSIDE:
-        if ((direction == 1U && ImageStatus.Miss_Right_lines >= EXIT_LOST_MIN)
-            || (direction == 2U && ImageStatus.Miss_Left_lines >= EXIT_LOST_MIN)
-            || ImageStatus.OFFLine >= EXIT_LOST_MIN)
-            s_ring_exit_loss_seen = 1U;
-        if (s_ring_exit_loss_seen && Ring_Has_Exit_Feature(direction))
-        { if (s_ring_feature_count < RING_EXIT_CONFIRM_FRAMES) s_ring_feature_count++; }
-        else
-        { s_ring_feature_count = 0U; }
-        if (s_ring_feature_count >= RING_EXIT_CONFIRM_FRAMES
-            || s_ring_state_frames >= RING_INSIDE_MAX_FRAMES)
+    {
+        int c1r, c1c, c2r, c2c;
+        if (Ring_Find_Exit1_Corners(direction, &c1r, &c1c, &c2r, &c2c))
+        {
+            s_ring_exit1_corner1_row = c1r; s_ring_exit1_corner1_col = c1c;
+            s_ring_exit1_corner2_row = c2r; s_ring_exit1_corner2_col = c2c;
+            Ring_Set_State(RING_STATE_EXIT1);
+            break;
+        }
+        if (s_ring_state_frames >= RING_INSIDE_MAX_FRAMES)
+            Ring_Set_State(RING_STATE_EXIT);
+        break;
+    }
+
+    case RING_STATE_EXIT1:
+    {
+        int c1r, c1c, c2r, c2c;
+        if (!Ring_Find_Exit1_Corners(direction, &c1r, &c1c, &c2r, &c2c)
+            || c1r > 50)
+        {
+            s_ring_exit1_corner2_row = c2r; s_ring_exit1_corner2_col = c2c;
+            Ring_Set_State(RING_STATE_EXIT2);
+            break;
+        }
+        s_ring_exit1_corner1_row = c1r; s_ring_exit1_corner1_col = c1c;
+        s_ring_exit1_corner2_row = c2r; s_ring_exit1_corner2_col = c2c;
+        if (s_ring_state_frames >= RING_EXIT1_MAX_FRAMES)
+            Ring_Set_State(RING_STATE_EXIT2);
+        break;
+    }
+
+    case RING_STATE_EXIT2:
+        if (Ring_Is_Stable_Road())
+            Ring_Set_State(RING_STATE_EXIT);
+        if (s_ring_state_frames >= RING_EXIT2_MAX_FRAMES)
             Ring_Set_State(RING_STATE_EXIT);
         break;
 
@@ -2151,14 +2291,15 @@ void Camera_ShowElementStatus(void)
 
 /* [???] */
     {
-        static const char *rst_name[] = {"IDLE","CNFM","APRC","ENTR","INSD","EXIT","RECV"};
+        static const char *rst_name[] = {"IDLE","CNFM","APRC","ENTR","INSD","EXIT",
+        "EX1T", "EX2T","RECV"};
         uint8 rst = (uint8)ImageFlag.image_element_rings_flag;
-        if (ImageFlag.image_element_rings == 1 && rst < 7)
+        if (ImageFlag.image_element_rings == 1 && rst < 9)
         {
             ips200_show_string(2, 210, "Ring:L-");
             ips200_show_string(58, 210, rst_name[rst]);
         }
-        else if (ImageFlag.image_element_rings == 2 && rst < 7)
+        else if (ImageFlag.image_element_rings == 2 && rst < 9)
         {
             ips200_show_string(2, 210, "Ring:R-");
             ips200_show_string(58, 210, rst_name[rst]);

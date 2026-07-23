@@ -1388,13 +1388,13 @@ static uint8 Ring_Find_Exit1_Corners(uint8 direction,
             {
                 if (col > prev_col + 1) increasing_seen = 1;
                 if (increasing_seen && col < prev_col - 1)
-                { *corner1_row = row; *corner1_col = col; break; }
+                { if (col < 45) { *corner1_row = row; *corner1_col = col; break; } }
             }
             else
             {
                 if (col < prev_col - 1) increasing_seen = 1;
                 if (increasing_seen && col > prev_col + 1)
-                { *corner1_row = row; *corner1_col = col; break; }
+                { if (col > 49) { *corner1_row = row; *corner1_col = col; break; } }
             }
         }
         prev_col = col;

@@ -15,6 +15,8 @@ static int s_ring_exit1_corner1_row = -1;  /* ????1 */
 static int s_ring_exit1_corner1_col = -1;
 static int s_ring_exit1_corner2_row = -1;  /* ????2 */
 static int s_ring_exit1_corner2_col = -1;
+static uint8 s_ring_exit1_miss_frames = RING_EXIT_POINT_HOLD_FRAMES + 1U;
+static uint8 s_ring_exit2_miss_frames = RING_EXIT_POINT_HOLD_FRAMES + 1U;
 static uint16 s_ring_exit_cooldown = 0U;     /* ring re-entry cooldown frames */     /* 上一帧谷底行号, APPROACH阶段用 */
 volatile int g_corner_black_max = 0;   /* ??????: ???????? */
 volatile int g_bottom_black_width = 0; /* ??????: W-B???? */
@@ -750,12 +752,20 @@ static void Ring_Set_State(uint8 state)
         s_ring_exit1_corner1_col = -1;
         s_ring_exit1_corner2_row = -1;
         s_ring_exit1_corner2_col = -1;
+        s_ring_exit1_miss_frames = RING_EXIT_POINT_HOLD_FRAMES + 1U;
+        s_ring_exit2_miss_frames = RING_EXIT_POINT_HOLD_FRAMES + 1U;
         s_ring_entry_corner_row = -1;
         s_ring_entry_corner_col = -1;
     }
     else if (state == RING_STATE_INSIDE)
     {
         s_ring_exit_loss_seen = 0U;
+        s_ring_exit1_corner1_row = -1;
+        s_ring_exit1_corner1_col = -1;
+        s_ring_exit1_corner2_row = -1;
+        s_ring_exit1_corner2_col = -1;
+        s_ring_exit1_miss_frames = RING_EXIT_POINT_HOLD_FRAMES + 1U;
+        s_ring_exit2_miss_frames = RING_EXIT_POINT_HOLD_FRAMES + 1U;
     }
 }
 
@@ -773,6 +783,8 @@ static void Ring_Clear_State(void)
     s_ring_exit1_corner1_col = -1;
     s_ring_exit1_corner2_row = -1;
     s_ring_exit1_corner2_col = -1;
+    s_ring_exit1_miss_frames = RING_EXIT_POINT_HOLD_FRAMES + 1U;
+    s_ring_exit2_miss_frames = RING_EXIT_POINT_HOLD_FRAMES + 1U;
     s_ring_entry_corner_row = -1;
     s_ring_entry_corner_col = -1;
     s_ring_edge_squeezed = 0U;
@@ -1418,6 +1430,27 @@ static uint8 Ring_Find_Exit1_Corners(uint8 direction,
     return 0U;
 }
 
+/* 更新关键点并限制旧坐标最多保留指定帧数。 */
+static void Ring_Update_Exit_Point(int row, int col,
+    int *cached_row, int *cached_col, uint8 *miss_frames)
+{
+    if (row >= 0)
+    {
+        *cached_row = row;
+        *cached_col = col;
+        *miss_frames = 0U;
+    }
+    else if (*miss_frames <= RING_EXIT_POINT_HOLD_FRAMES)
+    {
+        (*miss_frames)++;
+        if (*miss_frames > RING_EXIT_POINT_HOLD_FRAMES)
+        {
+            *cached_row = -1;
+            *cached_col = -1;
+        }
+    }
+}
+
 
 static int Ring_Get_Fill_Offset(uint8 ring_state)
 {
@@ -1722,48 +1755,109 @@ static void Ring_State_Update(void)
     case RING_STATE_INSIDE:
     {
         int c1r, c1c, c2r, c2c;
-        if (Ring_Find_Exit1_Corners(direction, &c1r, &c1c, &c2r, &c2c))
+        (void)Ring_Find_Exit1_Corners(direction, &c1r, &c1c, &c2r, &c2c);
+
+        /* 两个关键点允许短暂跨帧保持，避免单帧漏检导致多绕一圈。 */
+        Ring_Update_Exit_Point(c1r, c1c,
+            &s_ring_exit1_corner1_row, &s_ring_exit1_corner1_col,
+            &s_ring_exit1_miss_frames);
+        Ring_Update_Exit_Point(c2r, c2c,
+            &s_ring_exit1_corner2_row, &s_ring_exit1_corner2_col,
+            &s_ring_exit2_miss_frames);
+
+        if (s_ring_exit1_corner1_row >= 0
+            && s_ring_exit1_corner2_row >= 0
+            && s_ring_exit1_miss_frames <= RING_EXIT_POINT_HOLD_FRAMES
+            && s_ring_exit2_miss_frames <= RING_EXIT_POINT_HOLD_FRAMES)
         {
-            s_ring_exit1_corner1_row = c1r; s_ring_exit1_corner1_col = c1c;
-            s_ring_exit1_corner2_row = c2r; s_ring_exit1_corner2_col = c2c;
             Ring_Set_State(RING_STATE_EXIT1);
             break;
         }
+
+        /* 超时只重新采集关键点，严禁绕过状态5、6从错误方向出环。 */
         if (s_ring_state_frames >= RING_INSIDE_MAX_FRAMES)
-            Ring_Set_State(RING_STATE_EXIT);
+        {
+            s_ring_state_frames = 0U;
+            s_ring_exit1_corner1_row = -1;
+            s_ring_exit1_corner1_col = -1;
+            s_ring_exit1_corner2_row = -1;
+            s_ring_exit1_corner2_col = -1;
+            s_ring_exit1_miss_frames = RING_EXIT_POINT_HOLD_FRAMES + 1U;
+            s_ring_exit2_miss_frames = RING_EXIT_POINT_HOLD_FRAMES + 1U;
+        }
         break;
     }
 
     case RING_STATE_EXIT1:
     {
         int c1r, c1c, c2r, c2c;
-        if (!Ring_Find_Exit1_Corners(direction, &c1r, &c1c, &c2r, &c2c)
-            || c1r > 50
-            || (direction == 2U && c1r >= 0 && s_ring_exit1_corner1_col >= 0 && c1c > s_ring_exit1_corner1_col)
-            || (direction == 1U && c1r >= 0 && s_ring_exit1_corner1_col >= 0 && c1c < s_ring_exit1_corner1_col))
+        uint8 exit1_passed = 0U;
+        (void)Ring_Find_Exit1_Corners(direction, &c1r, &c1c, &c2r, &c2c);
+
+        Ring_Update_Exit_Point(c2r, c2c,
+            &s_ring_exit1_corner2_row, &s_ring_exit1_corner2_col,
+            &s_ring_exit2_miss_frames);
+
+        if (c1r < 0 || c1r > 50
+            || (direction == 2U && s_ring_exit1_corner1_col >= 0
+                && c1c > s_ring_exit1_corner1_col)
+            || (direction == 1U && s_ring_exit1_corner1_col >= 0
+                && c1c < s_ring_exit1_corner1_col))
+            exit1_passed = 1U;
+
+        if (c1r >= 0)
         {
-            /* 本帧EXIT2丢失时保留最后有效点，供状态6持续补线。 */
-            if (c2r >= 0)
-            {
-                s_ring_exit1_corner2_row = c2r;
-                s_ring_exit1_corner2_col = c2c;
-            }
+            s_ring_exit1_corner1_row = c1r;
+            s_ring_exit1_corner1_col = c1c;
+        }
+
+        if (exit1_passed)
+        {
+            if (s_ring_feature_count < RING_EXIT_CONFIRM_FRAMES)
+                s_ring_feature_count++;
+        }
+        else
+        {
+            s_ring_feature_count = 0U;
+        }
+
+        /* 连续确认EXIT1离开后再进入状态6，单帧漏检不切状态。 */
+        if (s_ring_feature_count >= RING_EXIT_CONFIRM_FRAMES
+            && s_ring_exit1_corner2_row >= 0
+            && s_ring_exit2_miss_frames <= RING_EXIT_POINT_HOLD_FRAMES)
+        {
             Ring_Set_State(RING_STATE_EXIT2);
             break;
         }
-        s_ring_exit1_corner1_row = c1r; s_ring_exit1_corner1_col = c1c;
-        s_ring_exit1_corner2_row = c2r; s_ring_exit1_corner2_col = c2c;
+
         if (s_ring_state_frames >= RING_EXIT1_MAX_FRAMES)
             Ring_Set_State(RING_STATE_EXIT2);
         break;
     }
 
     case RING_STATE_EXIT2:
-        if (Ring_Is_Stable_Road())
-            Ring_Set_State(RING_STATE_EXIT);
-        if (s_ring_state_frames >= RING_EXIT2_MAX_FRAMES)
+    {
+        int c1r, c1c, c2r, c2c;
+        (void)Ring_Find_Exit1_Corners(direction, &c1r, &c1c, &c2r, &c2c);
+        Ring_Update_Exit_Point(c2r, c2c,
+            &s_ring_exit1_corner2_row, &s_ring_exit1_corner2_col,
+            &s_ring_exit2_miss_frames);
+
+        if (Ring_Is_Stable_Road()
+            || s_ring_exit2_miss_frames > RING_EXIT_POINT_HOLD_FRAMES)
+        {
+            if (s_ring_feature_count < RING_EXIT_CONFIRM_FRAMES)
+                s_ring_feature_count++;
+        }
+        else
+        {
+            s_ring_feature_count = 0U;
+        }
+        if (s_ring_feature_count >= RING_EXIT_CONFIRM_FRAMES
+            || s_ring_state_frames >= RING_EXIT2_MAX_FRAMES)
             Ring_Set_State(RING_STATE_EXIT);
         break;
+    }
 
     case RING_STATE_EXIT:
         if (Ring_Is_Stable_Road())

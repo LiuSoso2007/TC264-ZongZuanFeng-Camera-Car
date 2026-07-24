@@ -183,14 +183,16 @@ int core0_main(void)
                 ips200_show_int(58U, 170U, (int32)Err, 5U);
                 /* 圆环阶段状态位显示：左环L-/右环R- + 阶段缩写 */
                 {
-                    static const char *ring_st_name[] = {"IDLE","CNFM","APRC","ENTR","INSD","EXIT","RECV"};
+                    static const char *ring_st_name[] = {
+                        "IDLE","CNFM","APRC","ENTR","INSD","EXIT1","EXIT2","EXIT","RECV"
+                    };
                     uint8 ring_st = (uint8)ImageFlag.image_element_rings_flag;
-                    if (ImageFlag.image_element_rings == 1U && ring_st < 7U)
+                    if (ImageFlag.image_element_rings == 1U && ring_st < 9U)
                     {
                         ips200_show_string(50U, 190U, "L-");
                         ips200_show_string(68U, 190U, ring_st_name[ring_st]);
                     }
-                    else if (ImageFlag.image_element_rings == 2U && ring_st < 7U)
+                    else if (ImageFlag.image_element_rings == 2U && ring_st < 9U)
                     {
                         ips200_show_string(50U, 190U, "R-");
                         ips200_show_string(68U, 190U, ring_st_name[ring_st]);
@@ -203,19 +205,13 @@ int core0_main(void)
                 ips200_show_int(50U, 208U, (int32)Camera_Threshold, 3U);
                 ips200_show_int(50U, 222U, (int32)g_ZebraSum, 3U);
             }
-                /* ringflag: 0=无 1=CONFIRM 2=APPROACH 3=ENTRY 4=INSIDE 5=EXIT */
+                /* ringflag直接显示真实状态号: 5=EXIT1, 6=EXIT2, 7=EXIT, 8=RECOVERY。 */
                 {
                     uint8 rf = 0;
-                    if (ImageFlag.image_element_rings != 0)
+                    uint8 ring_state = (uint8)ImageFlag.image_element_rings_flag;
+                    if (ImageFlag.image_element_rings != 0 && ring_state < 9U)
                     {
-                        switch ((uint8)ImageFlag.image_element_rings_flag)
-                        {
-                            case 1: rf = 1; break;
-                            case 2: rf = 2; break;
-                            case 3: rf = 3; break;
-                            case 4: rf = 4; break;
-                            default: rf = 5; break;
-                        }
+                        rf = ring_state;
                     }
                     ips200_show_string(2U, 236U, "RF:");
                     ips200_show_uint(28U, 236U, rf, 1U);

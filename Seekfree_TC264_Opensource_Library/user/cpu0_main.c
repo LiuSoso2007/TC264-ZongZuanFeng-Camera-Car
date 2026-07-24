@@ -110,21 +110,25 @@ int core0_main(void)
 
             /* ---- 计算 Err (图像偏差) 供 CPU1 使用 ---- */
             /* 前瞻3行平均Err，减少抖动，供给CPU1的PD舵机控制一环。 */
-            if (ImageStatus.OFFLine < STEERING_LOOKAHEAD_ROW)
+            /* EXIT2拐点2跳变帧不覆盖Err，直接沿用上一帧控制量。 */
+            if (!Ring_Should_Hold_Err())
             {
-                Err = (float)((ImageDeal[STEERING_LOOKAHEAD_ROW].Center
-                     + ImageDeal[STEERING_LOOKAHEAD_ROW + 1].Center
-                     + ImageDeal[STEERING_LOOKAHEAD_ROW + 2].Center) / 3
-                     - ImageSensorMid);
-            }
-            else if (ImageStatus.OFFLine < SCAN_BASE_START_ROW
-                  && ImageDeal[ImageStatus.OFFLine + 1].Wide > 8)
-            {
-                Err = (float)(ImageDeal[ImageStatus.OFFLine + 1].Center - ImageSensorMid);
-            }
-            else
-            {
-                Err = 0.0f;
+                if (ImageStatus.OFFLine < STEERING_LOOKAHEAD_ROW)
+                {
+                    Err = (float)((ImageDeal[STEERING_LOOKAHEAD_ROW].Center
+                         + ImageDeal[STEERING_LOOKAHEAD_ROW + 1].Center
+                         + ImageDeal[STEERING_LOOKAHEAD_ROW + 2].Center) / 3
+                         - ImageSensorMid);
+                }
+                else if (ImageStatus.OFFLine < SCAN_BASE_START_ROW
+                      && ImageDeal[ImageStatus.OFFLine + 1].Wide > 8)
+                {
+                    Err = (float)(ImageDeal[ImageStatus.OFFLine + 1].Center - ImageSensorMid);
+                }
+                else
+                {
+                    Err = 0.0f;
+                }
             }
 #if IPS200_DISPLAY_IMAGE_ENABLE
             /* 每帧只写QSPI2到达，避免直接刷新防止闪烁，节约带宽以显示路径线 */

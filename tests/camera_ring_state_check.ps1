@@ -12,6 +12,7 @@ function Assert-Contains([string]$Text, [string]$Expected, [string]$Message) {
 
 $Camera = Read-Gbk 'Seekfree_TC264_Opensource_Library/code/Camera.c'
 $Header = Read-Gbk 'Seekfree_TC264_Opensource_Library/code/Camera.h'
+$Cpu0 = Read-Gbk 'Seekfree_TC264_Opensource_Library/user/cpu0_main.c'
 
 @{
     RING_STATE_IDLE = 0; RING_STATE_CONFIRM = 1; RING_STATE_APPROACH = 2
@@ -64,6 +65,11 @@ $Exit2Code = $RingStateCode.Substring($Exit2Start, $ExitStart - $Exit2Start)
 Assert-Contains $Exit2Code 's_ring_exit2_miss_frames == 0U' 'EXIT2 row jump is not restricted to adjacent valid frames'
 Assert-Contains $Exit2Code 'c2r - s_ring_exit1_corner2_row > 20' 'EXIT2 does not require a row increase greater than 20'
 Assert-Contains $Exit2Code 'if (exit2_row_jump)' 'EXIT2 does not advance directly from the row jump'
+Assert-Contains $Camera 'uint8 Ring_Should_Hold_Err(void)' 'Missing EXIT2 jump-frame Err hold helper'
+Assert-Contains $Camera 'ImageFlag.image_element_rings_flag == RING_STATE_EXIT' 'Err hold is not restricted to EXIT'
+Assert-Contains $Camera 's_ring_state_frames == 0U' 'Err hold is not restricted to the transition frame'
+Assert-Contains $Header 'uint8 Ring_Should_Hold_Err(void);' 'Err hold helper is not exposed to CPU0'
+Assert-Contains $Cpu0 'if (!Ring_Should_Hold_Err())' 'CPU0 still overwrites Err on the EXIT2 jump frame'
 Assert-Contains $Exit2Code 'g_corner_black_max = (c2r >= 0) ? c2r : 99;' 'EXIT2 row is not exposed through CB'
 Assert-Contains $Exit2Code 'g_bottom_black_width = (int)s_ring_exit2_miss_frames;' 'EXIT2 miss count is not exposed through BW'
 Assert-Contains $Exit2Code 'g_ring_miss_cnt = (int)s_ring_state_frames;' 'EXIT2 state frame count is not exposed through MS'
@@ -93,6 +99,9 @@ Assert-Contains $ExitDetectorCode 'Pixle[row + 2][col] == IMG_WHITE' 'EXIT2 dete
 $FillStart = $Camera.IndexOf('static void Ring_Rebuild_Fill(uint8 direction)')
 $FillEnd = $Camera.IndexOf('static void Ring_State_Update(void)', $FillStart)
 $FillCode = $Camera.Substring($FillStart, $FillEnd - $FillStart)
+if ($FillCode.Contains('if (ring_state == RING_STATE_EXIT && s_ring_state_frames == 0U) return;')) {
+    throw 'EXIT2 jump frame incorrectly skips ring fill'
+}
 $EntryFillStart = $FillCode.IndexOf('case RING_STATE_ENTRY:')
 $Exit1FillStart = $FillCode.IndexOf('case RING_STATE_EXIT1:', $EntryFillStart)
 $EntryFillCode = $FillCode.Substring($EntryFillStart, $Exit1FillStart - $EntryFillStart)

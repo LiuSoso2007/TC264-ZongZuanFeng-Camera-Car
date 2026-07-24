@@ -226,6 +226,7 @@ void  Element_Judgment_Left_Rings(void);                     // 左圆环识别
 void  Element_Handle_Left_Rings(void);                       // 左圆环处理
 void  Element_Judgment_Right_Rings(void);                    // 右圆环识别
 void  Element_Handle_Right_Rings(void);                      // 右圆环处理
+uint8 Ring_Should_Hold_Err(void);                            // EXIT2跳变帧保持上一帧Err
 void  Element_Judgment_Zebra(void);                          // 斑马线识别
 void  Element_Handle_Zebra(void);                            // 斑马线处理
 void  Element_Judgment_Ramp(void);                           // 坡道识别

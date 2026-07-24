@@ -1956,6 +1956,13 @@ static void Ring_State_Update(void)
     }
 }
 
+/* EXIT2¹Õµã2Ìø±äÖ¡ÑØÓÃÉÏÒ»Ö¡Err£¬±ÜÃâ×´Ì¬ÇÐ»»Ë²¼ä¶æ»úÍ»±ä¡£ */
+uint8 Ring_Should_Hold_Err(void)
+{
+    return (uint8)(ImageFlag.image_element_rings_flag == RING_STATE_EXIT
+        && s_ring_state_frames == 0U);
+}
+
     /* ÍäµÀ: ½öÔÚÎÞÔ²»·Ê±ÅÐ¶¨ */
 /* ---- è·³å˜å°‘çš„é‚£è¾¹é è¾¹è¡Œæ•°æ£æŸ ----
  * æ£æŸ¥èŒèŒƒå› 15~45, è¾¹ç¼˜margin=8åƒç´ , é è¾¹è¡>5è¡Œåˆ™è¿”å›ž1

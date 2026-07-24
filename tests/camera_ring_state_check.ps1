@@ -115,6 +115,13 @@ Assert-Contains $ExitDetectorCode 'Pixle[row + 2][col] == IMG_WHITE' 'EXIT2 dete
 $FillStart = $Camera.IndexOf('static void Ring_Rebuild_Fill(uint8 direction)')
 $FillEnd = $Camera.IndexOf('static void Ring_State_Update(void)', $FillStart)
 $FillCode = $Camera.Substring($FillStart, $FillEnd - $FillStart)
+$ApproachFillStart = $FillCode.IndexOf('case RING_STATE_APPROACH:')
+$ApproachFillEnd = $FillCode.IndexOf('case RING_STATE_ENTRY:', $ApproachFillStart)
+$ApproachFillCode = $FillCode.Substring($ApproachFillStart, $ApproachFillEnd - $ApproachFillStart)
+Assert-Contains $ApproachFillCode 'ImageDeal[row].RightBorder' 'Left ring APPROACH fallback is not mirrored from the right ring'
+Assert-Contains $ApproachFillCode '- Half_Bend_Wide[row] * 2 / 3 - fill_offset;' 'Left ring APPROACH fallback does not mirror the right-ring offset'
+Assert-Contains $ApproachFillCode 'ImageDeal[row].LeftBorder' 'Right ring APPROACH fallback no longer uses the left border'
+Assert-NotContains $ApproachFillCode 'ImageSensorMid' 'Left ring APPROACH fallback still uses a non-mirrored fixed center'
 $EntryFillStart = $FillCode.IndexOf('case RING_STATE_ENTRY:')
 $Exit1FillStart = $FillCode.IndexOf('case RING_STATE_EXIT1:', $EntryFillStart)
 $EntryFillCode = $FillCode.Substring($EntryFillStart, $Exit1FillStart - $EntryFillStart)

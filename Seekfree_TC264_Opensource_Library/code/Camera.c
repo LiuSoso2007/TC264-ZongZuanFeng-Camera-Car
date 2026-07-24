@@ -1611,9 +1611,9 @@ static void Ring_Rebuild_Fill(uint8 direction)
             for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
             {
                 if (direction == 1U)
-                    /* ???????????????????? */
-                    ImageDeal[row].Center = ImageSensorMid
-                                          - Half_Bend_Wide[row] * 2 / 3 - fill_offset / 2;
+                    /* 左圆环与右圆环严格镜像，使用右边线向左恢复中心。 */
+                    ImageDeal[row].Center = ImageDeal[row].RightBorder
+                                          - Half_Bend_Wide[row] * 2 / 3 - fill_offset;
                 else
                     ImageDeal[row].Center = ImageDeal[row].LeftBorder
                                           + Half_Bend_Wide[row] * 2 / 3 + fill_offset;

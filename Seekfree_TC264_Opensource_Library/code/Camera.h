@@ -151,6 +151,7 @@ extern ImageStatustypedef ImageStatus;         // 图像状态全局变量
 #define RING_JUMP_MIN_COUNT         3   // 最小跳变次数
 #define RING_JUMP_OTHER_MAX         2   // 另一侧最大跳变次数
 #define RING_EXIT_POINT_HOLD_FRAMES 3U  // EXIT1/EXIT2单点短时丢失保持帧数
+#define RING_EXIT2_PASS_ROW         40   // EXIT2下移到该行后判定已经通过黄色点
 
 /* ---- 圆环状态机 ---- */
 #define RING_STATE_IDLE       0    // 空闲: 无环

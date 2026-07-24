@@ -1417,12 +1417,23 @@ static uint8 Ring_Find_Exit1_Corners(uint8 direction,
         if (direction == 2U)
         {
             for (col = LCDW - 1; col > LCDW - 8; col--)
-            { if (Pixle[row][col] == IMG_BLACK) { *corner2_row = row; *corner2_col = col; break; } }
+            {
+                /* EXIT2是侧边黑区下端点，下面必须连续为白色赛道。 */
+                if (Pixle[row][col] == IMG_BLACK
+                    && Pixle[row + 1][col] == IMG_WHITE
+                    && Pixle[row + 2][col] == IMG_WHITE)
+                { *corner2_row = row; *corner2_col = col; break; }
+            }
         }
         else
         {
             for (col = 0; col < 8; col++)
-            { if (Pixle[row][col] == IMG_BLACK) { *corner2_row = row; *corner2_col = col; break; } }
+            {
+                if (Pixle[row][col] == IMG_BLACK
+                    && Pixle[row + 1][col] == IMG_WHITE
+                    && Pixle[row + 2][col] == IMG_WHITE)
+                { *corner2_row = row; *corner2_col = col; break; }
+            }
         }
         if (*corner2_row >= 0) break;
     }
@@ -1631,13 +1642,13 @@ static void Ring_Rebuild_Fill(uint8 direction)
             if (direction == 1U)
             {
                 if (has_valley && row <= valley_row)
-                    /* ??????????+?offset???????? */
-                    ImageDeal[row].Center = ImageDeal[row].LeftBorder
-                                          + Half_Bend_Wide[row] * 2 / 3 + fill_offset;
+                    /* 左环逆时针出环，使用右边界向左恢复中心线。 */
+                    ImageDeal[row].Center = ImageDeal[row].RightBorder
+                                          - Half_Bend_Wide[row] * 2 / 3 - fill_offset;
                 else
-                    /* ?????(???)????+?offset??? */
-                    ImageDeal[row].Center = ImageDeal[row].LeftBorder
-                                          + Half_Bend_Wide[row] * 2 / 3 + FILL_INSIDE_OFFSET;
+                    /* 谷点以下继续贴住环内侧，防止提前向右切出。 */
+                    ImageDeal[row].Center = ImageDeal[row].RightBorder
+                                          - Half_Bend_Wide[row] * 2 / 3 - FILL_INSIDE_OFFSET;
             }
             else
             {
@@ -1843,7 +1854,8 @@ static void Ring_State_Update(void)
             &s_ring_exit1_corner2_row, &s_ring_exit1_corner2_col,
             &s_ring_exit2_miss_frames);
 
-        if (Ring_Is_Stable_Road()
+        /* 黄色EXIT2下移到图像底部附近，连续确认后才进入普通出环。 */
+        if (c2r >= RING_EXIT2_PASS_ROW
             || s_ring_exit2_miss_frames > RING_EXIT_POINT_HOLD_FRAMES)
         {
             if (s_ring_feature_count < RING_EXIT_CONFIRM_FRAMES)

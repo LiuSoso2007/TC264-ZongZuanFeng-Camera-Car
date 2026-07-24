@@ -25,6 +25,7 @@ Assert-Contains $Header '#define RING_CONFIRM_FRAMES' 'Missing ring confirmation
 Assert-Contains $Header '#define RING_EXIT_CONFIRM_FRAMES' 'Missing exit confirmation frame limit'
 Assert-Contains $Header '#define RING_EXIT_STABLE_FRAMES' 'Missing exit stable frame limit'
 Assert-Contains $Header '#define RING_RECOVERY_FRAMES' 'Missing recovery lockout frame limit'
+Assert-Contains $Header '#define RING_EXIT2_PASS_ROW' 'Missing EXIT2 pass row threshold'
 # ponytail: RING_ENTRY_CENTER_OFFSET removed, uses FILL_ENTRY_OFFSET instead
 # ponytail: RING_INSIDE_CENTER_OFFSET removed, uses FILL_INSIDE_OFFSET instead
 
@@ -49,6 +50,32 @@ Assert-Contains $RingStateCode 'case RING_STATE_ENTRY:' 'Entry transition is mis
 Assert-Contains $RingStateCode 'case RING_STATE_INSIDE:' 'Inside transition is missing'
 Assert-Contains $RingStateCode 'case RING_STATE_EXIT:' 'Exit transition is missing'
 Assert-Contains $RingStateCode 'case RING_STATE_RECOVERY:' 'Recovery transition is missing'
+
+$Exit2Start = $RingStateCode.IndexOf('case RING_STATE_EXIT2:')
+$ExitStart = $RingStateCode.IndexOf('case RING_STATE_EXIT:', $Exit2Start)
+if ($Exit2Start -lt 0 -or $ExitStart -le $Exit2Start) {
+    throw 'EXIT2 state block is missing'
+}
+$Exit2Code = $RingStateCode.Substring($Exit2Start, $ExitStart - $Exit2Start)
+Assert-Contains $Exit2Code 'c2r >= RING_EXIT2_PASS_ROW' 'EXIT2 does not advance from the yellow point row'
+Assert-Contains $Exit2Code 's_ring_exit2_miss_frames > RING_EXIT_POINT_HOLD_FRAMES' 'EXIT2 does not advance after the yellow point leaves view'
+if ($Exit2Code.Contains('Ring_Is_Stable_Road()')) {
+    throw 'EXIT2 still advances from generic stable-road detection'
+}
+
+$ExitDetectorStart = $Camera.IndexOf('static uint8 Ring_Find_Exit1_Corners')
+$ExitDetectorEnd = $Camera.IndexOf('static void Ring_Update_Exit_Point', $ExitDetectorStart)
+$ExitDetectorCode = $Camera.Substring($ExitDetectorStart, $ExitDetectorEnd - $ExitDetectorStart)
+Assert-Contains $ExitDetectorCode 'Pixle[row + 1][col] == IMG_WHITE' 'EXIT2 detector does not require white below the black endpoint'
+Assert-Contains $ExitDetectorCode 'Pixle[row + 2][col] == IMG_WHITE' 'EXIT2 detector does not reject a continuous side black area'
+
+$FillStart = $Camera.IndexOf('static void Ring_Rebuild_Fill(uint8 direction)')
+$FillEnd = $Camera.IndexOf('static void Ring_State_Update(void)', $FillStart)
+$FillCode = $Camera.Substring($FillStart, $FillEnd - $FillStart)
+$NormalExitStart = $FillCode.IndexOf('case RING_STATE_EXIT:')
+$RecoveryStart = $FillCode.IndexOf('case RING_STATE_RECOVERY:', $NormalExitStart)
+$NormalExitCode = $FillCode.Substring($NormalExitStart, $RecoveryStart - $NormalExitStart)
+Assert-Contains $NormalExitCode 'ImageDeal[row].RightBorder' 'Left ring EXIT fill does not use the right border'
 
 function New-RingModel {
     return [pscustomobject]@{

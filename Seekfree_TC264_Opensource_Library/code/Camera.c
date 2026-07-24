@@ -1485,6 +1485,7 @@ static int Ring_Get_Fill_Offset(uint8 ring_state)
 static void Ring_Rebuild_Fill(uint8 direction)
 {
     int row, col;
+    int black_segment_seen;
     int valley_row, valley_col;
     uint8 ring_state = (uint8)ImageFlag.image_element_rings_flag;
     int fill_offset = Ring_Get_Fill_Offset(ring_state);
@@ -1563,11 +1564,18 @@ static void Ring_Rebuild_Fill(uint8 direction)
             {
                 if (direction == 2U)
                 {
+                    black_segment_seen = 0;
                     for (col = ImageDeal[row].LeftBorder + 1;
                          col <= ImageDeal[row].RightBorder; col++)
                     {
-                        if (Pixle[row][col] == IMG_BLACK
+                        if (!black_segment_seen
+                            && Pixle[row][col] == IMG_BLACK
                             && Pixle[row][col - 1] == IMG_WHITE)
+                        {
+                            black_segment_seen = 1;
+                        }
+                        else if (black_segment_seen && Pixle[row][col] == IMG_WHITE
+                                 && Pixle[row][col - 1] == IMG_BLACK)
                         {
                             ImageDeal[row].LeftBorder = col;
                             ImageDeal[row].IsLeftFind = 'T';
@@ -1577,11 +1585,18 @@ static void Ring_Rebuild_Fill(uint8 direction)
                 }
                 else
                 {
+                    black_segment_seen = 0;
                     for (col = ImageDeal[row].RightBorder - 1;
                          col >= ImageDeal[row].LeftBorder; col--)
                     {
-                        if (Pixle[row][col] == IMG_BLACK
+                        if (!black_segment_seen
+                            && Pixle[row][col] == IMG_BLACK
                             && Pixle[row][col + 1] == IMG_WHITE)
+                        {
+                            black_segment_seen = 1;
+                        }
+                        else if (black_segment_seen && Pixle[row][col] == IMG_WHITE
+                                 && Pixle[row][col + 1] == IMG_BLACK)
                         {
                             ImageDeal[row].RightBorder = col;
                             ImageDeal[row].IsRightFind = 'T';

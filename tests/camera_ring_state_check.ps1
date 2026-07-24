@@ -59,6 +59,9 @@ if ($Exit2Start -lt 0 -or $ExitStart -le $Exit2Start) {
 $Exit2Code = $RingStateCode.Substring($Exit2Start, $ExitStart - $Exit2Start)
 Assert-Contains $Exit2Code 'c2r >= RING_EXIT2_PASS_ROW' 'EXIT2 does not advance from the yellow point row'
 Assert-Contains $Exit2Code 's_ring_exit2_miss_frames > RING_EXIT_POINT_HOLD_FRAMES' 'EXIT2 does not advance after the yellow point leaves view'
+Assert-Contains $Exit2Code 'g_corner_black_max = (c2r >= 0) ? c2r : 99;' 'EXIT2 row is not exposed through CB'
+Assert-Contains $Exit2Code 'g_bottom_black_width = (int)s_ring_exit2_miss_frames;' 'EXIT2 miss count is not exposed through BW'
+Assert-Contains $Exit2Code 'g_ring_miss_cnt = (int)s_ring_state_frames;' 'EXIT2 state frame count is not exposed through MS'
 if ($Exit2Code.Contains('Ring_Is_Stable_Road()')) {
     throw 'EXIT2 still advances from generic stable-road detection'
 }

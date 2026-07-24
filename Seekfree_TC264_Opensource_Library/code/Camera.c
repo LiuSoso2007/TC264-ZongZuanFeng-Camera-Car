@@ -1854,6 +1854,11 @@ static void Ring_State_Update(void)
             &s_ring_exit1_corner2_row, &s_ring_exit1_corner2_col,
             &s_ring_exit2_miss_frames);
 
+        /* EXIT2实车诊断：CB=点行号，BW=丢失帧，MS=状态累计帧。 */
+        g_corner_black_max = (c2r >= 0) ? c2r : 99;
+        g_bottom_black_width = (int)s_ring_exit2_miss_frames;
+        g_ring_miss_cnt = (int)s_ring_state_frames;
+
         /* 黄色EXIT2下移到图像底部附近，连续确认后才进入普通出环。 */
         if (c2r >= RING_EXIT2_PASS_ROW
             || s_ring_exit2_miss_frames > RING_EXIT_POINT_HOLD_FRAMES)

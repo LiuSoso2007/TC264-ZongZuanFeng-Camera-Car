@@ -75,6 +75,16 @@ Assert-Contains $ExitDetectorCode 'Pixle[row + 2][col] == IMG_WHITE' 'EXIT2 dete
 $FillStart = $Camera.IndexOf('static void Ring_Rebuild_Fill(uint8 direction)')
 $FillEnd = $Camera.IndexOf('static void Ring_State_Update(void)', $FillStart)
 $FillCode = $Camera.Substring($FillStart, $FillEnd - $FillStart)
+$Exit2FillStart = $FillCode.IndexOf('case RING_STATE_EXIT2:')
+$InsideFillStart = $FillCode.IndexOf('case RING_STATE_INSIDE:', $Exit2FillStart)
+$Exit2FillCode = $FillCode.Substring($Exit2FillStart, $InsideFillStart - $Exit2FillStart)
+Assert-Contains $Exit2FillCode 'ImageSensorMid + Half_Bend_Wide[SCAN_BASE_START_ROW] * 2 / 3' 'Left ring EXIT2 anchor does not produce a leftward center'
+Assert-Contains $Exit2FillCode 'ImageSensorMid - Half_Bend_Wide[SCAN_BASE_START_ROW] * 2 / 3' 'Right ring EXIT2 anchor does not produce a rightward center'
+if ($Exit2FillCode.Contains('SCAN_BASE_START_ROW, LCDW - 1') -or
+    $Exit2FillCode.Contains('SCAN_BASE_START_ROW, 0')) {
+    throw 'EXIT2 still anchors the fill line to an image edge'
+}
+
 $NormalExitStart = $FillCode.IndexOf('case RING_STATE_EXIT:')
 $RecoveryStart = $FillCode.IndexOf('case RING_STATE_RECOVERY:', $NormalExitStart)
 $NormalExitCode = $FillCode.Substring($NormalExitStart, $RecoveryStart - $NormalExitStart)

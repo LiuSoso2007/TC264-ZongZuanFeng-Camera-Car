@@ -1602,11 +1602,14 @@ static void Ring_Rebuild_Fill(uint8 direction)
         /* 状态6：EXIT1离开视野后，从图像底部继续连接EXIT2。 */
         if (s_ring_exit1_corner2_row >= 0)
         {
+            /* 底部锚在车道边界，使左环中心向左、右环中心向右。 */
             if (direction == 1U)
-                Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW, LCDW - 1,
+                Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW,
+                                   ImageSensorMid + Half_Bend_Wide[SCAN_BASE_START_ROW] * 2 / 3,
                                    s_ring_exit1_corner2_row, s_ring_exit1_corner2_col, 'R');
             else
-                Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW, 0,
+                Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW,
+                                   ImageSensorMid - Half_Bend_Wide[SCAN_BASE_START_ROW] * 2 / 3,
                                    s_ring_exit1_corner2_row, s_ring_exit1_corner2_col, 'L');
         }
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)

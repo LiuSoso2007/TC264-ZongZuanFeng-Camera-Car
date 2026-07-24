@@ -1905,7 +1905,16 @@ static void Ring_State_Update(void)
     case RING_STATE_EXIT2:
     {
         int c1r, c1c, c2r, c2c;
+        uint8 exit2_row_jump = 0U;
         (void)Ring_Find_Exit1_Corners(direction, &c1r, &c1c, &c2r, &c2c);
+
+        /* 相邻有效帧中，拐点2向图像底部突增超过20行即完成EXIT2。 */
+        if (c2r >= 0
+            && s_ring_exit1_corner2_row >= 0
+            && s_ring_exit2_miss_frames == 0U
+            && c2r - s_ring_exit1_corner2_row > 20)
+            exit2_row_jump = 1U;
+
         Ring_Update_Exit_Point(c2r, c2c,
             &s_ring_exit1_corner2_row, &s_ring_exit1_corner2_col,
             &s_ring_exit2_miss_frames);
@@ -1915,19 +1924,7 @@ static void Ring_State_Update(void)
         g_bottom_black_width = (int)s_ring_exit2_miss_frames;
         g_ring_miss_cnt = (int)s_ring_state_frames;
 
-        /* 黄色EXIT2下移到图像底部附近，连续确认后才进入普通出环。 */
-        if (c2r >= RING_EXIT2_PASS_ROW
-            || s_ring_exit2_miss_frames > RING_EXIT_POINT_HOLD_FRAMES)
-        {
-            if (s_ring_feature_count < RING_EXIT_CONFIRM_FRAMES)
-                s_ring_feature_count++;
-        }
-        else
-        {
-            s_ring_feature_count = 0U;
-        }
-        if (s_ring_feature_count >= RING_EXIT_CONFIRM_FRAMES
-            || s_ring_state_frames >= RING_EXIT2_MAX_FRAMES)
+        if (exit2_row_jump)
             Ring_Set_State(RING_STATE_EXIT);
         break;
     }

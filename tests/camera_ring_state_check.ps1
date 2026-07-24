@@ -25,7 +25,6 @@ Assert-Contains $Header '#define RING_CONFIRM_FRAMES' 'Missing ring confirmation
 Assert-Contains $Header '#define RING_EXIT_CONFIRM_FRAMES' 'Missing exit confirmation frame limit'
 Assert-Contains $Header '#define RING_EXIT_STABLE_FRAMES' 'Missing exit stable frame limit'
 Assert-Contains $Header '#define RING_RECOVERY_FRAMES' 'Missing recovery lockout frame limit'
-Assert-Contains $Header '#define RING_EXIT2_PASS_ROW' 'Missing EXIT2 pass row threshold'
 # ponytail: RING_ENTRY_CENTER_OFFSET removed, uses FILL_ENTRY_OFFSET instead
 # ponytail: RING_INSIDE_CENTER_OFFSET removed, uses FILL_INSIDE_OFFSET instead
 
@@ -62,14 +61,28 @@ if ($Exit2Start -lt 0 -or $ExitStart -le $Exit2Start) {
     throw 'EXIT2 state block is missing'
 }
 $Exit2Code = $RingStateCode.Substring($Exit2Start, $ExitStart - $Exit2Start)
-Assert-Contains $Exit2Code 'c2r >= RING_EXIT2_PASS_ROW' 'EXIT2 does not advance from the yellow point row'
-Assert-Contains $Exit2Code 's_ring_exit2_miss_frames > RING_EXIT_POINT_HOLD_FRAMES' 'EXIT2 does not advance after the yellow point leaves view'
+Assert-Contains $Exit2Code 's_ring_exit2_miss_frames == 0U' 'EXIT2 row jump is not restricted to adjacent valid frames'
+Assert-Contains $Exit2Code 'c2r - s_ring_exit1_corner2_row > 20' 'EXIT2 does not require a row increase greater than 20'
+Assert-Contains $Exit2Code 'if (exit2_row_jump)' 'EXIT2 does not advance directly from the row jump'
 Assert-Contains $Exit2Code 'g_corner_black_max = (c2r >= 0) ? c2r : 99;' 'EXIT2 row is not exposed through CB'
 Assert-Contains $Exit2Code 'g_bottom_black_width = (int)s_ring_exit2_miss_frames;' 'EXIT2 miss count is not exposed through BW'
 Assert-Contains $Exit2Code 'g_ring_miss_cnt = (int)s_ring_state_frames;' 'EXIT2 state frame count is not exposed through MS'
+if ($Exit2Code.Contains('RING_EXIT2_PASS_ROW') -or
+    $Exit2Code.Contains('RING_EXIT2_MAX_FRAMES') -or
+    $Exit2Code.Contains('s_ring_feature_count')) {
+    throw 'EXIT2 still contains an old completion condition'
+}
 if ($Exit2Code.Contains('Ring_Is_Stable_Road()')) {
     throw 'EXIT2 still advances from generic stable-road detection'
 }
+
+function Test-Exit2RowJump([int]$PreviousRow, [int]$CurrentRow, [int]$MissFrames) {
+    return ($PreviousRow -ge 0 -and $CurrentRow -ge 0 -and
+            $MissFrames -eq 0 -and $CurrentRow - $PreviousRow -gt 20)
+}
+if (Test-Exit2RowJump 30 50 0) { throw 'EXIT2 accepts a row increase of only 20' }
+if (-not (Test-Exit2RowJump 30 51 0)) { throw 'EXIT2 rejects a row increase of 21' }
+if (Test-Exit2RowJump 30 55 1) { throw 'EXIT2 accepts a jump across a missing frame' }
 
 $ExitDetectorStart = $Camera.IndexOf('static uint8 Ring_Find_Exit1_Corners')
 $ExitDetectorEnd = $Camera.IndexOf('static void Ring_Update_Exit_Point', $ExitDetectorStart)

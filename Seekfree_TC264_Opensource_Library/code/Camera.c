@@ -1725,11 +1725,12 @@ static void Ring_State_Update(void)
         {
             s_ring_entry_corner_row = valley_row;
             s_ring_entry_corner_col = valley_col;
-    /* 圆环处理: 若非圆环则检查其他元素 */
-            if (valley_row > 40
-                || (s_ring_prev_valley_row >= 0
-                    && (valley_row - s_ring_prev_valley_row > 20
-                        || s_ring_prev_valley_row - valley_row > 20)))
+            /* APPROACH必须完整处理3帧，之后才能进入ENTRY。 */
+            if (s_ring_state_frames >= 3U
+                && (valley_row > 40
+                    || (s_ring_prev_valley_row >= 0
+                        && (valley_row - s_ring_prev_valley_row > 20
+                            || s_ring_prev_valley_row - valley_row > 20))))
                 Ring_Set_State(RING_STATE_ENTRY);
         }
         s_ring_prev_valley_row = valley_row;

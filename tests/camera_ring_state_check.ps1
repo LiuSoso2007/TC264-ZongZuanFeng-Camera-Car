@@ -51,6 +51,11 @@ Assert-Contains $RingStateCode 'case RING_STATE_INSIDE:' 'Inside transition is m
 Assert-Contains $RingStateCode 'case RING_STATE_EXIT:' 'Exit transition is missing'
 Assert-Contains $RingStateCode 'case RING_STATE_RECOVERY:' 'Recovery transition is missing'
 
+$ApproachStart = $RingStateCode.IndexOf('case RING_STATE_APPROACH:')
+$EntryStart = $RingStateCode.IndexOf('case RING_STATE_ENTRY:', $ApproachStart)
+$ApproachCode = $RingStateCode.Substring($ApproachStart, $EntryStart - $ApproachStart)
+Assert-Contains $ApproachCode 's_ring_state_frames >= 3U' 'APPROACH can advance before three frames'
+
 $Exit2Start = $RingStateCode.IndexOf('case RING_STATE_EXIT2:')
 $ExitStart = $RingStateCode.IndexOf('case RING_STATE_EXIT:', $Exit2Start)
 if ($Exit2Start -lt 0 -or $ExitStart -le $Exit2Start) {
@@ -109,7 +114,8 @@ function Step-RingModel($Model, [bool]$Candidate, [bool]$EntryCorner,
         }
         2 {
             if ($EntryCorner) { $Model.Evidence++ } else { $Model.Evidence = 0 }
-            if ($Model.Evidence -ge 2 -or $Model.StateFrames -ge 24) {
+            if (($Model.StateFrames -ge 3 -and $Model.Evidence -ge 2) -or
+                $Model.StateFrames -ge 24) {
                 $Model.State = 3; $Model.StateFrames = 0; $Model.Evidence = 0
             }
         }
@@ -149,7 +155,9 @@ if ($M.State -ne 1) { throw 'Ring confirms from only two frames' }
 Step-RingModel $M $true $false $false $false $false $false
 if ($M.State -ne 2) { throw 'Ring does not advance after three confirmed frames' }
 1..2 | ForEach-Object { Step-RingModel $M $true $true $false $false $false $false }
-if ($M.State -ne 3) { throw 'Entry corner does not advance to entry state' }
+if ($M.State -ne 2) { throw 'Approach advances before three frames' }
+Step-RingModel $M $true $true $false $false $false $false
+if ($M.State -ne 3) { throw 'Approach does not advance on the third frame' }
 1..3 | ForEach-Object { Step-RingModel $M $false $false $true $false $false $true }
 if ($M.State -ne 4) { throw 'Entry does not advance to inside state' }
 

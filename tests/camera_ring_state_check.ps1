@@ -143,6 +143,14 @@ if ($Exit2FillCode.Contains('SCAN_BASE_START_ROW, LCDW - 1') -or
     throw 'EXIT2 still anchors the fill line to an image edge'
 }
 
+$InsideFillStart = $FillCode.IndexOf('case RING_STATE_INSIDE:')
+$RecoveryFillStart = $FillCode.IndexOf('case RING_STATE_RECOVERY:', $InsideFillStart)
+$InsideFillCode = $FillCode.Substring($InsideFillStart, $RecoveryFillStart - $InsideFillStart)
+Assert-Contains $InsideFillCode 'ImageDeal[row].RightBorder' 'Left ring INSIDE center does not use the right border'
+Assert-Contains $InsideFillCode '- Half_Bend_Wide[row] * 2 / 3 - fill_offset;' 'Left ring INSIDE center is not mirrored from the right ring'
+Assert-Contains $InsideFillCode 'ImageDeal[row].LeftBorder' 'Right ring INSIDE center no longer uses the left border'
+Assert-NotContains $InsideFillCode 'ImageSensorMid' 'Left ring INSIDE center still ignores the detected borders'
+
 $Exit3FillStart = $Camera.IndexOf('static void Ring_Rebuild_Exit3_Border(uint8 direction)')
 $Exit3FillEnd = $Camera.IndexOf('static void Ring_Rebuild_Fill(uint8 direction)', $Exit3FillStart)
 if ($Exit3FillStart -lt 0 -or $Exit3FillEnd -le $Exit3FillStart) {

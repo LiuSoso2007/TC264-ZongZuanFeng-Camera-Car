@@ -1230,7 +1230,7 @@ static int Ring_Find_Approach_Valley(uint8 direction, int *valley_col)
                         }
                         if (is_lost >= 3)
                         {
-                            moved_away = 0U;
+                            /* 假拐点仅跳过当前候选，保留外移趋势以继续向上寻找真拐点。 */
                             prev_col = curr_col;
                             continue;
                         }
@@ -1294,7 +1294,7 @@ static int Ring_Find_Approach_Valley(uint8 direction, int *valley_col)
                         }
                         if (is_lost >= 3)
                         {
-                            moved_away = 0U;
+                            /* 假拐点仅跳过当前候选，保留外移趋势以继续向上寻找真拐点。 */
                             prev_col = curr_col;
                             continue;
                         }

@@ -188,32 +188,32 @@ int core0_main(void)
                 /* 圆环阶段状态位显示：左环L-/右环R- + 阶段缩写 */
                 {
                     static const char *ring_st_name[] = {
-                        "IDLE","CNFM","APRC","ENTR","INSD","EXIT1","EXIT2","EXIT","RECV"
+                        "IDLE ","CNFM ","APRC ","ENTR ","INSD ","EXIT1","EXIT2","RECV "
                     };
                     uint8 ring_st = (uint8)ImageFlag.image_element_rings_flag;
-                    if (ImageFlag.image_element_rings == 1U && ring_st < 9U)
+                    if (ImageFlag.image_element_rings == 1U && ring_st < 8U)
                     {
                         ips200_show_string(50U, 190U, "L-");
                         ips200_show_string(68U, 190U, ring_st_name[ring_st]);
                     }
-                    else if (ImageFlag.image_element_rings == 2U && ring_st < 9U)
+                    else if (ImageFlag.image_element_rings == 2U && ring_st < 8U)
                     {
                         ips200_show_string(50U, 190U, "R-");
                         ips200_show_string(68U, 190U, ring_st_name[ring_st]);
                     }
                     else
                     {
-                        ips200_show_string(50U, 190U, "---   ");
+                        ips200_show_string(50U, 190U, "---    ");
                     }
                 }
                 ips200_show_int(50U, 208U, (int32)Camera_Threshold, 3U);
                 ips200_show_int(50U, 222U, (int32)g_ZebraSum, 3U);
             }
-                /* ringflag直接显示真实状态号: 5=EXIT1, 6=EXIT2, 7=EXIT, 8=RECOVERY。 */
+                /* ringflag直接显示真实状态号: 5=EXIT1, 6=EXIT2, 7=RECOVERY。 */
                 {
                     uint8 rf = 0;
                     uint8 ring_state = (uint8)ImageFlag.image_element_rings_flag;
-                    if (ImageFlag.image_element_rings != 0 && ring_state < 9U)
+                    if (ImageFlag.image_element_rings != 0 && ring_state < 8U)
                     {
                         rf = ring_state;
                     }

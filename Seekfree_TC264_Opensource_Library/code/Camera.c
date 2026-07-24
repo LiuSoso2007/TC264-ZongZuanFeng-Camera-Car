@@ -4,7 +4,6 @@
 static uint16 s_ring_state_frames = 0U;      /* [???] */
 static uint8 s_ring_confirm_count = 0U;      /* [???] */
 static uint8 s_ring_feature_count = 0U;      /* [???] */
-static uint8 s_ring_stable_count = 0U;       /* [???] */
 static uint8 s_ring_exit_loss_seen = 0U;     /* 出环时是否已观察到对侧丢线 */
 static int s_ring_entry_corner_row = -1;     /* [???] */
 static int s_ring_entry_corner_col = -1;     /* ????????? */
@@ -17,6 +16,9 @@ static int s_ring_exit1_corner2_row = -1;  /* ????2 */
 static int s_ring_exit1_corner2_col = -1;
 static uint8 s_ring_exit1_miss_frames = RING_EXIT_POINT_HOLD_FRAMES + 1U;
 static uint8 s_ring_exit2_miss_frames = RING_EXIT_POINT_HOLD_FRAMES + 1U;
+static int s_ring_exit3_corner_row = -1;     /* 出环拐点3 */
+static int s_ring_exit3_corner_col = -1;
+static int s_ring_prev_exit3_row = -1;       /* RECOVERY上一帧拐点3行数 */
 static uint16 s_ring_exit_cooldown = 0U;     /* ring re-entry cooldown frames */     /* 上一帧谷底行号, APPROACH阶段用 */
 volatile int g_corner_black_max = 0;   /* ??????: ???????? */
 volatile int g_bottom_black_width = 0; /* ??????: W-B???? */
@@ -742,7 +744,6 @@ static void Ring_Set_State(uint8 state)
     ImageFlag.image_element_rings_flag = state;
     s_ring_state_frames = 0U;
     s_ring_feature_count = 0U;
-    s_ring_stable_count = 0U;
 
     if (state == RING_STATE_CONFIRM)
     {
@@ -756,6 +757,9 @@ static void Ring_Set_State(uint8 state)
         s_ring_exit2_miss_frames = RING_EXIT_POINT_HOLD_FRAMES + 1U;
         s_ring_entry_corner_row = -1;
         s_ring_entry_corner_col = -1;
+        s_ring_exit3_corner_row = -1;
+        s_ring_exit3_corner_col = -1;
+        s_ring_prev_exit3_row = -1;
     }
     else if (state == RING_STATE_INSIDE)
     {
@@ -767,6 +771,12 @@ static void Ring_Set_State(uint8 state)
         s_ring_exit1_miss_frames = RING_EXIT_POINT_HOLD_FRAMES + 1U;
         s_ring_exit2_miss_frames = RING_EXIT_POINT_HOLD_FRAMES + 1U;
     }
+    else if (state == RING_STATE_RECOVERY)
+    {
+        s_ring_exit3_corner_row = -1;
+        s_ring_exit3_corner_col = -1;
+        s_ring_prev_exit3_row = -1;
+    }
 }
 
 static void Ring_Clear_State(void)
@@ -777,7 +787,6 @@ static void Ring_Clear_State(void)
     s_ring_state_frames = 0U;
     s_ring_confirm_count = 0U;
     s_ring_feature_count = 0U;
-    s_ring_stable_count = 0U;
     s_ring_exit_loss_seen = 0U;
     s_ring_exit1_corner1_row = -1;
     s_ring_exit1_corner1_col = -1;
@@ -787,6 +796,9 @@ static void Ring_Clear_State(void)
     s_ring_exit2_miss_frames = RING_EXIT_POINT_HOLD_FRAMES + 1U;
     s_ring_entry_corner_row = -1;
     s_ring_entry_corner_col = -1;
+    s_ring_exit3_corner_row = -1;
+    s_ring_exit3_corner_col = -1;
+    s_ring_prev_exit3_row = -1;
     s_ring_edge_squeezed = 0U;
     s_ring_edge_released = 0U;
     s_ring_exit_cooldown = 50U;  /* ???50?(1?)??????? */
@@ -1473,9 +1485,76 @@ static int Ring_Get_Fill_Offset(uint8 ring_state)
     case RING_STATE_INSIDE:   return FILL_INSIDE_OFFSET;
     case RING_STATE_EXIT1:    return FILL_EXIT1_OFFSET;
     case RING_STATE_EXIT2:    return FILL_EXIT2_OFFSET;
-    case RING_STATE_EXIT:     return FILL_EXIT_OFFSET;
     case RING_STATE_RECOVERY: return FILL_RECOVERY_OFFSET;
     default:                  return 0;
+    }
+}
+
+/* RECOVERY按出环拐点3重建内侧边线，左右圆环完全镜像。 */
+static void Ring_Rebuild_Exit3_Border(uint8 direction)
+{
+    int row, col;
+    int black_segment_seen;
+
+    if (s_ring_exit3_corner_row <= ImageStatus.OFFLine)
+        return;
+
+    if (direction == 2U)
+        Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW, LCDW - 1,
+                           s_ring_exit3_corner_row, s_ring_exit3_corner_col, 'R');
+    else
+        Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW, 0,
+                           s_ring_exit3_corner_row, s_ring_exit3_corner_col, 'L');
+
+    for (row = s_ring_exit3_corner_row - 1; row > ImageStatus.OFFLine; row--)
+    {
+        if (direction == 2U && ImageDeal[row].RightBorder == LCDW - 1)
+        {
+            black_segment_seen = 0;
+            for (col = LCDW - 2;
+                 col >= 0 && col >= ImageDeal[row].LeftBorder; col--)
+            {
+                if (!black_segment_seen
+                    && Pixle[row][col] == IMG_BLACK
+                    && Pixle[row][col + 1] == IMG_WHITE)
+                {
+                    black_segment_seen = 1;
+                }
+                else if (black_segment_seen
+                         && Pixle[row][col] == IMG_WHITE
+                         && Pixle[row][col + 1] == IMG_BLACK)
+                {
+                    ImageDeal[row].RightBorder = col;
+                    ImageDeal[row].IsRightFind = 'T';
+                    break;
+                }
+            }
+        }
+        else if (direction == 1U && ImageDeal[row].LeftBorder == 0)
+        {
+            black_segment_seen = 0;
+            for (col = 1;
+                 col < LCDW && col <= ImageDeal[row].RightBorder; col++)
+            {
+                if (!black_segment_seen
+                    && Pixle[row][col] == IMG_BLACK
+                    && Pixle[row][col - 1] == IMG_WHITE)
+                {
+                    black_segment_seen = 1;
+                }
+                else if (black_segment_seen
+                         && Pixle[row][col] == IMG_WHITE
+                         && Pixle[row][col - 1] == IMG_BLACK)
+                {
+                    ImageDeal[row].LeftBorder = col;
+                    ImageDeal[row].IsLeftFind = 'T';
+                    break;
+                }
+            }
+        }
+
+        ImageDeal[row].Wide = ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder;
+        ImageDeal[row].Center = (ImageDeal[row].LeftBorder + ImageDeal[row].RightBorder) / 2;
     }
 }
 
@@ -1486,13 +1565,8 @@ static void Ring_Rebuild_Fill(uint8 direction)
 {
     int row, col;
     int black_segment_seen;
-    int valley_row, valley_col;
     uint8 ring_state = (uint8)ImageFlag.image_element_rings_flag;
     int fill_offset = Ring_Get_Fill_Offset(ring_state);
-    int scan_arg, min_arg;
-    if (ring_state == RING_STATE_ENTRY) { scan_arg = VALLEY_SCAN_START_ROW - 26; min_arg = VALLEY_MIN_ROW - 15; }
-    else                                          { scan_arg = VALLEY_SCAN_START_ROW;      min_arg = VALLEY_MIN_ROW;      }
-    int has_valley = BlackHole_Track_Valley(direction, &valley_row, &valley_col, scan_arg, min_arg);
     
     switch (ring_state)
     {
@@ -1691,34 +1765,9 @@ static void Ring_Rebuild_Fill(uint8 direction)
         }
         break;
     
-        case RING_STATE_EXIT:
-        for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
-        {
-            if (direction == 1U)
-            {
-                if (has_valley && row <= valley_row)
-                    /* 左环逆时针出环，使用右边界向左恢复中心线。 */
-                    ImageDeal[row].Center = ImageDeal[row].RightBorder
-                                          - Half_Bend_Wide[row] * 2 / 3 - fill_offset;
-                else
-                    /* 谷点以下继续贴住环内侧，防止提前向右切出。 */
-                    ImageDeal[row].Center = ImageDeal[row].RightBorder
-                                          - Half_Bend_Wide[row] * 2 / 3 - FILL_INSIDE_OFFSET;
-            }
-            else
-            {
-                if (has_valley && row <= valley_row)
-                    ImageDeal[row].Center = ImageDeal[row].LeftBorder
-                                          + Half_Bend_Wide[row] * 2 / 3 + fill_offset;
-                else
-                    ImageDeal[row].Center = ImageDeal[row].LeftBorder
-                                          + Half_Bend_Wide[row] * 2 / 3 + FILL_INSIDE_OFFSET;
-            }
-            LimitL(ImageDeal[row].Center);
-            LimitH(ImageDeal[row].Center);
-        }
-        break;
     case RING_STATE_RECOVERY:
+        Ring_Rebuild_Exit3_Border(direction);
+        break;
     default:
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
         {
@@ -1925,29 +1974,29 @@ static void Ring_State_Update(void)
         g_ring_miss_cnt = (int)s_ring_state_frames;
 
         if (exit2_row_jump)
-            Ring_Set_State(RING_STATE_EXIT);
+            Ring_Set_State(RING_STATE_RECOVERY);
         break;
     }
 
-    case RING_STATE_EXIT:
-        if (Ring_Is_Stable_Road())
-        { if (s_ring_stable_count < RING_EXIT_STABLE_FRAMES) s_ring_stable_count++; }
-        else
-        { s_ring_stable_count = 0U; }
-        if (s_ring_stable_count >= RING_EXIT_STABLE_FRAMES
-            || s_ring_state_frames >= RING_EXIT_MAX_FRAMES)
-            Ring_Set_State(RING_STATE_RECOVERY);
-        break;
-
     case RING_STATE_RECOVERY:
-        if (ImageStatus.Miss_Left_lines < 4 && ImageStatus.Miss_Right_lines < 4
-            && ImageStatus.OFFLine <= 2)
-        { if (s_ring_stable_count < 4U) s_ring_stable_count++; }
-        else
-        { s_ring_stable_count = 0U; }
-        if ((s_ring_state_frames >= RING_RECOVERY_FRAMES && s_ring_stable_count >= 4U)
-            || s_ring_state_frames >= RING_RECOVERY_MAX_FRAMES)
+        valley_row = -1;
+        if (Ring_Find_Entry_Corner(direction, &valley_row, &valley_col))
+        {
+            s_ring_exit3_corner_row = valley_row;
+            s_ring_exit3_corner_col = valley_col;
+        }
+
+        /* 拐点3突然消失，或向图像上方跳变超过20行，说明已经完成出环。 */
+        if ((valley_row < 0 && s_ring_prev_exit3_row >= 0)
+            || (valley_row >= 0 && s_ring_prev_exit3_row >= 0
+                && s_ring_prev_exit3_row - valley_row > 20))
+        {
             Ring_Clear_State();
+            break;
+        }
+
+        if (valley_row >= 0)
+            s_ring_prev_exit3_row = valley_row;
         break;
 
     default:
@@ -1959,7 +2008,7 @@ static void Ring_State_Update(void)
 /* EXIT2拐点2跳变帧沿用上一帧Err，避免状态切换瞬间舵机突变。 */
 uint8 Ring_Should_Hold_Err(void)
 {
-    return (uint8)(ImageFlag.image_element_rings_flag == RING_STATE_EXIT
+    return (uint8)(ImageFlag.image_element_rings_flag == RING_STATE_RECOVERY
         && s_ring_state_frames == 0U);
 }
 
@@ -2469,14 +2518,14 @@ void Camera_ShowElementStatus(void)
 
 /* [???] */
     {
-        static const char *rst_name[] = {"IDLE","CNFM","APRC","ENTR","INSD","EX1T","EX2T","EXIT","RECV"};
+        static const char *rst_name[] = {"IDLE","CNFM","APRC","ENTR","INSD","EX1T","EX2T","RECV"};
         uint8 rst = (uint8)ImageFlag.image_element_rings_flag;
-        if (ImageFlag.image_element_rings == 1 && rst < 9)
+        if (ImageFlag.image_element_rings == 1 && rst < 8)
         {
             ips200_show_string(2, 210, "Ring:L-");
             ips200_show_string(58, 210, rst_name[rst]);
         }
-        else if (ImageFlag.image_element_rings == 2 && rst < 9)
+        else if (ImageFlag.image_element_rings == 2 && rst < 8)
         {
             ips200_show_string(2, 210, "Ring:R-");
             ips200_show_string(58, 210, rst_name[rst]);

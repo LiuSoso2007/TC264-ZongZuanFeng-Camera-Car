@@ -1484,7 +1484,7 @@ static int Ring_Get_Fill_Offset(uint8 ring_state)
 /* ponytail: ??????????ImageDeal????????? */
 static void Ring_Rebuild_Fill(uint8 direction)
 {
-    int row;
+    int row, col;
     int valley_row, valley_col;
     uint8 ring_state = (uint8)ImageFlag.image_element_rings_flag;
     int fill_offset = Ring_Get_Fill_Offset(ring_state);
@@ -1548,15 +1548,52 @@ static void Ring_Rebuild_Fill(uint8 direction)
         }
         break;
     case RING_STATE_ENTRY:
-    /* 检查谷底区域是否有跳变(跳变少的一侧特征明显) */
+        /* 先连接图像底部与入环拐点。 */
         if (s_ring_entry_corner_row > 0)
         {
-        if (direction == 1U) /* 右边界: 检查左侧是否靠边太多 */
+            if (direction == 1U)
                 Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW, LCDW - 1,
                                    s_ring_entry_corner_row, s_ring_entry_corner_col, 'R');
-        else                 /* 左边界: 检查右侧是否靠边太多 */
+            else
                 Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW, 0,
                                    s_ring_entry_corner_row, s_ring_entry_corner_col, 'L');
+
+            /* 拐点上方重新寻找环内侧边线，左右圆环完全镜像。 */
+            for (row = s_ring_entry_corner_row - 1; row > ImageStatus.OFFLine; row--)
+            {
+                if (direction == 2U)
+                {
+                    for (col = ImageDeal[row].LeftBorder + 1;
+                         col <= ImageDeal[row].RightBorder; col++)
+                    {
+                        if (Pixle[row][col] == IMG_BLACK
+                            && Pixle[row][col - 1] == IMG_WHITE)
+                        {
+                            ImageDeal[row].LeftBorder = col;
+                            ImageDeal[row].IsLeftFind = 'T';
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    for (col = ImageDeal[row].RightBorder - 1;
+                         col >= ImageDeal[row].LeftBorder; col--)
+                    {
+                        if (Pixle[row][col] == IMG_BLACK
+                            && Pixle[row][col + 1] == IMG_WHITE)
+                        {
+                            ImageDeal[row].RightBorder = col;
+                            ImageDeal[row].IsRightFind = 'T';
+                            break;
+                        }
+                    }
+                }
+                ImageDeal[row].Wide = ImageDeal[row].RightBorder
+                                    - ImageDeal[row].LeftBorder;
+                ImageDeal[row].Center = (ImageDeal[row].LeftBorder
+                                       + ImageDeal[row].RightBorder) / 2;
+            }
         }
         else
         {

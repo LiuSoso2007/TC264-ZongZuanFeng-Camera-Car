@@ -80,6 +80,16 @@ Assert-Contains $ExitDetectorCode 'Pixle[row + 2][col] == IMG_WHITE' 'EXIT2 dete
 $FillStart = $Camera.IndexOf('static void Ring_Rebuild_Fill(uint8 direction)')
 $FillEnd = $Camera.IndexOf('static void Ring_State_Update(void)', $FillStart)
 $FillCode = $Camera.Substring($FillStart, $FillEnd - $FillStart)
+$EntryFillStart = $FillCode.IndexOf('case RING_STATE_ENTRY:')
+$Exit1FillStart = $FillCode.IndexOf('case RING_STATE_EXIT1:', $EntryFillStart)
+$EntryFillCode = $FillCode.Substring($EntryFillStart, $Exit1FillStart - $EntryFillStart)
+Assert-Contains $EntryFillCode 'for (row = s_ring_entry_corner_row - 1; row > ImageStatus.OFFLine; row--)' 'ENTRY does not scan rows above the entry corner'
+Assert-Contains $EntryFillCode 'Pixle[row][col] == IMG_BLACK' 'ENTRY does not detect the black side of the white-to-black edge'
+Assert-Contains $EntryFillCode 'Pixle[row][col - 1] == IMG_WHITE' 'Right ring ENTRY does not scan right from the old left border'
+Assert-Contains $EntryFillCode 'ImageDeal[row].LeftBorder = col;' 'Right ring ENTRY does not rebuild the left border'
+Assert-Contains $EntryFillCode 'Pixle[row][col + 1] == IMG_WHITE' 'Left ring ENTRY does not mirror the scan direction'
+Assert-Contains $EntryFillCode 'ImageDeal[row].RightBorder = col;' 'Left ring ENTRY does not rebuild the right border'
+
 $Exit2FillStart = $FillCode.IndexOf('case RING_STATE_EXIT2:')
 $InsideFillStart = $FillCode.IndexOf('case RING_STATE_INSIDE:', $Exit2FillStart)
 $Exit2FillCode = $FillCode.Substring($Exit2FillStart, $InsideFillStart - $Exit2FillStart)

@@ -31,8 +31,8 @@ volatile uint8_t StopRequest = 0U;
 
 /* 斑马线停止延迟帧数: 检测到斑马线后延迟N帧后停车。
    斑马线同时充当终点线，延迟需略长以确保车体完全过线后再刹停。
-   50fps，1帧=20ms，22帧 ≈ 440ms。 */
-#define ZEBRA_STOP_DELAY_FRAMES  22
+   50fps，1帧=20ms，10帧 ≈ 200ms。 */
+#define ZEBRA_STOP_DELAY_FRAMES  10
 /* 斑马线检测到第3次确认后延迟帧数 */
 
 #pragma section all "cpu0_dsram"

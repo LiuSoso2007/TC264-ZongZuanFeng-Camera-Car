@@ -1957,11 +1957,11 @@ static void Ring_State_Update(void)
         uint8 exit2_row_jump = 0U;
         (void)Ring_Find_Exit1_Corners(direction, &c1r, &c1c, &c2r, &c2c);
 
-        /* 相邻有效帧中，拐点2向图像底部突增超过20行即完成EXIT2。 */
+        /* 相邻有效帧中，拐点2向图像底部突增超过5行即完成EXIT2。 */
         if (c2r >= 0
             && s_ring_exit1_corner2_row >= 0
             && s_ring_exit2_miss_frames == 0U
-            && c2r - s_ring_exit1_corner2_row > 20)
+            && c2r - s_ring_exit1_corner2_row > 5)
             exit2_row_jump = 1U;
 
         Ring_Update_Exit_Point(c2r, c2c,
@@ -2041,7 +2041,7 @@ static uint8 Ring_OtherSide_Too_Much_Edge(uint8 direction)
         }
     }
     /* 元素处理: 按优先级依次调用 */
-    return (uint8)(edge_rows > 4);
+    return (uint8)(edge_rows > 3);
 }
 
 void Element_Judgment_Left_Rings(void)

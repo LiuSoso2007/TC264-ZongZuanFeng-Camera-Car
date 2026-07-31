@@ -14,6 +14,7 @@
 
 volatile float    Err             = 0.0f;
 volatile uint8_t StopRequest = 0U;
+volatile uint8_t RingEntrySlowdown = 0U;
 
 /* 压缩图中行号越小前瞻越远，40比42中间稍近但更稳定。 */
 #define STEERING_LOOKAHEAD_ROW 40
@@ -84,6 +85,12 @@ int core0_main(void)
             Get_AllLine();
             Scan_Element();
             Element_Handle();
+
+            /* 只发布进环阶段减速请求，不改变圆环识别和状态机逻辑。 */
+            RingEntrySlowdown = (uint8_t)(
+                ImageFlag.image_element_rings != 0
+                && ImageFlag.image_element_rings_flag >= RING_STATE_CONFIRM
+                && ImageFlag.image_element_rings_flag <= RING_STATE_ENTRY);
 
             /* 斑马线检测延迟停车：收到N帧后让车辆通过终点线 */
             {

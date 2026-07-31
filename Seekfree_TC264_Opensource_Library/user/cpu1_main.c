@@ -39,6 +39,12 @@ volatile int16_t EncRight = 0;
 static int8_t   StraightSpeed = 30;
 static int16_t  EncCount        = 0;
 
+/* 进环速度百分比：50表示减速50%，调大更快，调小更慢。 */
+#define RING_ENTRY_SPEED_PERCENT 50
+#if RING_ENTRY_SPEED_PERCENT < 0 || RING_ENTRY_SPEED_PERCENT > 100
+#error "RING_ENTRY_SPEED_PERCENT must be between 0 and 100"
+#endif
+
 /* ---- PI参数 ---- */
 #define PI_KP          0.4f
 #define PI_KI          0.02f
@@ -57,6 +63,7 @@ int core1_main(void)
 
     int16_t  enc_left = 0, enc_right = 0;
     int8_t   pwm_left,  pwm_right;
+    int16_t  motor_speed;
     float    position_err;
 
 
@@ -121,7 +128,7 @@ int core1_main(void)
 
         /* ---- Track error (CPU0 image output, 0 when no image) ---- */
         position_err = Err;
-        uint8_t Err_abs;
+        uint8_t Err_abs = 0U;
         if(Err>0)Err_abs=Err;
         if(Err<0)Err_abs=-Err;
 
@@ -164,8 +171,17 @@ int core1_main(void)
         pwm_left  = PI_Update(&s_PI_Left,  position_err, enc_left,  StraightSpeed);
         pwm_right = PI_Update(&s_PI_Right, position_err, enc_right, StraightSpeed);
 
-        Motor_SetLeftPWM(StraightSpeed-0.2*Err_abs);
-        Motor_SetRightPWM(StraightSpeed-0.2*Err_abs);
+        motor_speed = (int16_t)((float)StraightSpeed - 0.2f * (float)Err_abs);
+        if (RingEntrySlowdown != 0U)
+        {
+            motor_speed = (int16_t)(motor_speed * RING_ENTRY_SPEED_PERCENT / 100);
+        }
+
+        /* 双向输出统一限制在-100~100，防止调参后越过电机PWM边界。 */
+        if (motor_speed > 100)  motor_speed = 100;
+        if (motor_speed < -100) motor_speed = -100;
+        Motor_SetLeftPWM((int8_t)motor_speed);
+        Motor_SetRightPWM((int8_t)motor_speed);
 
         /* ---- Servo output (currently fixed mid, future PD control) ---- */
         PD_Update(PD_KP, PD_KD);

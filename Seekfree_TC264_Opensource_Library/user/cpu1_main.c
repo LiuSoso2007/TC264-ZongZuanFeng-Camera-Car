@@ -45,6 +45,12 @@ static int16_t  EncCount        = 0;
 #error "RING_ENTRY_SPEED_PERCENT must be between 0 and 100"
 #endif
 
+/* 舵机中位校准模式：1只初始化并保持中位，测完必须改回0。 */
+#define SERVO_CENTER_CALIB_ONLY 0
+#if SERVO_CENTER_CALIB_ONLY < 0 || SERVO_CENTER_CALIB_ONLY > 1
+#error "SERVO_CENTER_CALIB_ONLY must be 0 or 1"
+#endif
+
 /* ---- PI参数 ---- */
 #define PI_KP          0.4f
 #define PI_KI          0.02f
@@ -79,6 +85,14 @@ int core1_main(void)
     Motor_SetLeftPWM(0);
     Motor_SetRightPWM(0);
 
+    if (SERVO_CENTER_CALIB_ONLY != 0)
+    {
+        /* 装车测舵机中位时，停止后续控制，避免PD或电机逻辑干扰。 */
+        Servo_SetAngleDeg(SERVO_CENTER_ANGLE);
+        while (TRUE)
+        {
+        }
+    }
 
     /* ---- Key scan PIT: 5ms (CPU1 PIT) ---- */
     pit_ms_init(CCU60_CH1, 5);

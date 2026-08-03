@@ -127,7 +127,7 @@ int core1_main(void)
         EncLeft  = enc_left;
         EncRight = enc_right;
 
-        /* ---- Track error (CPU0 image output, 0 when no image) ---- */
+        /* ---- Track error (CPU0图像输出，无新帧时保持上一份快照) ---- */
         uint8_t has_new_err = 0U;
         uint8_t Err_abs = 0U;
         if (Shared_TakeErr(&new_position_err))

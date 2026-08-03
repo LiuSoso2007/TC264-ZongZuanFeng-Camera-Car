@@ -20,16 +20,16 @@ Assert-Contains $PidSource 's_pd_err0 = err;' 'PD input must keep the Err direct
 Assert-NotContains $PidSource 's_pd_err0 = -err;' 'PD still reverses the Err direction'
 
 function Get-FirstPdAngle([float]$Err) {
-    $Out = 80.0 + 1.5 * $Err + 0.4 * $Err
-    return [Math]::Max(9.0, [Math]::Min(132.0, $Out))
+    $Out = 150.0 + 0.85 * $Err + 1.15 * $Err
+    return [Math]::Max(100.0, [Math]::Min(175.0, $Out))
 }
 
 $Negative = Get-FirstPdAngle -Err (-10.0)
 $Positive = Get-FirstPdAngle -Err 10.0
-if ($Negative -ge 80.0 -or $Positive -le 80.0) {
+if ($Negative -ge 150.0 -or $Positive -le 150.0) {
     throw 'Positive and negative Err do not steer to the expected sides'
 }
-if ($Negative -lt 9.0 -or $Positive -gt 132.0) {
+if ($Negative -lt 100.0 -or $Positive -gt 175.0) {
     throw 'Steering direction model exceeds servo limits'
 }
 

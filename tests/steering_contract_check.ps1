@@ -22,27 +22,28 @@ $PidSource = Read-Gbk 'Seekfree_TC264_Opensource_Library/code/PID.c'
 
 Assert-Contains $Camera 'for (row = SCAN_BASE_START_ROW; (row - 2) > ImageStatus.OFFLine; row -= 2)' '蓝线仍可能连接OFFLine无效行'
 Assert-NotContains $Cpu0 '/ (float)ImageSensorMid;' 'Err仍是归一化单位'
-Assert-Contains $Cpu0 'Err = 0.0f;' '无有效赛道时未清零Err'
-Assert-Contains $ServoH '#define SERVO_CENTER_ANGLE  80U' '舵机中位未统一为80度'
-Assert-Contains $ServoH '#define SERVO_MIN_ANGLE      9U' '缺少舵机负方向限幅'
-Assert-Contains $ServoH '#define SERVO_MAX_ANGLE    132U' '缺少舵机正方向限幅'
+Assert-Contains $Cpu0 'frame_err = 0.0f;' '无有效赛道时未清零Err'
+Assert-Contains $Cpu0 'Shared_PublishErr(frame_err);' '无效赛道的零Err未发布到邮箱'
+Assert-Contains $ServoH '#define SERVO_CENTER_ANGLE  150U' '舵机中位未统一为150度'
+Assert-Contains $ServoH '#define SERVO_MIN_ANGLE      100U' '缺少舵机负方向限幅'
+Assert-Contains $ServoH '#define SERVO_MAX_ANGLE    175U' '缺少舵机正方向限幅'
 Assert-Contains $ServoC 'SERVO_CENTER_ANGLE' '舵机初始化未使用统一中位'
 Assert-Contains $PidSource '+ (float)SERVO_CENTER_ANGLE;' 'PD未围绕统一中位输出'
 Assert-Contains $PidSource 'Servo_SetAngleDeg(SERVO_CENTER_ANGLE);' 'PD死区未使用统一中位'
 
 function Get-PdAngle([float]$Err) {
-    $Center = 80.0
+    $Center = 150.0
     if ($Err -ge -3.0 -and $Err -le 3.0) { return $Center }
-    $Out = 1.5 * $Err + 0.4 * $Err + $Center
-    return [Math]::Max(9.0, [Math]::Min(132.0, $Out))
+    $Out = 0.85 * $Err + 1.15 * $Err + $Center
+    return [Math]::Max(100.0, [Math]::Min(175.0, $Out))
 }
 
 $Negative = Get-PdAngle -Err (-10.0)
 $Zero = Get-PdAngle -Err 0.0
 $Positive = Get-PdAngle -Err 10.0
-if (-not ($Negative -lt 80.0 -and $Zero -eq 80.0 -and $Positive -gt 80.0)) {
+if (-not ($Negative -lt 150.0 -and $Zero -eq 150.0 -and $Positive -gt 150.0)) {
     throw 'PD未在中位两侧产生相反方向输出'
 }
-if ($Negative -lt 9.0 -or $Positive -gt 132.0) { throw 'PD输出越界' }
+if ($Negative -lt 100.0 -or $Positive -gt 175.0) { throw 'PD输出越界' }
 
 Write-Output 'PASS steering contract'

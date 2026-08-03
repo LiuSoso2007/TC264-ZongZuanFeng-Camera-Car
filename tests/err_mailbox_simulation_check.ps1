@@ -16,14 +16,67 @@ $PidSource = Read-Gbk 'Seekfree_TC264_Opensource_Library/code/PID.c'
 $Cpu0 = Read-Gbk 'Seekfree_TC264_Opensource_Library/user/cpu0_main.c'
 $Cpu1 = Read-Gbk 'Seekfree_TC264_Opensource_Library/user/cpu1_main.c'
 
-Assert-Contains $Shared 'Shared_PublishErr(float err)' 'Shared.h lacks the atomic CPU0 publish API'
-Assert-Contains $Shared 'Shared_TakeErr(float *err)' 'Shared.h lacks the atomic CPU1 take API'
-Assert-Contains $Shared 'IfxCpu_acquireMutex' 'Err mailbox does not use the TC264 iLLD mutex'
+function Test-LockProtocol([string]$Text) {
+    $Options = [Text.RegularExpressions.RegexOptions]::Singleline
+    $PublishPattern = 'static\s+inline\s+void\s+Shared_PublishErr\s*\(float err\).*?' +
+        'while\s*\(IfxCpu_acquireMutex\(&ErrMailboxLock\)\s*==\s*FALSE\).*?' +
+        'Err\s*=\s*err;\s*ErrReady\s*=\s*1U;\s*IfxCpu_releaseMutex\(&ErrMailboxLock\);'
+    $TakePattern = 'static\s+inline\s+uint8_t\s+Shared_TakeErr\s*\(float \*err\).*?' +
+        'if\s*\(IfxCpu_acquireMutex\(&ErrMailboxLock\)\s*!=\s*FALSE\).*?' +
+        'if\s*\(ErrReady\s*!=\s*0U\).*?\*err\s*=\s*Err;\s*ErrReady\s*=\s*0U;\s*' +
+        'has_new_err\s*=\s*1U;.*?IfxCpu_releaseMutex\(&ErrMailboxLock\);.*?return\s+has_new_err;'
+    return [regex]::IsMatch($Text, $PublishPattern, $Options) -and
+           [regex]::IsMatch($Text, $TakePattern, $Options)
+}
+
+if (-not (Test-LockProtocol -Text $Shared)) {
+    throw 'Shared.h mailbox lock/write/clear/release order is invalid'
+}
+
+# Mutation checks prove the source validator catches lost-ready and lost-release defects.
+if (Test-LockProtocol -Text $Shared.Replace('ErrReady = 1U;', 'ErrReady = 0U;')) {
+    throw 'Source validator accepted a broken publish-ready assignment'
+}
+if (Test-LockProtocol -Text $Shared.Replace('IfxCpu_releaseMutex(&ErrMailboxLock);', '')) {
+    throw 'Source validator accepted a mailbox that never releases its lock'
+}
+
 Assert-Contains $PidHeader 'void PD_Update(float Kp, float Kd, float err);' 'PD API does not accept a local Err snapshot'
 Assert-Contains $PidSource 'void PD_Update(float Kp, float Kd, float err)' 'PD implementation does not accept a local Err snapshot'
+Assert-Contains $PidSource 's_pd_err0 = err;' 'PD does not use the stable local Err snapshot'
 Assert-Contains $Cpu0 'Shared_PublishErr(frame_err);' 'CPU0 does not publish Err after a completed frame'
 Assert-Contains $Cpu1 'if (Shared_TakeErr(&new_position_err))' 'CPU1 does not consume Err with the new-data guard'
 Assert-Contains $Cpu1 'PD_Update(PD_KP, PD_KD, position_err);' 'CPU1 does not run PD from one stable Err snapshot'
+
+$Cpu1PdPattern = 'if\s*\(has_new_err\s*!=\s*0U\)\s*\{\s*PD_Update\(PD_KP, PD_KD, position_err\);\s*\}'
+if (-not [regex]::IsMatch($Cpu1, $Cpu1PdPattern)) {
+    throw 'CPU1 PD call is not guarded by the new-Err result'
+}
+
+function New-MailboxState {
+    return [pscustomobject]@{ Owner = ''; Ready = $false; FrameId = -1 }
+}
+
+function Try-PublishMailbox([object]$State, [int]$FrameId) {
+    if ($State.Owner -ne '') { return $false }
+    $State.Owner = 'CPU0'
+    $State.FrameId = $FrameId
+    $State.Ready = $true
+    $State.Owner = ''
+    return $true
+}
+
+function Try-TakeMailbox([object]$State) {
+    if ($State.Owner -ne '') { return $null }
+    $State.Owner = 'CPU1'
+    $Result = $null
+    if ($State.Ready) {
+        $Result = $State.FrameId
+        $State.Ready = $false
+    }
+    $State.Owner = ''
+    return $Result
+}
 
 function Get-Events([int]$DurationUs, [int[]]$FrameIntervalsUs, [int]$ControlPeriodUs) {
     $Events = [Collections.Generic.List[object]]::new()
@@ -41,30 +94,49 @@ function Get-Events([int]$DurationUs, [int[]]$FrameIntervalsUs, [int]$ControlPer
 }
 
 function Invoke-MailboxSimulation([object[]]$Events) {
-    $Pending = $false
+    $Mailbox = New-MailboxState
     $LatestFrameId = -1
     $LastConsumedId = -1
+    $OldLastFrameId = -1
     $Published = 0
     $Consumed = 0
     $Duplicate = 0
     $MaxLatencyUs = 0
+    $OldPdCalls = 0
+    $OldDuplicate = 0
+    $OldMaxFirstLatencyUs = 0
     $PublishTimes = @{}
 
     foreach ($Event in $Events) {
         if ($Event.Kind -eq 'Publish') {
             $LatestFrameId = $Event.FrameId
-            $Pending = $true
+            if (-not (Try-PublishMailbox -State $Mailbox -FrameId $LatestFrameId)) {
+                throw 'Unexpected producer lock collision in the regular event stream'
+            }
             $PublishTimes[$LatestFrameId] = $Event.TimeUs
             $Published++
             continue
         }
 
-        if ($Pending) {
-            if ($LatestFrameId -le $LastConsumedId) { $Duplicate++ }
-            $LatencyUs = $Event.TimeUs - $PublishTimes[$LatestFrameId]
+        # Old code ran PD on every 10 ms tick, including repeated reads of the same frame.
+        if ($LatestFrameId -ge 0) {
+            $OldPdCalls++
+            if ($LatestFrameId -eq $OldLastFrameId) {
+                $OldDuplicate++
+            }
+            else {
+                $OldLatencyUs = $Event.TimeUs - $PublishTimes[$LatestFrameId]
+                if ($OldLatencyUs -gt $OldMaxFirstLatencyUs) { $OldMaxFirstLatencyUs = $OldLatencyUs }
+                $OldLastFrameId = $LatestFrameId
+            }
+        }
+
+        $TakenFrameId = Try-TakeMailbox -State $Mailbox
+        if ($null -ne $TakenFrameId) {
+            if ($TakenFrameId -le $LastConsumedId) { $Duplicate++ }
+            $LatencyUs = $Event.TimeUs - $PublishTimes[$TakenFrameId]
             if ($LatencyUs -gt $MaxLatencyUs) { $MaxLatencyUs = $LatencyUs }
-            $LastConsumedId = $LatestFrameId
-            $Pending = $false
+            $LastConsumedId = $TakenFrameId
             $Consumed++
         }
     }
@@ -75,6 +147,9 @@ function Invoke-MailboxSimulation([object[]]$Events) {
         Duplicate = $Duplicate
         MaxLatencyUs = $MaxLatencyUs
         LastConsumedId = $LastConsumedId
+        OldPdCalls = $OldPdCalls
+        OldDuplicate = $OldDuplicate
+        OldMaxFirstLatencyUs = $OldMaxFirstLatencyUs
     }
 }
 
@@ -84,34 +159,19 @@ $Result = Invoke-MailboxSimulation -Events $Events
 if ($Result.Duplicate -ne 0) { throw "Mailbox duplicated $($Result.Duplicate) samples" }
 if ($Result.Consumed -lt ($Result.Published - 1)) { throw 'The 10 ms consumer dropped more than the final pending frame' }
 if ($Result.MaxLatencyUs -gt 10000) { throw "Publish-to-consume latency exceeded 10 ms: $($Result.MaxLatencyUs) us" }
-
-# Fixed 20 ms polling can wait almost 20 ms; mailbox polling is bounded to 10 ms without contention.
-$Fixed20WorstUs = 20000
-if ($Result.MaxLatencyUs -ge $Fixed20WorstUs) { throw 'Mailbox polling did not beat fixed 20 ms polling' }
-
-# A frame published at 3 ms is handled at 10 ms by the mailbox, but at 20 ms by a fixed 20 ms loop.
-$MailboxStepLatencyUs = 10000 - 3000
-$Fixed20StepLatencyUs = 20000 - 3000
-if (($Fixed20StepLatencyUs - $MailboxStepLatencyUs) -ne 10000) {
-    throw 'The mailbox did not save one 10 ms control interval versus fixed 20 ms polling'
+if ($Result.OldDuplicate -le 0) { throw 'Old 10 ms loop model did not reproduce duplicate PD updates' }
+if ($Result.OldMaxFirstLatencyUs -ne $Result.MaxLatencyUs) {
+    throw 'Mailbox must keep the old 10 ms first-sample latency rather than claim a false speedup'
 }
 
-# Reprocessing the same Err at the next 10 ms tick erases the derivative boost before a 20 ms PWM latch.
-$Center = 150.0
-$Kp = 0.85
+# The first new Err has a derivative term; reusing the same Err on the next tick makes that term zero.
 $Kd = 1.15
+$PreviousErr = 0.0
 $StepErr = 10.0
-$FirstPd = $Center + $Kp * $StepErr + $Kd * $StepErr
-$RepeatedPd = $Center + $Kp * $StepErr
-if ([Math]::Abs($FirstPd - $Center) -le [Math]::Abs($RepeatedPd - $Center)) {
-    throw 'New-data-only PD did not preserve the first-frame derivative response'
-}
-
-# If CPU0 owns the lock exactly at a control tick, CPU1 skips instead of blocking and retries after 10 ms.
-$ContendedPublishUs = 10000
-$ContendedConsumeUs = 20000
-if (($ContendedConsumeUs - $ContendedPublishUs) -gt 10000) {
-    throw 'One lock collision delayed consumption by more than one control interval'
+$FirstDerivative = $Kd * ($StepErr - $PreviousErr)
+$RepeatedDerivative = $Kd * ($StepErr - $StepErr)
+if ($FirstDerivative -eq 0.0 -or $RepeatedDerivative -ne 0.0) {
+    throw 'PD duplicate model did not reproduce derivative cancellation'
 }
 
 # Producer overload must overwrite stale frames instead of making CPU1 follow a delayed FIFO backlog.
@@ -121,45 +181,33 @@ if ($Overload.Consumed -ge $Overload.Published) { throw 'Overload model did not 
 if ($Overload.Duplicate -ne 0) { throw 'Overload model consumed one frame more than once' }
 if ($Overload.MaxLatencyUs -gt 10000) { throw 'Overload model delivered a stale frame after one control interval' }
 
-# With no producer frames, control ticks must not invent a PD update.
-$NoFrameEvents = 0..20 | ForEach-Object {
-    [pscustomobject]@{ TimeUs = $_ * 10000; Kind = 'Control'; FrameId = -1 }
-}
-$NoFrame = Invoke-MailboxSimulation -Events $NoFrameEvents
-if ($NoFrame.Consumed -ne 0 -or $NoFrame.Duplicate -ne 0) {
-    throw 'No-frame model generated a false Err update'
-}
+# Lock collision, producer retry, latest overwrite and no-frame behavior all use the same lock state model.
+$Collision = New-MailboxState
+$Collision.Owner = 'CPU0'
+$Collision.Ready = $true
+$Collision.FrameId = 7
+if ($null -ne (Try-TakeMailbox -State $Collision)) { throw 'CPU1 must not block or read while CPU0 owns the lock' }
+$Collision.Owner = ''
+if ((Try-TakeMailbox -State $Collision) -ne 7) { throw 'CPU1 did not retry the pending frame after lock release' }
+if ($null -ne (Try-TakeMailbox -State $Collision)) { throw 'CPU1 consumed the retried frame twice' }
 
-function Get-NextPwmLatchUs([int]$ReadyUs, [int]$PhaseUs) {
-    if ($ReadyUs -le $PhaseUs) { return $PhaseUs }
-    return $PhaseUs + [int]([Math]::Ceiling(($ReadyUs - $PhaseUs) / 20000.0)) * 20000
-}
+$ProducerRetry = New-MailboxState
+$ProducerRetry.Owner = 'CPU1'
+if (Try-PublishMailbox -State $ProducerRetry -FrameId 9) { throw 'CPU0 publish entered while CPU1 owned the lock' }
+$ProducerRetry.Owner = ''
+if (-not (Try-PublishMailbox -State $ProducerRetry -FrameId 9)) { throw 'CPU0 publish retry failed after lock release' }
+if ((Try-TakeMailbox -State $ProducerRetry) -ne 9) { throw 'Retried CPU0 publish was not delivered' }
 
-# Sweep every 1 ms PWM phase. Mailbox data is ready at 10 ms; fixed polling is ready at 20 ms.
-$MailboxLatencySumUs = 0
-$FixedLatencySumUs = 0
-$OldDerivativeLatchCount = 0
-$NewDerivativeLatchCount = 0
-for ($PhaseUs = 0; $PhaseUs -lt 20000; $PhaseUs += 1000) {
-    $MailboxLatchUs = Get-NextPwmLatchUs -ReadyUs 10000 -PhaseUs $PhaseUs
-    $FixedLatchUs = Get-NextPwmLatchUs -ReadyUs 20000 -PhaseUs $PhaseUs
-    $MailboxLatencySumUs += $MailboxLatchUs - 3000
-    $FixedLatencySumUs += $FixedLatchUs - 3000
+$LatestOnly = New-MailboxState
+$null = Try-PublishMailbox -State $LatestOnly -FrameId 1
+$null = Try-PublishMailbox -State $LatestOnly -FrameId 2
+$null = Try-PublishMailbox -State $LatestOnly -FrameId 3
+if ((Try-TakeMailbox -State $LatestOnly) -ne 3) { throw 'Mailbox did not overwrite stale frames with the latest value' }
+if ($null -ne (Try-TakeMailbox -State $LatestOnly)) { throw 'Latest-only mailbox created a duplicate after overwrite' }
 
-    # Old 10 ms PD loses its derivative at the 20 ms duplicate update; mailbox keeps it until every latch.
-    if ($MailboxLatchUs -lt 20000) { $OldDerivativeLatchCount++ }
-    $NewDerivativeLatchCount++
-}
-$MailboxAverageLatchUs = $MailboxLatencySumUs / 20
-$FixedAverageLatchUs = $FixedLatencySumUs / 20
-if (($FixedAverageLatchUs - $MailboxAverageLatchUs) -ne 10000) {
-    throw 'PWM phase sweep did not show the expected 10 ms average response gain'
-}
-if ($OldDerivativeLatchCount -ge $NewDerivativeLatchCount) {
-    throw 'PWM phase sweep did not expose derivative overwrite in the old 10 ms loop'
-}
+$NoFrame = New-MailboxState
+if ($null -ne (Try-TakeMailbox -State $NoFrame)) { throw 'No-frame model generated a false Err update' }
 
-Write-Output ("PASS TC264 Err mailbox simulation: published={0}, consumed={1}, duplicate={2}, max_latency_us={3}, overload={4}/{5}, avg_pwm_gain_us={6}, derivative_latches={7}->{8}" -f `
-    $Result.Published, $Result.Consumed, $Result.Duplicate, $Result.MaxLatencyUs, `
-    $Overload.Consumed, $Overload.Published, ($FixedAverageLatchUs - $MailboxAverageLatchUs), `
-    $OldDerivativeLatchCount, $NewDerivativeLatchCount)
+Write-Output ("PASS TC264 Err mailbox: frames={0}, old_pd={1}, old_duplicate={2}, new_pd={3}, new_duplicate={4}, same_first_latency_us={5}, overload={6}/{7}" -f `
+    $Result.Published, $Result.OldPdCalls, $Result.OldDuplicate, $Result.Consumed, `
+    $Result.Duplicate, $Result.MaxLatencyUs, $Overload.Consumed, $Overload.Published)

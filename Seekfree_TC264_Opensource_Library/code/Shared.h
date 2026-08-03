@@ -2,6 +2,7 @@
 #define __SHARED_H__
 
 #include <stdint.h>
+#include "IfxCpu.h"
 
 /*
  * Shared.h --- CPU0 <> CPU1 跨核共享数据结构
@@ -22,10 +23,43 @@
  */
 
 extern volatile float Err;
+extern volatile uint8_t ErrReady;
+extern IfxCpu_mutexLock ErrMailboxLock;
 extern volatile uint8_t StopRequest;
 extern volatile uint8_t RingEntrySlowdown;
 extern volatile int16_t EncLeft;
 extern volatile int16_t EncRight;
+
+/* CPU0覆盖最新Err；互斥锁只保护一个浮点数和新数据标志。 */
+static inline void Shared_PublishErr(float err)
+{
+    while (IfxCpu_acquireMutex(&ErrMailboxLock) == FALSE)
+    {
+        /* CPU1临界区极短，等待其完成一次原子快照。 */
+    }
+    Err = err;
+    ErrReady = 1U;
+    IfxCpu_releaseMutex(&ErrMailboxLock);
+}
+
+/* CPU1非阻塞获取最新Err；锁忙时保留舵机输出，下个10ms周期重试。 */
+static inline uint8_t Shared_TakeErr(float *err)
+{
+    uint8_t has_new_err = 0U;
+
+    if (IfxCpu_acquireMutex(&ErrMailboxLock) != FALSE)
+    {
+        if (ErrReady != 0U)
+        {
+            *err = Err;
+            ErrReady = 0U;
+            has_new_err = 1U;
+        }
+        IfxCpu_releaseMutex(&ErrMailboxLock);
+    }
+
+    return has_new_err;
+}
 
 
 /*

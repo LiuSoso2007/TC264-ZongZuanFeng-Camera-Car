@@ -2,13 +2,12 @@
 #define __PID_H__
 
 #include <stdint.h>
-extern volatile float Err;
 
 #define PI_OUT_MIN    -100
 #define PI_OUT_MAX     100
 
 /* PD位置式 -- 舵机 */
-void PD_Update(float Kp, float Kd);
+void PD_Update(float Kp, float Kd, float err);
 
 /* PI增量式 -- 电机 */
 typedef struct {

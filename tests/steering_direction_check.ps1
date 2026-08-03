@@ -16,8 +16,8 @@ function Assert-NotContains([string]$Text, [string]$Unexpected, [string]$Message
 
 $PidSource = Read-Gbk 'Seekfree_TC264_Opensource_Library/code/PID.c'
 
-Assert-Contains $PidSource 's_pd_err0 = Err;' 'PD input must keep the Err direction'
-Assert-NotContains $PidSource 's_pd_err0 = -Err;' 'PD still reverses the Err direction'
+Assert-Contains $PidSource 's_pd_err0 = err;' 'PD input must keep the Err direction'
+Assert-NotContains $PidSource 's_pd_err0 = -err;' 'PD still reverses the Err direction'
 
 function Get-FirstPdAngle([float]$Err) {
     $Out = 80.0 + 1.5 * $Err + 0.4 * $Err

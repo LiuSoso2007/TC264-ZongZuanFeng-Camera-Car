@@ -6,22 +6,18 @@
 
 /* ---- PD ---- */
 #define PD_ERR_DEAD_ZONE 3.0f  /* Err死区边界，范围内舵机回中。 */
-static uint8_t s_pd_div = 1, s_pd_cnt = 0;
 static float   s_pd_out = 0.0f, s_pd_err0 = 0.0f, s_pd_err1 = 0.0f;
 
-void PD_Update(float Kp, float Kd)
+void PD_Update(float Kp, float Kd, float err)
 {
-    if (++s_pd_cnt < s_pd_div) return;
-    s_pd_cnt = 0;
-
     s_pd_err1 = s_pd_err0;
-    s_pd_err0 = Err;
+    s_pd_err0 = err;
     s_pd_out  = Kp * s_pd_err0 + Kd * (s_pd_err0 - s_pd_err1)
               + (float)SERVO_CENTER_ANGLE;
     if (s_pd_out > (float)SERVO_MAX_ANGLE) s_pd_out = (float)SERVO_MAX_ANGLE;
     if (s_pd_out < (float)SERVO_MIN_ANGLE) s_pd_out = (float)SERVO_MIN_ANGLE;
 
-    if (Err >= -PD_ERR_DEAD_ZONE && Err <= PD_ERR_DEAD_ZONE)
+    if (err >= -PD_ERR_DEAD_ZONE && err <= PD_ERR_DEAD_ZONE)
         Servo_SetAngleDeg(SERVO_CENTER_ANGLE);
     else
         Servo_SetAngleDeg((uint8_t)s_pd_out);

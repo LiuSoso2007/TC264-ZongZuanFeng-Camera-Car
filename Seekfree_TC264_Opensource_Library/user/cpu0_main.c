@@ -13,6 +13,8 @@
 #include "isr.h"
 
 volatile float    Err             = 0.0f;
+volatile uint8_t ErrReady         = 0U;
+IfxCpu_mutexLock ErrMailboxLock   = 0U;
 volatile uint8_t StopRequest = 0U;
 volatile uint8_t RingEntrySlowdown = 0U;
 
@@ -120,22 +122,27 @@ int core0_main(void)
             /* EXIT2拐点2跳变帧不覆盖Err，直接沿用上一帧控制量。 */
             if (!Ring_Should_Hold_Err())
             {
+                float frame_err;
+
                 if (ImageStatus.OFFLine < STEERING_LOOKAHEAD_ROW)
                 {
-                    Err = (float)((ImageDeal[STEERING_LOOKAHEAD_ROW].Center
-                         + ImageDeal[STEERING_LOOKAHEAD_ROW + 1].Center
-                         + ImageDeal[STEERING_LOOKAHEAD_ROW + 2].Center) / 3
-                         - ImageSensorMid);
+                    frame_err = (float)((ImageDeal[STEERING_LOOKAHEAD_ROW].Center
+                              + ImageDeal[STEERING_LOOKAHEAD_ROW + 1].Center
+                              + ImageDeal[STEERING_LOOKAHEAD_ROW + 2].Center) / 3
+                              - ImageSensorMid);
                 }
                 else if (ImageStatus.OFFLine < SCAN_BASE_START_ROW
                       && ImageDeal[ImageStatus.OFFLine + 1].Wide > 8)
                 {
-                    Err = (float)(ImageDeal[ImageStatus.OFFLine + 1].Center - ImageSensorMid);
+                    frame_err = (float)(ImageDeal[ImageStatus.OFFLine + 1].Center - ImageSensorMid);
                 }
                 else
                 {
-                    Err = 0.0f;
+                    frame_err = 0.0f;
                 }
+
+                /* 一帧处理完成后原子覆盖邮箱，CPU1只消费一次最新Err。 */
+                Shared_PublishErr(frame_err);
             }
 #if IPS200_DISPLAY_IMAGE_ENABLE
             /* 每帧只写QSPI2到达，避免直接刷新防止闪烁，节约带宽以显示路径线 */

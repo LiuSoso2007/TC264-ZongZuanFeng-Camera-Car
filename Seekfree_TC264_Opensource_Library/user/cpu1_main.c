@@ -64,7 +64,8 @@ int core1_main(void)
     int16_t  enc_left = 0, enc_right = 0;
     int8_t   pwm_left,  pwm_right;
     int16_t  motor_speed;
-    float    position_err;
+    float    position_err = 0.0f;
+    float    new_position_err;
 
 
     /* ---- Peripheral init (CPU1 side) ---- */
@@ -127,10 +128,15 @@ int core1_main(void)
         EncRight = enc_right;
 
         /* ---- Track error (CPU0 image output, 0 when no image) ---- */
-        position_err = Err;
+        uint8_t has_new_err = 0U;
         uint8_t Err_abs = 0U;
-        if(Err>0)Err_abs=Err;
-        if(Err<0)Err_abs=-Err;
+        if (Shared_TakeErr(&new_position_err))
+        {
+            position_err = new_position_err;
+            has_new_err = 1U;
+        }
+        if(position_err>0)Err_abs=position_err;
+        if(position_err<0)Err_abs=-position_err;
 
         /* CPU0识别到斑马线并锁定后, 依次置零PWM和PI偏置, 然后设置舵机中位停车。 */
         if (StopRequest != 0U)
@@ -183,8 +189,11 @@ int core1_main(void)
         Motor_SetLeftPWM((int8_t)motor_speed);
         Motor_SetRightPWM((int8_t)motor_speed);
 
-        /* ---- Servo output (currently fixed mid, future PD control) ---- */
-        PD_Update(PD_KP, PD_KD);
+        /* 每个图像Err只执行一次PD，避免10ms控制周期重复覆盖微分输出。 */
+        if (has_new_err != 0U)
+        {
+            PD_Update(PD_KP, PD_KD, position_err);
+        }
 
     }
 }

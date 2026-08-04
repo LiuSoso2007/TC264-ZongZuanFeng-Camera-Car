@@ -147,6 +147,11 @@ extern ImageStatustypedef ImageStatus;         // 图像状态全局变量
 #define FILL_RECOVERY_OFFSET        0   // 恢复补线偏移
 
 #define RING_JUMP_THRESHOLD         2   // 断点判定: 连续跳变像素阈值
+#define RING_JUMP_SCAN_MIN_ROW     20   // 断点统计最小行(含)
+#define RING_JUMP_SCAN_MAX_ROW     59   // 断点统计最大行(含)
+#if (RING_JUMP_SCAN_MIN_ROW < 0) || (RING_JUMP_SCAN_MAX_ROW >= LCDH) || (RING_JUMP_SCAN_MIN_ROW > RING_JUMP_SCAN_MAX_ROW)
+#error "RING_JUMP_SCAN_ROW range is invalid"
+#endif
 #define RING_JUMP_MIN_COUNT         3   // 最小跳变次数
 #define RING_JUMP_OTHER_MAX         2   // 另一侧最大跳变次数
 #define RING_EXIT_POINT_HOLD_FRAMES 3U  // EXIT1/EXIT2单点短时丢失保持帧数

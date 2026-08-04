@@ -1100,14 +1100,14 @@ static uint8 Ring_Find_Entry_Corner(uint8 direction, int *corner_row, int *corne
     return 0U;
 }
 
-/* ---- count border jumps between adjacent rows ---- */
+/* ---- 统计相邻行边界断点数量 ---- */
 static int Ring_Check_Border_Jump(uint8 direction, int threshold, int min_row, int max_row)
 {
     int row;
     int prev_col = -1, curr_col;
     int count = 0;
 
-    for (row = max_row; row > min_row; row--)
+    for (row = max_row; row >= min_row; row--)
     {
         if (direction == 1U)
         {
@@ -2421,9 +2421,9 @@ void Get_ExtensionLine(void)
 /* [???] */
 void Scan_Element(void)
 {
-    /* update jump counts every frame */
-    g_left_jump_count  = (uint8)Ring_Check_Border_Jump(1U, RING_JUMP_THRESHOLD, ImageStatus.OFFLine + 2, SCAN_BASE_START_ROW);
-    g_right_jump_count = (uint8)Ring_Check_Border_Jump(2U, RING_JUMP_THRESHOLD, ImageStatus.OFFLine + 2, SCAN_BASE_START_ROW);
+    /* 每帧只统计20~59行断点，降低近端噪声对圆环初判的影响。 */
+    g_left_jump_count  = (uint8)Ring_Check_Border_Jump(1U, RING_JUMP_THRESHOLD, RING_JUMP_SCAN_MIN_ROW, RING_JUMP_SCAN_MAX_ROW);
+    g_right_jump_count = (uint8)Ring_Check_Border_Jump(2U, RING_JUMP_THRESHOLD, RING_JUMP_SCAN_MIN_ROW, RING_JUMP_SCAN_MAX_ROW);
 
 /* [???] */
     if (ImageFlag.Zebra_Flag == 0

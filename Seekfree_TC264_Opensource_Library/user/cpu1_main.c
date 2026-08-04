@@ -39,7 +39,7 @@ volatile int16_t EncRight = 0;
 static int8_t   StraightSpeed = 30;
 static int16_t  EncCount        = 0;
 
-/* 进环速度百分比：50表示减速50%，调大更快，调小更慢。 */
+/* 进环保留速度百分比：50表示保留原速度50%，数值越大越快，越小越慢。 */
 #define RING_ENTRY_SPEED_PERCENT 50
 #if RING_ENTRY_SPEED_PERCENT < 0 || RING_ENTRY_SPEED_PERCENT > 100
 #error "RING_ENTRY_SPEED_PERCENT must be between 0 and 100"

@@ -2297,8 +2297,8 @@ void Element_Handle_Ramp(void)
 
 
 /* [???] */
-#define CROSS_SCAN_BOTTOM_ROW       (LCDH - 1)
-#define CROSS_SCAN_TOP_ROW          0
+#define CROSS_SCAN_BOTTOM_ROW       50
+#define CROSS_SCAN_TOP_ROW          20
 #define CROSS_STABLE_MIN_ROWS        5
 #define CROSS_STABLE_COL_TOLERANCE   1
 #define CROSS_JUMP_MIN_COLS          4
@@ -2310,7 +2310,7 @@ void Element_Handle_Ramp(void)
 
 static uint8 s_cross_detected = 0U;  /* 当前帧左右拐点有效并已完成补线 */
 
-/* 从屏幕底部向顶部同步扫描左右画线，找到稳定直线结束处的十字拐点。 */
+/* 从第50行向第20行同步扫描左右画线，找到稳定直线结束处的十字拐点。 */
 static uint8 Cross_Find_Corners(int *left_row, int *left_col,
                                 int *right_row, int *right_col)
 {

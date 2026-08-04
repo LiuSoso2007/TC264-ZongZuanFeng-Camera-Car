@@ -89,7 +89,7 @@ int core0_main(void)
             Element_Handle();
 
             /* 只发布进环阶段减速请求，不改变圆环识别和状态机逻辑。 */
-            RingEntrySlowdown = (uint8_t)(
+            uint8_t ring_entry_slowdown = (uint8_t)(
                 ImageFlag.image_element_rings != 0
                 && ImageFlag.image_element_rings_flag >= RING_STATE_CONFIRM
                 && ImageFlag.image_element_rings_flag <= RING_STATE_ENTRY);
@@ -142,7 +142,7 @@ int core0_main(void)
                 }
 
                 /* 一帧处理完成后原子覆盖邮箱，CPU1只消费一次最新Err。 */
-                Shared_PublishErr(frame_err);
+                Shared_PublishErr(frame_err, ring_entry_slowdown);
             }
 #if IPS200_DISPLAY_IMAGE_ENABLE
             /* 每帧只写QSPI2到达，避免直接刷新防止闪烁，节约带宽以显示路径线 */

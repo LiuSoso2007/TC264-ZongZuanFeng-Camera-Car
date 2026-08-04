@@ -66,6 +66,8 @@ int core1_main(void)
     int16_t  motor_speed;
     float    position_err = 0.0f;
     float    new_position_err;
+    uint8_t  ring_entry_slowdown = 0U;
+    uint8_t  new_ring_entry_slowdown;
 
 
     /* ---- Peripheral init (CPU1 side) ---- */
@@ -130,9 +132,10 @@ int core1_main(void)
         /* ---- Track error (CPU0图像输出，无新帧时保持上一份快照) ---- */
         uint8_t has_new_err = 0U;
         uint8_t Err_abs = 0U;
-        if (Shared_TakeErr(&new_position_err))
+        if (Shared_TakeErr(&new_position_err, &new_ring_entry_slowdown))
         {
             position_err = new_position_err;
+            ring_entry_slowdown = new_ring_entry_slowdown;
             has_new_err = 1U;
         }
         if(position_err>0)Err_abs=position_err;
@@ -178,7 +181,7 @@ int core1_main(void)
         pwm_right = PI_Update(&s_PI_Right, position_err, enc_right, StraightSpeed);
 
         motor_speed = (int16_t)((float)StraightSpeed - 0.2f * (float)Err_abs);
-        if (RingEntrySlowdown != 0U)
+        if (ring_entry_slowdown != 0U)
         {
             motor_speed = (int16_t)(motor_speed * RING_ENTRY_SPEED_PERCENT / 100);
         }

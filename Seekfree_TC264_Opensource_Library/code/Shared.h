@@ -30,20 +30,21 @@ extern volatile uint8_t RingEntrySlowdown;
 extern volatile int16_t EncLeft;
 extern volatile int16_t EncRight;
 
-/* CPU0覆盖最新Err；互斥锁只保护一个浮点数和新数据标志。 */
-static inline void Shared_PublishErr(float err)
+/* CPU0覆盖最新帧控制量；Err和减速标志必须同锁发布，避免CPU1读到跨帧旧状态。 */
+static inline void Shared_PublishErr(float err, uint8_t ring_entry_slowdown)
 {
     while (IfxCpu_acquireMutex(&ErrMailboxLock) == FALSE)
     {
         /* CPU1临界区极短，等待其完成一次原子快照。 */
     }
     Err = err;
+    RingEntrySlowdown = ring_entry_slowdown;
     ErrReady = 1U;
     IfxCpu_releaseMutex(&ErrMailboxLock);
 }
 
-/* CPU1非阻塞获取最新Err；锁忙时保留舵机输出，下个10ms周期重试。 */
-static inline uint8_t Shared_TakeErr(float *err)
+/* CPU1非阻塞获取最新帧快照；锁忙时保留上一帧控制量，下个10ms周期重试。 */
+static inline uint8_t Shared_TakeErr(float *err, uint8_t *ring_entry_slowdown)
 {
     uint8_t has_new_err = 0U;
 
@@ -52,6 +53,7 @@ static inline uint8_t Shared_TakeErr(float *err)
         if (ErrReady != 0U)
         {
             *err = Err;
+            *ring_entry_slowdown = RingEntrySlowdown;
             ErrReady = 0U;
             has_new_err = 1U;
         }

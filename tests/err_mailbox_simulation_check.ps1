@@ -18,12 +18,12 @@ $Cpu1 = Read-Gbk 'Seekfree_TC264_Opensource_Library/user/cpu1_main.c'
 
 function Test-LockProtocol([string]$Text) {
     $Options = [Text.RegularExpressions.RegexOptions]::Singleline
-    $PublishPattern = 'static\s+inline\s+void\s+Shared_PublishErr\s*\(float err\).*?' +
+    $PublishPattern = 'static\s+inline\s+void\s+Shared_PublishErr\s*\(float err,\s*uint8_t ring_entry_slowdown\).*?' +
         'while\s*\(IfxCpu_acquireMutex\(&ErrMailboxLock\)\s*==\s*FALSE\).*?' +
-        'Err\s*=\s*err;\s*ErrReady\s*=\s*1U;\s*IfxCpu_releaseMutex\(&ErrMailboxLock\);'
-    $TakePattern = 'static\s+inline\s+uint8_t\s+Shared_TakeErr\s*\(float \*err\).*?' +
+        'Err\s*=\s*err;\s*RingEntrySlowdown\s*=\s*ring_entry_slowdown;\s*ErrReady\s*=\s*1U;\s*IfxCpu_releaseMutex\(&ErrMailboxLock\);'
+    $TakePattern = 'static\s+inline\s+uint8_t\s+Shared_TakeErr\s*\(float \*err,\s*uint8_t \*ring_entry_slowdown\).*?' +
         'if\s*\(IfxCpu_acquireMutex\(&ErrMailboxLock\)\s*!=\s*FALSE\).*?' +
-        'if\s*\(ErrReady\s*!=\s*0U\).*?\*err\s*=\s*Err;\s*ErrReady\s*=\s*0U;\s*' +
+        'if\s*\(ErrReady\s*!=\s*0U\).*?\*err\s*=\s*Err;\s*\*ring_entry_slowdown\s*=\s*RingEntrySlowdown;\s*ErrReady\s*=\s*0U;\s*' +
         'has_new_err\s*=\s*1U;.*?IfxCpu_releaseMutex\(&ErrMailboxLock\);.*?return\s+has_new_err;'
     return [regex]::IsMatch($Text, $PublishPattern, $Options) -and
            [regex]::IsMatch($Text, $TakePattern, $Options)
@@ -44,8 +44,9 @@ if (Test-LockProtocol -Text $Shared.Replace('IfxCpu_releaseMutex(&ErrMailboxLock
 Assert-Contains $PidHeader 'void PD_Update(float Kp, float Kd, float err);' 'PD API does not accept a local Err snapshot'
 Assert-Contains $PidSource 'void PD_Update(float Kp, float Kd, float err)' 'PD implementation does not accept a local Err snapshot'
 Assert-Contains $PidSource 's_pd_err0 = err;' 'PD does not use the stable local Err snapshot'
-Assert-Contains $Cpu0 'Shared_PublishErr(frame_err);' 'CPU0 does not publish Err after a completed frame'
-Assert-Contains $Cpu1 'if (Shared_TakeErr(&new_position_err))' 'CPU1 does not consume Err with the new-data guard'
+Assert-Contains $Cpu0 'Shared_PublishErr(frame_err, ring_entry_slowdown);' 'CPU0 does not publish Err and ring slowdown together after a completed frame'
+Assert-Contains $Cpu1 'if (Shared_TakeErr(&new_position_err, &new_ring_entry_slowdown))' 'CPU1 does not consume Err and ring slowdown with the same new-data guard'
+Assert-Contains $Cpu1 'ring_entry_slowdown = new_ring_entry_slowdown;' 'CPU1 does not update the local slowdown snapshot from the mailbox'
 Assert-Contains $Cpu1 'PD_Update(PD_KP, PD_KD, position_err);' 'CPU1 does not run PD from one stable Err snapshot'
 
 $Cpu1PdPattern = 'if\s*\(has_new_err\s*!=\s*0U\)\s*\{\s*PD_Update\(PD_KP, PD_KD, position_err\);\s*\}'
@@ -54,13 +55,14 @@ if (-not [regex]::IsMatch($Cpu1, $Cpu1PdPattern)) {
 }
 
 function New-MailboxState {
-    return [pscustomobject]@{ Owner = ''; Ready = $false; FrameId = -1 }
+    return [pscustomobject]@{ Owner = ''; Ready = $false; FrameId = -1; Slowdown = 0 }
 }
 
-function Try-PublishMailbox([object]$State, [int]$FrameId) {
+function Try-PublishMailbox([object]$State, [int]$FrameId, [int]$Slowdown) {
     if ($State.Owner -ne '') { return $false }
     $State.Owner = 'CPU0'
     $State.FrameId = $FrameId
+    $State.Slowdown = $Slowdown
     $State.Ready = $true
     $State.Owner = ''
     return $true
@@ -71,7 +73,7 @@ function Try-TakeMailbox([object]$State) {
     $State.Owner = 'CPU1'
     $Result = $null
     if ($State.Ready) {
-        $Result = $State.FrameId
+        $Result = [pscustomobject]@{ FrameId = $State.FrameId; Slowdown = $State.Slowdown }
         $State.Ready = $false
     }
     $State.Owner = ''
@@ -97,6 +99,8 @@ function Invoke-MailboxSimulation([object[]]$Events) {
     $Mailbox = New-MailboxState
     $LatestFrameId = -1
     $LastConsumedId = -1
+    $LastSlowdown = 0
+    $SlowdownStuckAfterExit = $false
     $OldLastFrameId = -1
     $Published = 0
     $Consumed = 0
@@ -110,7 +114,8 @@ function Invoke-MailboxSimulation([object[]]$Events) {
     foreach ($Event in $Events) {
         if ($Event.Kind -eq 'Publish') {
             $LatestFrameId = $Event.FrameId
-            if (-not (Try-PublishMailbox -State $Mailbox -FrameId $LatestFrameId)) {
+            $Slowdown = if (($LatestFrameId % 6) -lt 3) { 1 } else { 0 }
+            if (-not (Try-PublishMailbox -State $Mailbox -FrameId $LatestFrameId -Slowdown $Slowdown)) {
                 throw 'Unexpected producer lock collision in the regular event stream'
             }
             $PublishTimes[$LatestFrameId] = $Event.TimeUs
@@ -131,12 +136,14 @@ function Invoke-MailboxSimulation([object[]]$Events) {
             }
         }
 
-        $TakenFrameId = Try-TakeMailbox -State $Mailbox
-        if ($null -ne $TakenFrameId) {
-            if ($TakenFrameId -le $LastConsumedId) { $Duplicate++ }
-            $LatencyUs = $Event.TimeUs - $PublishTimes[$TakenFrameId]
+        $Taken = Try-TakeMailbox -State $Mailbox
+        if ($null -ne $Taken) {
+            if ($Taken.FrameId -le $LastConsumedId) { $Duplicate++ }
+            $LatencyUs = $Event.TimeUs - $PublishTimes[$Taken.FrameId]
             if ($LatencyUs -gt $MaxLatencyUs) { $MaxLatencyUs = $LatencyUs }
-            $LastConsumedId = $TakenFrameId
+            $LastConsumedId = $Taken.FrameId
+            $LastSlowdown = $Taken.Slowdown
+            if (($Taken.FrameId % 6) -ge 3 -and $LastSlowdown -ne 0) { $SlowdownStuckAfterExit = $true }
             $Consumed++
         }
     }
@@ -150,6 +157,7 @@ function Invoke-MailboxSimulation([object[]]$Events) {
         OldPdCalls = $OldPdCalls
         OldDuplicate = $OldDuplicate
         OldMaxFirstLatencyUs = $OldMaxFirstLatencyUs
+        SlowdownStuckAfterExit = $SlowdownStuckAfterExit
     }
 }
 
@@ -163,6 +171,7 @@ if ($Result.OldDuplicate -le 0) { throw 'Old 10 ms loop model did not reproduce 
 if ($Result.OldMaxFirstLatencyUs -ne $Result.MaxLatencyUs) {
     throw 'Mailbox must keep the old 10 ms first-sample latency rather than claim a false speedup'
 }
+if ($Result.SlowdownStuckAfterExit) { throw 'Ring slowdown stayed enabled after a non-entry frame was consumed' }
 
 # The first new Err has a derivative term; reusing the same Err on the next tick makes that term zero.
 $Kd = 1.15
@@ -186,23 +195,28 @@ $Collision = New-MailboxState
 $Collision.Owner = 'CPU0'
 $Collision.Ready = $true
 $Collision.FrameId = 7
+$Collision.Slowdown = 1
 if ($null -ne (Try-TakeMailbox -State $Collision)) { throw 'CPU1 must not block or read while CPU0 owns the lock' }
 $Collision.Owner = ''
-if ((Try-TakeMailbox -State $Collision) -ne 7) { throw 'CPU1 did not retry the pending frame after lock release' }
+$CollisionTaken = Try-TakeMailbox -State $Collision
+if ($CollisionTaken.FrameId -ne 7 -or $CollisionTaken.Slowdown -ne 1) { throw 'CPU1 did not retry the pending frame after lock release' }
 if ($null -ne (Try-TakeMailbox -State $Collision)) { throw 'CPU1 consumed the retried frame twice' }
 
 $ProducerRetry = New-MailboxState
 $ProducerRetry.Owner = 'CPU1'
-if (Try-PublishMailbox -State $ProducerRetry -FrameId 9) { throw 'CPU0 publish entered while CPU1 owned the lock' }
+if (Try-PublishMailbox -State $ProducerRetry -FrameId 9 -Slowdown 1) { throw 'CPU0 publish entered while CPU1 owned the lock' }
 $ProducerRetry.Owner = ''
-if (-not (Try-PublishMailbox -State $ProducerRetry -FrameId 9)) { throw 'CPU0 publish retry failed after lock release' }
-if ((Try-TakeMailbox -State $ProducerRetry) -ne 9) { throw 'Retried CPU0 publish was not delivered' }
+if (-not (Try-PublishMailbox -State $ProducerRetry -FrameId 9 -Slowdown 0)) { throw 'CPU0 publish retry failed after lock release' }
+$ProducerTaken = Try-TakeMailbox -State $ProducerRetry
+if ($ProducerTaken.FrameId -ne 9 -or $ProducerTaken.Slowdown -ne 0) { throw 'Retried CPU0 publish was not delivered' }
 
 $LatestOnly = New-MailboxState
-$null = Try-PublishMailbox -State $LatestOnly -FrameId 1
-$null = Try-PublishMailbox -State $LatestOnly -FrameId 2
-$null = Try-PublishMailbox -State $LatestOnly -FrameId 3
-if ((Try-TakeMailbox -State $LatestOnly) -ne 3) { throw 'Mailbox did not overwrite stale frames with the latest value' }
+$null = Try-PublishMailbox -State $LatestOnly -FrameId 1 -Slowdown 1
+$null = Try-PublishMailbox -State $LatestOnly -FrameId 2 -Slowdown 1
+$null = Try-PublishMailbox -State $LatestOnly -FrameId 3 -Slowdown 0
+$LatestTaken = Try-TakeMailbox -State $LatestOnly
+if ($LatestTaken.FrameId -ne 3) { throw 'Mailbox did not overwrite stale frames with the latest value' }
+if ($LatestTaken.Slowdown -ne 0) { throw 'Mailbox did not overwrite stale ring slowdown state with the latest frame' }
 if ($null -ne (Try-TakeMailbox -State $LatestOnly)) { throw 'Latest-only mailbox created a duplicate after overwrite' }
 
 $NoFrame = New-MailboxState

@@ -2358,9 +2358,9 @@ static uint8 Cross_Find_Corners(int *left_row, int *left_col,
                     if (left_stable_rows >= CROSS_STABLE_MIN_ROWS
                         && delta >= CROSS_JUMP_MIN_COLS)
                     {
-                        /* 左边界向右突跳，上一行稳定边界点就是左十字拐点。 */
-                        *left_row = row + 1;
-                        *left_col = ImageDeal[row + 1].LeftBorder;
+                        /* 左边界向右突跳，当前行边界点就是跳变后的左十字拐点。 */
+                        *left_row = row;
+                        *left_col = border;
                         left_found = 1U;
                     }
                     else if (delta >= -CROSS_STABLE_COL_TOLERANCE
@@ -2399,9 +2399,9 @@ static uint8 Cross_Find_Corners(int *left_row, int *left_col,
                     if (right_stable_rows >= CROSS_STABLE_MIN_ROWS
                         && delta <= -CROSS_JUMP_MIN_COLS)
                     {
-                        /* 右边界向左突跳，上一行稳定边界点就是右十字拐点。 */
-                        *right_row = row + 1;
-                        *right_col = ImageDeal[row + 1].RightBorder;
+                        /* 右边界向左突跳，当前行边界点就是跳变后的右十字拐点。 */
+                        *right_row = row;
+                        *right_col = border;
                         right_found = 1U;
                     }
                     else if (delta >= -CROSS_STABLE_COL_TOLERANCE

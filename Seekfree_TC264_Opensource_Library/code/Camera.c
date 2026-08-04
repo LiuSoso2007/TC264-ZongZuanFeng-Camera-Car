@@ -2434,7 +2434,7 @@ void Scan_Element(void)
         Element_Judgment_Left_Rings();        /* [???] */
         Element_Judgment_Right_Rings();       /* [???] */
         Element_Judgment_Zebra();             /* [???] */
-        Element_Judgment_Bend();              /* [???] */
+        /* 弯道沿用基础巡线中线，不再单独识别或覆盖Center。 */
         Element_Judgment_Ramp();              /* [???] */
         Straight_long_judge();                /* [???] */
     }
@@ -2471,8 +2471,6 @@ void Element_Handle(void)
         Get_ExtensionLine();                  /* 十字路口: 延伸线补全丢失边界 */
     else if (ImageFlag.straight_long)
         Straight_long_handle();
-    else if (ImageFlag.Bend_Road != 0)
-        Element_Handle_Bend();
 }
 /* [???] */
 void Flag_init(void)

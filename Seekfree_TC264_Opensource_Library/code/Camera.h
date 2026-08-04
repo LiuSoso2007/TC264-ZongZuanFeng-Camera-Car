@@ -147,8 +147,8 @@ extern ImageStatustypedef ImageStatus;         // 图像状态全局变量
 #define FILL_RECOVERY_OFFSET        0   // 恢复补线偏移
 
 #define RING_JUMP_THRESHOLD         2   // 断点判定: 连续跳变像素阈值
-#define RING_JUMP_SCAN_MIN_ROW     20   // 断点统计最小行(含)
-#define RING_JUMP_SCAN_MAX_ROW     59   // 断点统计最大行(含)
+#define RING_JUMP_SCAN_MIN_ROW     14   // 断点统计最小行(含)
+#define RING_JUMP_SCAN_MAX_ROW     50   // 断点统计最大行(含)
 #if (RING_JUMP_SCAN_MIN_ROW < 0) || (RING_JUMP_SCAN_MAX_ROW >= LCDH) || (RING_JUMP_SCAN_MIN_ROW > RING_JUMP_SCAN_MAX_ROW)
 #error "RING_JUMP_SCAN_ROW range is invalid"
 #endif

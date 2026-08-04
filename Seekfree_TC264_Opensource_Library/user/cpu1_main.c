@@ -50,8 +50,8 @@ static int16_t  EncCount        = 0;
 #define PI_KI          0.02f
 #define CURVE_SPEED    0
 /* ---- PD参数 ---- */
-#define PD_KP          0.85f
-#define PD_KD          1.15f
+#define PD_KP          0.9f
+#define PD_KD          0.8f
 
 static PI_t s_PI_Left, s_PI_Right;   /* Left/Right motor PI controllers */
 
@@ -193,6 +193,7 @@ int core1_main(void)
         Motor_SetRightPWM((int8_t)motor_speed);
 
         /* 每个图像Err只执行一次PD，避免10ms控制周期重复覆盖微分输出。 */
+
         if (has_new_err != 0U)
         {
             PD_Update(PD_KP, PD_KD, position_err);

@@ -4,7 +4,7 @@
 #include "zf_common_headfile.h"
 
 /* 实车舵机校准参数，初始化和控制必须共用。 */
-#define SERVO_CENTER_ANGLE  150U
+#define SERVO_CENTER_ANGLE  151U
 #define SERVO_MIN_ANGLE      100U
 #define SERVO_MAX_ANGLE    175U
 #if SERVO_MIN_ANGLE > SERVO_CENTER_ANGLE || SERVO_CENTER_ANGLE > SERVO_MAX_ANGLE

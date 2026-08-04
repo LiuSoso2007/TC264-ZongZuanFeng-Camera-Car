@@ -5,9 +5,9 @@
 #include "Servo.h"
 
 /* ---- PD ---- */
-#define PD_ERR_DEAD_ZONE 3.0f  /* Err死区边界，范围内舵机回中。 */
-#define SERVO_MIN_SIDE_WEIGHT  2.0f  /* 100方向权重，以1为归一化基准。 */
-#define SERVO_MAX_SIDE_WEIGHT  1.0f  /* 175方向权重，以1为归一化基准。 */
+#define PD_ERR_DEAD_ZONE 2.0f  /* Err死区边界，范围内舵机回中。 */
+#define SERVO_MIN_SIDE_WEIGHT  1.0f  /* 100方向权重，以1为归一化基准。 */
+#define SERVO_MAX_SIDE_WEIGHT  0.65f  /* 175方向权重，以1为归一化基准。 */
 static float   s_pd_out = 0.0f, s_pd_offset = 0.0f;
 static float   s_pd_err0 = 0.0f, s_pd_err1 = 0.0f;
 

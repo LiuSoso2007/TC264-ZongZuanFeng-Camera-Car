@@ -2297,8 +2297,8 @@ void Element_Handle_Ramp(void)
 
 
 /* [???] */
-#define CROSS_SCAN_BOTTOM_ROW       50
-#define CROSS_SCAN_TOP_ROW          15
+#define CROSS_SCAN_BOTTOM_ROW       (LCDH - 1)
+#define CROSS_SCAN_TOP_ROW          0
 #define CROSS_STABLE_MIN_ROWS        5
 #define CROSS_STABLE_COL_TOLERANCE   1
 #define CROSS_JUMP_MIN_COLS          4
@@ -2310,12 +2310,11 @@ void Element_Handle_Ramp(void)
 
 static uint8 s_cross_detected = 0U;  /* 当前帧左右拐点有效并已完成补线 */
 
-/* 从第50行向第15行同步扫描左右边界，找到稳定直线结束处的十字拐点。 */
+/* 从屏幕底部向顶部同步扫描左右画线，找到稳定直线结束处的十字拐点。 */
 static uint8 Cross_Find_Corners(int *left_row, int *left_col,
                                 int *right_row, int *right_col)
 {
     int row;
-    int scan_top = CROSS_SCAN_TOP_ROW;
     int left_stable_col = 0;
     int right_stable_col = 0;
     int left_stable_rows = 0;
@@ -2330,23 +2329,18 @@ static uint8 Cross_Find_Corners(int *left_row, int *left_col,
     *right_row = -1;
     *right_col = -1;
 
-    /* OFFLine以上的数据可能沿用旧帧，禁止参与十字判断。 */
-    if (ImageStatus.OFFLine > scan_top)
-        scan_top = ImageStatus.OFFLine;
-    if (scan_top >= CROSS_SCAN_BOTTOM_ROW)
-        return 0U;
-
-    for (row = CROSS_SCAN_BOTTOM_ROW; row >= scan_top; row--)
+    /* 按屏幕画线坐标扫描，OFFLine和边界找到标志不再过滤。 */
+    for (row = CROSS_SCAN_BOTTOM_ROW; row >= CROSS_SCAN_TOP_ROW; row--)
     {
         if (!left_found)
         {
-            if (ImageDeal[row].IsLeftFind != 'T')
+            border = ImageDeal[row].LeftBorder;
+            if (border < 0 || border >= LCDW)
             {
                 left_stable_rows = 0;
             }
             else
             {
-                border = ImageDeal[row].LeftBorder;
                 if (left_stable_rows == 0)
                 {
                     left_stable_col = border;
@@ -2381,13 +2375,13 @@ static uint8 Cross_Find_Corners(int *left_row, int *left_col,
 
         if (!right_found)
         {
-            if (ImageDeal[row].IsRightFind != 'T')
+            border = ImageDeal[row].RightBorder;
+            if (border < 0 || border >= LCDW)
             {
                 right_stable_rows = 0;
             }
             else
             {
-                border = ImageDeal[row].RightBorder;
                 if (right_stable_rows == 0)
                 {
                     right_stable_col = border;

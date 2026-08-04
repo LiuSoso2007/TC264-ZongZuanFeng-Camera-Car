@@ -2297,126 +2297,177 @@ void Element_Handle_Ramp(void)
 
 
 /* [???] */
-#define CROSS_WHITE_LINE_MIN 8
-#define CROSS_VALID_LINE_COUNT 3
+#define CROSS_SCAN_BOTTOM_ROW       50
+#define CROSS_SCAN_TOP_ROW          15
+#define CROSS_STABLE_MIN_ROWS        5
+#define CROSS_STABLE_COL_TOLERANCE   1
+#define CROSS_JUMP_MIN_COLS          4
+#define CROSS_CORNER_MAX_ROW_DIFF    4
 
-/* [???] */
-static void Repair_Cross_Border(uint8 is_left)
+#if (CROSS_SCAN_TOP_ROW < 0) || (CROSS_SCAN_BOTTOM_ROW >= LCDH) || (CROSS_SCAN_TOP_ROW >= CROSS_SCAN_BOTTOM_ROW)
+#error "CROSS_SCAN_ROW range is invalid"
+#endif
+
+static uint8 s_cross_detected = 0U;  /* 当前帧左右拐点有效并已完成补线 */
+
+/* 从第50行向第15行同步扫描左右边界，找到稳定直线结束处的十字拐点。 */
+static uint8 Cross_Find_Corners(int *left_row, int *left_col,
+                                int *right_row, int *right_col)
 {
     int row;
-    int near_row = -1;
-    int far_row = -1;
-    int near_border;
-    int far_border = 0;
+    int scan_top = CROSS_SCAN_TOP_ROW;
+    int left_stable_col = 0;
+    int right_stable_col = 0;
+    int left_stable_rows = 0;
+    int right_stable_rows = 0;
     int border;
+    int delta;
+    uint8 left_found = 0U;
+    uint8 right_found = 0U;
 
-    /* 断路判断(暂未实现) */
-    for (row = SCAN_BASE_END_ROW - 1;
-         row >= ImageStatus.OFFLine + CROSS_VALID_LINE_COUNT - 1;
-         row--)
+    *left_row = -1;
+    *left_col = -1;
+    *right_row = -1;
+    *right_col = -1;
+
+    /* OFFLine以上的数据可能沿用旧帧，禁止参与十字判断。 */
+    if (ImageStatus.OFFLine > scan_top)
+        scan_top = ImageStatus.OFFLine;
+    if (scan_top >= CROSS_SCAN_BOTTOM_ROW)
+        return 0U;
+
+    for (row = CROSS_SCAN_BOTTOM_ROW; row >= scan_top; row--)
     {
-        if ((is_left && ImageDeal[row].IsLeftFind == 'W')
-         || (!is_left && ImageDeal[row].IsRightFind == 'W'))
+        if (!left_found)
         {
-            near_row = row + 1;
+            if (ImageDeal[row].IsLeftFind != 'T')
+            {
+                left_stable_rows = 0;
+            }
+            else
+            {
+                border = ImageDeal[row].LeftBorder;
+                if (left_stable_rows == 0)
+                {
+                    left_stable_col = border;
+                    left_stable_rows = 1;
+                }
+                else
+                {
+                    delta = border - left_stable_col;
+                    if (left_stable_rows >= CROSS_STABLE_MIN_ROWS
+                        && delta <= -CROSS_JUMP_MIN_COLS)
+                    {
+                        /* 左边界向外突跳，上一行稳定边界点就是左十字拐点。 */
+                        *left_row = row + 1;
+                        *left_col = ImageDeal[row + 1].LeftBorder;
+                        left_found = 1U;
+                    }
+                    else if (delta >= -CROSS_STABLE_COL_TOLERANCE
+                             && delta <= CROSS_STABLE_COL_TOLERANCE)
+                    {
+                        left_stable_col = (left_stable_col * left_stable_rows + border)
+                                        / (left_stable_rows + 1);
+                        left_stable_rows++;
+                    }
+                    else
+                    {
+                        left_stable_col = border;
+                        left_stable_rows = 1;
+                    }
+                }
+            }
+        }
+
+        if (!right_found)
+        {
+            if (ImageDeal[row].IsRightFind != 'T')
+            {
+                right_stable_rows = 0;
+            }
+            else
+            {
+                border = ImageDeal[row].RightBorder;
+                if (right_stable_rows == 0)
+                {
+                    right_stable_col = border;
+                    right_stable_rows = 1;
+                }
+                else
+                {
+                    delta = border - right_stable_col;
+                    if (right_stable_rows >= CROSS_STABLE_MIN_ROWS
+                        && delta >= CROSS_JUMP_MIN_COLS)
+                    {
+                        /* 右边界向外突跳，上一行稳定边界点就是右十字拐点。 */
+                        *right_row = row + 1;
+                        *right_col = ImageDeal[row + 1].RightBorder;
+                        right_found = 1U;
+                    }
+                    else if (delta >= -CROSS_STABLE_COL_TOLERANCE
+                             && delta <= CROSS_STABLE_COL_TOLERANCE)
+                    {
+                        right_stable_col = (right_stable_col * right_stable_rows + border)
+                                         / (right_stable_rows + 1);
+                        right_stable_rows++;
+                    }
+                    else
+                    {
+                        right_stable_col = border;
+                        right_stable_rows = 1;
+                    }
+                }
+            }
+        }
+
+        if (left_found && right_found)
             break;
-        }
-    }
-    if (near_row < 0 || near_row >= LCDH) return;
-
-    near_border = is_left ? ImageDeal[near_row].LeftBorder
-                          : ImageDeal[near_row].RightBorder;
-    if (near_border < 1 || near_border > LCDW - 2) return;
-
-    /* 断路处理(暂未实现) */
-    for (row = near_row - 2;
-         row >= ImageStatus.OFFLine + CROSS_VALID_LINE_COUNT - 1;
-         row--)
-    {
-        if (is_left
-         && ImageDeal[row].IsLeftFind == 'T'
-         && ImageDeal[row - 1].IsLeftFind == 'T'
-         && ImageDeal[row - 2].IsLeftFind == 'T')
-        {
-            far_row = row - 2;
-            break;
-        }
-        if (!is_left
-         && ImageDeal[row].IsRightFind == 'T'
-         && ImageDeal[row - 1].IsRightFind == 'T'
-         && ImageDeal[row - 2].IsRightFind == 'T')
-        {
-            far_row = row - 2;
-            break;
-        }
     }
 
-    if (far_row >= 0)
-    {
-        far_border = is_left ? ImageDeal[far_row].LeftBorder
-                             : ImageDeal[far_row].RightBorder;
-        if (far_border < 1 || far_border > LCDW - 2) far_row = -1;
-    }
-
-    if (far_row < 0)
-    {
-    /* 十字白线修复: 线性插值填充全白丢失区域 */
-        for (row = near_row - 1; row > ImageStatus.OFFLine; row--)
-        {
-            if (is_left && ImageDeal[row].IsLeftFind == 'W')
-                ImageDeal[row].LeftBorder = near_border;
-            else if (!is_left && ImageDeal[row].IsRightFind == 'W')
-                ImageDeal[row].RightBorder = near_border;
-        }
-        return;
-    }
-
-    for (row = near_row - 1; row >= far_row; row--)
-    {
-        border = near_border
-                   + (far_border - near_border) * (near_row - row)
-                   / (near_row - far_row);
-        if (is_left)
-            ImageDeal[row].LeftBorder = border;
-        else
-            ImageDeal[row].RightBorder = border;
-    }
+    return (uint8)(left_found && right_found);
 }
 
 void Get_ExtensionLine(void)
 {
     int row;
+    int top_row;
+    int row_diff;
+    int left_row, left_col;
+    int right_row, right_col;
 
-    if (ImageStatus.WhiteLine < CROSS_WHITE_LINE_MIN) return;
+    s_cross_detected = 0U;
 
-    Repair_Cross_Border(1);
-    Repair_Cross_Border(0);
+    /* 圆环状态优先，任何圆环阶段都禁止十字识别和补线。 */
+    if (ImageFlag.image_element_rings != 0
+        || ImageFlag.image_element_rings_flag != RING_STATE_IDLE)
+        return;
 
-/* [???] */
-    for (row = SCAN_BASE_END_ROW; row > ImageStatus.OFFLine; row--)
+    if (!Cross_Find_Corners(&left_row, &left_col, &right_row, &right_col))
+        return;
+
+    row_diff = left_row - right_row;
+    if (row_diff < 0) row_diff = -row_diff;
+    if (row_diff > CROSS_CORNER_MAX_ROW_DIFF
+        || left_col < 1 || right_col > LCDW - 2
+        || left_col >= right_col)
+        return;
+
+    /* 复用现有线性补线工具：左下角、右下角分别连接到对应十字拐点。 */
+    Ring_DrawAndUpdate(0U, SCAN_BASE_START_ROW, 0,
+                       left_row, left_col, 'L');
+    Ring_DrawAndUpdate(0U, SCAN_BASE_START_ROW, LCDW - 1,
+                       right_row, right_col, 'R');
+
+    top_row = (left_row < right_row) ? left_row : right_row;
+    for (row = SCAN_BASE_START_ROW; row >= top_row; row--)
     {
         LimitL(ImageDeal[row].LeftBorder);
-        LimitH(ImageDeal[row].LeftBorder);
-        LimitL(ImageDeal[row].RightBorder);
         LimitH(ImageDeal[row].RightBorder);
-
-        if (ImageDeal[row].LeftBorder >= ImageDeal[row].RightBorder)
-        {
-            if (row < SCAN_BASE_END_ROW)
-            {
-                ImageDeal[row].LeftBorder = ImageDeal[row + 1].LeftBorder;
-                ImageDeal[row].RightBorder = ImageDeal[row + 1].RightBorder;
-            }
-            else
-            {
-                ImageDeal[row].LeftBorder = ImageSensorMid - Half_Road_Wide[row];
-                ImageDeal[row].RightBorder = ImageSensorMid + Half_Road_Wide[row];
-            }
-        }
-
         ImageDeal[row].Wide = ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder;
         ImageDeal[row].Center = (ImageDeal[row].LeftBorder + ImageDeal[row].RightBorder) / 2;
     }
+
+    s_cross_detected = 1U;
 }
 /* [???] */
 void Scan_Element(void)
@@ -2457,20 +2508,22 @@ void Scan_Element(void)
 /* [???] */
 void Element_Handle(void)
 {
-    if (ImageFlag.image_element_rings == 1)
+    s_cross_detected = 0U;
 
     if (ImageFlag.image_element_rings == 1)
         Element_Handle_Left_Rings();
-    if (ImageFlag.image_element_rings == 2)
+    else if (ImageFlag.image_element_rings == 2)
         Element_Handle_Right_Rings();
     else if (ImageFlag.Zebra_Flag != 0)
         Element_Handle_Zebra();
     else if (ImageFlag.Ramp != 0)
         Element_Handle_Ramp();
-    else if (ImageStatus.WhiteLine >= CROSS_WHITE_LINE_MIN)
-        Get_ExtensionLine();                  /* 十字路口: 延伸线补全丢失边界 */
-    else if (ImageFlag.straight_long)
-        Straight_long_handle();
+    else
+    {
+        Get_ExtensionLine();                  /* 十字路口: 稳定列突跳拐点补线 */
+        if (ImageFlag.straight_long)
+            Straight_long_handle();
+    }
 }
 /* [???] */
 void Flag_init(void)
@@ -2506,7 +2559,7 @@ void Camera_ShowElementStatus(void)
     {
         ips200_show_string(2, 225, "ELEM: yuan_R ");     /* [???] */
     }
-    else if (ImageStatus.WhiteLine >= 8)
+    else if (s_cross_detected)
     {
         ips200_show_string(2, 225, "ELEM: shi    ");     /* [???] */
     }

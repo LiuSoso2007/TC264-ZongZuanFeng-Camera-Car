@@ -2296,13 +2296,13 @@ void Element_Handle_Ramp(void)
 
 
 
-/* [???] */
+/* 十字弯道扫描参数 */
 #define CROSS_SCAN_BOTTOM_ROW       50
-#define CROSS_SCAN_TOP_ROW          20
+#define CROSS_SCAN_TOP_ROW          13
 #define CROSS_STABLE_MIN_ROWS        5
 #define CROSS_STABLE_COL_TOLERANCE   1
-#define CROSS_JUMP_MIN_COLS          4
-#define CROSS_CORNER_MAX_ROW_DIFF    4
+#define CROSS_JUMP_MIN_COLS          3
+#define CROSS_CORNER_MAX_ROW_DIFF    10
 
 #if (CROSS_SCAN_TOP_ROW < 0) || (CROSS_SCAN_BOTTOM_ROW >= LCDH) || (CROSS_SCAN_TOP_ROW >= CROSS_SCAN_BOTTOM_ROW)
 #error "CROSS_SCAN_ROW range is invalid"

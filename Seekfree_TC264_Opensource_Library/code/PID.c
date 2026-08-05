@@ -5,9 +5,9 @@
 #include "Servo.h"
 
 /* ---- PD ---- */
-#define PD_ERR_DEAD_ZONE 2.0f  /* Err死区边界，范围内舵机回中。 */
-#define SERVO_MIN_SIDE_WEIGHT  1.0f  /* 100方向权重，以1为归一化基准。 */
-#define SERVO_MAX_SIDE_WEIGHT  0.65f  /* 175方向权重，以1为归一化基准。 */
+#define PD_ERR_DEAD_ZONE 1.0f  /* Err死区边界，范围内舵机回中。 */
+#define SERVO_MIN_SIDE_WEIGHT  1.2f  /* 100方向基础权重，负向误差越大时再按比例增强。 */
+#define SERVO_MAX_SIDE_WEIGHT  0.57f  /* 175方向固定权重，以1为归一化基准。 */
 static float   s_pd_out = 0.0f, s_pd_offset = 0.0f;
 static float   s_pd_err0 = 0.0f, s_pd_err1 = 0.0f;
 
@@ -17,7 +17,7 @@ void PD_Update(float Kp, float Kd, float err)
     s_pd_err0 = err;
     s_pd_offset = Kp * s_pd_err0 + Kd * (s_pd_err0 - s_pd_err1);
     if (s_pd_offset < 0.0f)
-        s_pd_offset *= SERVO_MIN_SIDE_WEIGHT;
+        s_pd_offset *= SERVO_MIN_SIDE_WEIGHT * (1-s_pd_err0/60);
     else
         s_pd_offset *= SERVO_MAX_SIDE_WEIGHT;
     s_pd_out = (float)SERVO_CENTER_ANGLE + s_pd_offset;

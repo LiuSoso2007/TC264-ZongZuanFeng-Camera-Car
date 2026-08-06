@@ -2302,6 +2302,7 @@ void Element_Handle_Ramp(void)
 #define CROSS_STABLE_MIN_ROWS        5
 #define CROSS_STABLE_COL_TOLERANCE   1
 #define CROSS_JUMP_MIN_COLS          3
+#define CROSS_UPPER_CONFIRM_ROWS      2
 #define CROSS_CORNER_MAX_ROW_DIFF    10
 
 #if (CROSS_SCAN_TOP_ROW < 0) || (CROSS_SCAN_BOTTOM_ROW >= LCDH) || (CROSS_SCAN_TOP_ROW >= CROSS_SCAN_BOTTOM_ROW)
@@ -2310,7 +2311,39 @@ void Element_Handle_Ramp(void)
 
 static uint8 s_cross_detected = 0U;  /* 当前帧左右拐点有效并已完成补线 */
 
-/* 从第50行向第20行同步扫描左右画线，找到稳定直线结束处的十字拐点。 */
+/* 候选点上方连续两行均无跳变，才确认候选点为十字拐点。 */
+static uint8 Cross_Upper_Rows_Have_No_Jump(int row, uint8 check_left)
+{
+    int offset;
+    int previous_border;
+    int current_border;
+    int delta;
+
+    if (row < CROSS_UPPER_CONFIRM_ROWS)
+        return 0U;
+
+    previous_border = check_left ? ImageDeal[row].LeftBorder : ImageDeal[row].RightBorder;
+    if (previous_border < 0 || previous_border >= LCDW)
+        return 0U;
+
+    for (offset = 1; offset <= CROSS_UPPER_CONFIRM_ROWS; offset++)
+    {
+        current_border = check_left ? ImageDeal[row - offset].LeftBorder
+                                    : ImageDeal[row - offset].RightBorder;
+        if (current_border < 0 || current_border >= LCDW)
+            return 0U;
+
+        delta = current_border - previous_border;
+        if (delta <= -CROSS_JUMP_MIN_COLS || delta >= CROSS_JUMP_MIN_COLS)
+            return 0U;
+
+        previous_border = current_border;
+    }
+
+    return 1U;
+}
+
+/* 从扫描下边界向上同步扫描左右画线，找到稳定直线结束处的十字拐点。 */
 static uint8 Cross_Find_Corners(int *left_row, int *left_col,
                                 int *right_row, int *right_col)
 {
@@ -2352,10 +2385,14 @@ static uint8 Cross_Find_Corners(int *left_row, int *left_col,
                     if (left_stable_rows >= CROSS_STABLE_MIN_ROWS
                         && delta >= CROSS_JUMP_MIN_COLS)
                     {
-                        /* 左边界向右突跳，当前行边界点就是跳变后的左十字拐点。 */
-                        *left_row = row;
-                        *left_col = border;
-                        left_found = 1U;
+                        if (Cross_Upper_Rows_Have_No_Jump(row, 1U))
+                        {
+                            /* 左边界向右突跳且上方两行连续，确认当前点为左十字拐点。 */
+                            *left_row = row;
+                            *left_col = border;
+                            left_found = 1U;
+                        }
+                        /* 上方仍有跳变时略过候选，保留稳定直线基准继续向上搜索。 */
                     }
                     else if (delta >= -CROSS_STABLE_COL_TOLERANCE
                              && delta <= CROSS_STABLE_COL_TOLERANCE)
@@ -2393,10 +2430,14 @@ static uint8 Cross_Find_Corners(int *left_row, int *left_col,
                     if (right_stable_rows >= CROSS_STABLE_MIN_ROWS
                         && delta <= -CROSS_JUMP_MIN_COLS)
                     {
-                        /* 右边界向左突跳，当前行边界点就是跳变后的右十字拐点。 */
-                        *right_row = row;
-                        *right_col = border;
-                        right_found = 1U;
+                        if (Cross_Upper_Rows_Have_No_Jump(row, 0U))
+                        {
+                            /* 右边界向左突跳且上方两行连续，确认当前点为右十字拐点。 */
+                            *right_row = row;
+                            *right_col = border;
+                            right_found = 1U;
+                        }
+                        /* 上方仍有跳变时略过候选，保留稳定直线基准继续向上搜索。 */
                     }
                     else if (delta >= -CROSS_STABLE_COL_TOLERANCE
                              && delta <= CROSS_STABLE_COL_TOLERANCE)

@@ -2144,9 +2144,8 @@ void Element_Judgment_Zebra(void)
     int valid_rows = 0;     /* [???] */
     static int confirm_cnt = 0;     /* [???] */
 
-    /* 长直道处理 */
-    if (ImageFlag.image_element_rings
-     || ImageFlag.Zebra_Flag != 0)
+    /* 斑马线优先于十字和圆环，允许在圆环状态中继续判定。 */
+    if (ImageFlag.Zebra_Flag != 0)
         return;
 
     /* 扫描窗口: 行44~57, 每行统计黑->白(0->1)跳变次数 */
@@ -2508,11 +2507,6 @@ void Get_ExtensionLine(void)
 
     s_cross_detected = 0U;
 
-    /* 圆环状态优先，任何圆环阶段都禁止十字识别和补线。 */
-    if (ImageFlag.image_element_rings != 0
-        || ImageFlag.image_element_rings_flag != RING_STATE_IDLE)
-        return;
-
     if (!Cross_Find_Corners(&left_row, &left_col, &right_row, &right_col))
         return;
 
@@ -2543,6 +2537,8 @@ void Get_ExtensionLine(void)
 /* [???] */
 void Scan_Element(void)
 {
+    s_cross_detected = 0U;
+
     /* 每帧递减出环冷却，归零后允许识别下一个圆环。 */
     if (s_ring_exit_cooldown > 0U)
         s_ring_exit_cooldown--;
@@ -2553,18 +2549,33 @@ void Scan_Element(void)
     g_right_jump_count = (uint8)Ring_Check_Border_Jump(2U, RING_JUMP_THRESHOLD, RING_JUMP_SCAN_MIN_ROW, RING_JUMP_SCAN_MAX_ROW,
                                                        &s_right_jump_other_lost_count);
 
-/* [???] */
-    if (ImageFlag.Zebra_Flag == 0
-     && ImageFlag.image_element_rings == 0
-     && ImageFlag.Ramp == 0)  /* [???] */
+    /* 元素优先级：斑马线 > 十字 > 圆环。 */
+    if (ImageFlag.Ramp == 0)
     {
+        Element_Judgment_Zebra();
+        if (ImageFlag.Zebra_Flag != 0)
+        {
+            if (ImageFlag.image_element_rings != 0)
+                Ring_Clear_State();
+            return;
+        }
 
-        Element_Judgment_Left_Rings();        /* [???] */
-        Element_Judgment_Right_Rings();       /* [???] */
-        Element_Judgment_Zebra();             /* [???] */
-        /* 弯道沿用基础巡线中线，不再单独识别或覆盖Center。 */
-        Element_Judgment_Ramp();              /* [???] */
-        Straight_long_judge();                /* [???] */
+        Get_ExtensionLine();
+        if (s_cross_detected)
+        {
+            if (ImageFlag.image_element_rings != 0)
+                Ring_Clear_State();
+            return;
+        }
+
+        if (ImageFlag.image_element_rings == 0)
+        {
+            Element_Judgment_Left_Rings();
+            Element_Judgment_Right_Rings();
+            /* 弯道沿用基础巡线中线，不再单独识别或覆盖Center。 */
+            Element_Judgment_Ramp();
+            Straight_long_judge();
+        }
     }
 
 /* [???] */
@@ -2585,19 +2596,20 @@ void Scan_Element(void)
 /* [???] */
 void Element_Handle(void)
 {
-    s_cross_detected = 0U;
-
-    if (ImageFlag.image_element_rings == 1)
+    if (ImageFlag.Zebra_Flag != 0)
+        Element_Handle_Zebra();
+    else if (s_cross_detected)
+    {
+        /* 十字已在Scan_Element中完成补线。 */
+    }
+    else if (ImageFlag.image_element_rings == 1)
         Element_Handle_Left_Rings();
     else if (ImageFlag.image_element_rings == 2)
         Element_Handle_Right_Rings();
-    else if (ImageFlag.Zebra_Flag != 0)
-        Element_Handle_Zebra();
     else if (ImageFlag.Ramp != 0)
         Element_Handle_Ramp();
     else
     {
-        Get_ExtensionLine();                  /* 十字路口: 稳定列突跳拐点补线 */
         if (ImageFlag.straight_long)
             Straight_long_handle();
     }

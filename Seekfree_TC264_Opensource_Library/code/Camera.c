@@ -25,6 +25,8 @@ volatile int g_bottom_black_width = 0; /* ??????: W-B???? */
 volatile int g_ring_miss_cnt = 0;      /* ????????(Miss_Left?Miss_Right) */
 volatile uint8 g_left_jump_count = 0;   /* left border jump count */
 volatile uint8 g_right_jump_count = 0;  /* right border jump count */
+static int s_left_jump_other_lost_count = 0;   /* 左侧断点同行右侧丢线数 */
+static int s_right_jump_other_lost_count = 0;  /* 右侧断点同行左侧丢线数 */
 volatile int g_approach_valley_row = -99; /* debug: approach valley row */
 volatile uint8 g_edge_squeezed_dbg = 0;  /* debug: squeeze state */
 volatile uint8 g_ring_phase_dbg = 0;     /* debug: valley phase 0/1/2 */
@@ -1102,11 +1104,14 @@ static uint8 Ring_Find_Entry_Corner(uint8 direction, int *corner_row, int *corne
 }
 
 /* ---- 统计相邻行边界断点数量 ---- */
-static int Ring_Check_Border_Jump(uint8 direction, int threshold, int min_row, int max_row)
+static int Ring_Check_Border_Jump(uint8 direction, int threshold, int min_row, int max_row,
+                                  int *other_lost_count)
 {
     int row;
     int prev_col = -1, curr_col;
     int count = 0;
+
+    *other_lost_count = 0;
 
     for (row = max_row; row >= min_row; row--)
     {
@@ -1118,7 +1123,11 @@ static int Ring_Check_Border_Jump(uint8 direction, int threshold, int min_row, i
                 {
                     curr_col = ImageDeal[row + 1].LeftBorder;
                     if (curr_col - prev_col > threshold || curr_col - prev_col < -threshold)
+                    {
                         count++;
+                        if (ImageDeal[row + 1].IsRightFind != 'T')
+                            (*other_lost_count)++;
+                    }
                 }
                 prev_col = -1;
                 continue;
@@ -1133,7 +1142,11 @@ static int Ring_Check_Border_Jump(uint8 direction, int threshold, int min_row, i
                 {
                     curr_col = ImageDeal[row + 1].RightBorder;
                     if (curr_col - prev_col > threshold || curr_col - prev_col < -threshold)
+                    {
                         count++;
+                        if (ImageDeal[row + 1].IsLeftFind != 'T')
+                            (*other_lost_count)++;
+                    }
                 }
                 prev_col = -1;
                 continue;
@@ -1144,7 +1157,13 @@ static int Ring_Check_Border_Jump(uint8 direction, int threshold, int min_row, i
         if (prev_col >= 0)
         {
             if (curr_col - prev_col > threshold || curr_col - prev_col < -threshold)
+            {
                 count++;
+                /* 目标侧本行是断点时，把同行另一侧丢线计入联合限制。 */
+                if ((direction == 1U && ImageDeal[row].IsRightFind != 'T')
+                    || (direction == 2U && ImageDeal[row].IsLeftFind != 'T'))
+                    (*other_lost_count)++;
+            }
         }
         prev_col = curr_col;
     }
@@ -2051,7 +2070,7 @@ void Element_Judgment_Left_Rings(void)
         return;
 
     if (g_left_jump_count >= 5
-        && g_right_jump_count <= RING_JUMP_OTHER_MAX
+        && g_right_jump_count + s_left_jump_other_lost_count <= RING_JUMP_OTHER_MAX
         && !Ring_OtherSide_Too_Much_Edge(1U)
         && s_ring_exit_cooldown == 0U)
     {
@@ -2070,7 +2089,7 @@ void Element_Judgment_Right_Rings(void)
         return;
 
     if (g_right_jump_count >= 5
-        && g_left_jump_count <= RING_JUMP_OTHER_MAX
+        && g_left_jump_count + s_right_jump_other_lost_count <= RING_JUMP_OTHER_MAX
         && !Ring_OtherSide_Too_Much_Edge(2U)
         && s_ring_exit_cooldown == 0U)
     {
@@ -2511,8 +2530,10 @@ void Scan_Element(void)
         s_ring_exit_cooldown--;
 
     /* 每帧只统计20~59行断点，降低近端噪声对圆环初判的影响。 */
-    g_left_jump_count  = (uint8)Ring_Check_Border_Jump(1U, RING_JUMP_THRESHOLD, RING_JUMP_SCAN_MIN_ROW, RING_JUMP_SCAN_MAX_ROW);
-    g_right_jump_count = (uint8)Ring_Check_Border_Jump(2U, RING_JUMP_THRESHOLD, RING_JUMP_SCAN_MIN_ROW, RING_JUMP_SCAN_MAX_ROW);
+    g_left_jump_count  = (uint8)Ring_Check_Border_Jump(1U, RING_JUMP_THRESHOLD, RING_JUMP_SCAN_MIN_ROW, RING_JUMP_SCAN_MAX_ROW,
+                                                       &s_left_jump_other_lost_count);
+    g_right_jump_count = (uint8)Ring_Check_Border_Jump(2U, RING_JUMP_THRESHOLD, RING_JUMP_SCAN_MIN_ROW, RING_JUMP_SCAN_MAX_ROW,
+                                                       &s_right_jump_other_lost_count);
 
 /* [???] */
     if (ImageFlag.Zebra_Flag == 0

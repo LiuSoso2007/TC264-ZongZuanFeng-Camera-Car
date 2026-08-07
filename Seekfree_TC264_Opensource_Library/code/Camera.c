@@ -748,6 +748,7 @@ static void Ring_Set_State(uint8 state)
     if (state == RING_STATE_CONFIRM)
     {
         s_ring_confirm_count = 0U;
+        s_ring_prev_valley_row = -1;  /* 新圆环不得沿用上一圆环的谷底行。 */
         s_ring_exit_loss_seen = 0U;
         s_ring_exit1_corner1_row = -1;
         s_ring_exit1_corner1_col = -1;

@@ -801,7 +801,7 @@ static void Ring_Clear_State(void)
     s_ring_prev_recovery_valley_row = -1;
     s_ring_edge_squeezed = 0U;
     s_ring_edge_released = 0U;
-    s_ring_exit_cooldown = 50U;  /* ???50?(1?)??????? */
+    s_ring_exit_cooldown = 50U;  /* 出环后等待50帧，避免重复识别刚离开的圆环。 */
 }
 
 
@@ -1798,8 +1798,6 @@ static void Ring_State_Update(void)
         Ring_Clear_State();
         return;
     }
-    if (s_ring_exit_cooldown > 0U)
-        s_ring_exit_cooldown--;
     if (s_ring_state_frames < 65535U)
         s_ring_state_frames++;
 
@@ -2507,6 +2505,10 @@ void Get_ExtensionLine(void)
 /* [???] */
 void Scan_Element(void)
 {
+    /* 每帧递减出环冷却，归零后允许识别下一个圆环。 */
+    if (s_ring_exit_cooldown > 0U)
+        s_ring_exit_cooldown--;
+
     /* 每帧只统计20~59行断点，降低近端噪声对圆环初判的影响。 */
     g_left_jump_count  = (uint8)Ring_Check_Border_Jump(1U, RING_JUMP_THRESHOLD, RING_JUMP_SCAN_MIN_ROW, RING_JUMP_SCAN_MAX_ROW);
     g_right_jump_count = (uint8)Ring_Check_Border_Jump(2U, RING_JUMP_THRESHOLD, RING_JUMP_SCAN_MIN_ROW, RING_JUMP_SCAN_MAX_ROW);

@@ -16,9 +16,9 @@ static int s_ring_exit1_corner2_row = -1;  /* ????2 */
 static int s_ring_exit1_corner2_col = -1;
 static uint8 s_ring_exit1_miss_frames = RING_EXIT_POINT_HOLD_FRAMES + 1U;
 static uint8 s_ring_exit2_miss_frames = RING_EXIT_POINT_HOLD_FRAMES + 1U;
-static int s_ring_recovery_valley_row = -1;     /* RECOVERY同侧黑洞谷底 */
+static int s_ring_recovery_valley_row = -1;     /* RECOVERY出环拐点 */
 static int s_ring_recovery_valley_col = -1;
-static int s_ring_prev_recovery_valley_row = -1;       /* RECOVERY上一帧黑洞谷底行数 */
+static int s_ring_prev_recovery_valley_row = -1; /* RECOVERY上一帧出环拐点行 */
 static uint16 s_ring_exit_cooldown = 0U;     /* ring re-entry cooldown frames */     /* 上一帧谷底行号, APPROACH阶段用 */
 volatile int g_corner_black_max = 0;   /* ??????: ???????? */
 volatile int g_bottom_black_width = 0; /* ??????: W-B???? */
@@ -1021,6 +1021,9 @@ static int Ring_Find_Valley_Point(uint8 direction, int *valley_col)
     return valley_row;
 }
 
+static int Ring_Check_Border_Jump(uint8 direction, int threshold, int min_row,
+                                  int max_row, int *other_lost_count);
+
 /* ---- ENTRY闃舵垫柊鏂规: 浠庡逛晶杈圭紭妯鍚戞壂鎵惧叆鍙ｆ嫄鐐 ----
  * 浠庝笅寰涓婃壂姣忚, 浠庡逛晶杈圭紭鍑哄彂鍚戠幆宀涙柟鍚戞壂,
  * 鎵鹃粦鑹插尯鍩熺殑杩滀晶杈硅烦鍙樼偣浣滀负鎷愮偣, 璁板綍璺冲彉鐐逛笌璧风偣鐨勬í鍚戣窛绂.
@@ -1029,12 +1032,14 @@ static int Ring_Find_Valley_Point(uint8 direction, int *valley_col)
  * direction=2(鍙冲渾鐜): 浠庡乏杈圭紭鍚戝彸鎵, 鎵鹃粦鑹插尯鍩熷彸杈圭紭(榛->鐧), 鍙宠竟鐨勮烦鍙樼偣浣滀负鎷愮偣
  * 杩斿洖: 1=鎵惧埌鎷愮偣, 0=鏈鎵惧埌; 鎷愮偣鍧愭爣閫氳繃 corner_row/corner_col 杈撳嚭
  */
-static uint8 Ring_Find_Entry_Corner(uint8 direction, int *corner_row, int *corner_col)
+static uint8 Ring_Find_Entry_Corner(uint8 direction, uint8 require_upper_stable,
+                                    int *corner_row, int *corner_col)
 {
     int row;
     int prev_dist = -1, curr_dist;
     int jump_col;
     int col;
+    int upper_other_lost_count;
     uint8 in_black;
 
     for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
@@ -1094,6 +1099,22 @@ static uint8 Ring_Find_Entry_Corner(uint8 direction, int *corner_row, int *corne
         if (prev_dist >= 0
             && (curr_dist - prev_dist > 10 || prev_dist - curr_dist > 10))
         {
+            if (require_upper_stable
+                && (row - 2 <= ImageStatus.OFFLine
+                    || (direction == 1U
+                        && (ImageDeal[row].IsLeftFind != 'T'
+                            || ImageDeal[row - 1].IsLeftFind != 'T'
+                            || ImageDeal[row - 2].IsLeftFind != 'T'))
+                    || (direction == 2U
+                        && (ImageDeal[row].IsRightFind != 'T'
+                            || ImageDeal[row - 1].IsRightFind != 'T'
+                            || ImageDeal[row - 2].IsRightFind != 'T'))
+                    || Ring_Check_Border_Jump(direction, RING_JUMP_THRESHOLD,
+                                              row - 2, row, &upper_other_lost_count) > 0))
+            {
+                prev_dist = curr_dist;
+                continue;
+            }
             *corner_row = row;
             *corner_col = jump_col;
             return 1U;
@@ -1510,7 +1531,7 @@ static int Ring_Get_Fill_Offset(uint8 ring_state)
     }
 }
 
-/* RECOVERY按同侧黑洞谷底重建内侧边线，左右圆环完全镜像。 */
+/* RECOVERY按出环拐点重建内侧边线，左右圆环完全镜像。 */
 static void Ring_Rebuild_Recovery_Border(uint8 direction)
 {
     int row, col;
@@ -1857,7 +1878,7 @@ static void Ring_State_Update(void)
 
     case RING_STATE_ENTRY:
         valley_row = -1;
-        if (Ring_Find_Entry_Corner(direction, &valley_row, &valley_col))
+        if (Ring_Find_Entry_Corner(direction, 0U, &valley_row, &valley_col))
         {
             s_ring_entry_corner_row = valley_row;
             s_ring_entry_corner_col = valley_col;
@@ -1997,25 +2018,22 @@ static void Ring_State_Update(void)
     }
 
     case RING_STATE_RECOVERY:
-        /* 左圆环取左黑洞谷底，右圆环取右黑洞谷底，完全替代原出环拐点3。 */
-        valley_row = Ring_Find_Valley_Point(direction, &valley_col);
-        if (valley_row >= 0)
-        {
-            s_ring_recovery_valley_row = valley_row;
-            s_ring_recovery_valley_col = valley_col;
-        }
-
-        /* 同侧黑洞谷底突然消失，或向图像上方跳变超过20行，说明已经完成出环。 */
-        if ((valley_row < 0 && s_ring_prev_recovery_valley_row >= 0)
-            || (valley_row >= 0 && s_ring_prev_recovery_valley_row >= 0
-                && s_ring_prev_recovery_valley_row - valley_row > 20))
+        valley_row = -1;
+        valley_col = -1;
+        /* 复用ENTRY横向扫描，并要求出环拐点上方两行连续。 */
+        if (!Ring_Find_Entry_Corner(direction, 1U, &valley_row, &valley_col)
+            || valley_row > 50
+            || (s_ring_prev_recovery_valley_row >= 0
+                && (valley_row - s_ring_prev_recovery_valley_row > 15
+                    || s_ring_prev_recovery_valley_row - valley_row > 15)))
         {
             Ring_Clear_State();
             break;
         }
 
-        if (valley_row >= 0)
-            s_ring_prev_recovery_valley_row = valley_row;
+        s_ring_recovery_valley_row = valley_row;
+        s_ring_recovery_valley_col = valley_col;
+        s_ring_prev_recovery_valley_row = valley_row;
         break;
 
     default:

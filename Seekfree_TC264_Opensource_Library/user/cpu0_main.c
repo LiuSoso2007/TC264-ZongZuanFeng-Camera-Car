@@ -34,8 +34,8 @@ volatile uint8_t RingEntrySlowdown = 0U;
 
 /* 斑马线停止延迟帧数: 检测到斑马线后延迟N帧后停车。
    斑马线同时充当终点线，延迟需略长以确保车体完全过线后再刹停。
-   50fps，1帧=20ms，10帧 ≈ 200ms。 */
-#define ZEBRA_STOP_DELAY_FRAMES  10
+   50fps，1帧=20ms，8帧 ≈ 160ms。 */
+#define ZEBRA_STOP_DELAY_FRAMES  8
 /* 斑马线检测到第3次确认后延迟帧数 */
 
 /* 图像最底行全部为黑色时，判定车辆已经驶出白色赛道。 */

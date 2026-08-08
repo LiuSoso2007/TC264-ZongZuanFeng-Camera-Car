@@ -29,8 +29,8 @@ volatile int16_t EncRight = 0;
 static int8_t   StraightSpeed = 40;
 static int16_t  EncCount        = 0;
 
-/* 进环保留速度百分比：40表示保留原速度40%，数值越大越快，越小越慢。 */
-#define RING_ENTRY_SPEED_PERCENT 40
+/* 进环保留速度百分比：60表示保留原速度60%，数值越大越快，越小越慢。 */
+#define RING_ENTRY_SPEED_PERCENT 60
 #if RING_ENTRY_SPEED_PERCENT < 0 || RING_ENTRY_SPEED_PERCENT > 100
 #error "RING_ENTRY_SPEED_PERCENT must be between 0 and 100"
 #endif
@@ -41,7 +41,7 @@ static int16_t  EncCount        = 0;
 #define CURVE_SPEED    0
 
 /* PD参数 */
-#define PD_KP          1.00f
+#define PD_KP          0.85f
 #define PD_KD          10.0f
 
 /* 左右电机PI控制器 */

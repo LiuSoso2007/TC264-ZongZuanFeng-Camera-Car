@@ -173,7 +173,7 @@ extern ImageStatustypedef ImageStatus;         // 图像状态全局变量
 #define RING_CONFIRM_MAX_FRAMES   300U   // 确认阶段超时帧数
 #define RING_ENTRY_MAX_FRAMES     2000U   // 入环阶段超时帧数
 #define RING_INSIDE_MAX_FRAMES    2000U
-#define RING_EXIT1_MAX_FRAMES     450U
+#define RING_EXIT1_MAX_FRAMES     45U
 
 void  Get_Border_And_SideType(uint8* p, uint8 type, int L, int H, JumpPointtypedef* Q);
                                                // 获取边界跳变点位置和类型

@@ -1,20 +1,10 @@
 /**
- * cpu1_main.c  ---  CPU1: Real-time Control + LCD + Keys + IMU
+ * CPU1: 运动控制
  *
- * Dual-core architecture:
- *   CPU0: System init, Camera (MT9V03X), Image processing -> Err & ImageFlags
- *   CPU1: Encoder, Servo PD, Motor PI speed loop (10ms)
- *         + IPS200 LCD display + Key scanning + IMU gyroscope
- *
- * Control period: CCU61_CH0 PIT 10ms (ISR in isr.c)
- *
- * Cross-core shared (from cpu0_main.c):
- *   Read: Err (track deviation), ImageStatus / ImageFlag (image element flags)
+ * CPU0: 图像采集与处理，输出赛道偏差Err与元素标志
+ * CPU1: 编码器、舵机PD、电机PI速度环，控制周期10ms
+ * 控制定时器: CCU61_CH0 PIT 10ms（中断在isr.c中）
  */
-// CPU1 local variables (this core only):
-//   Target speed g_StraightSpeed, servo mid g_CalibAngle,
-//   encoder values g_EncLeft / g_EncRight
-//   Future: adjusted by keys / IMU
 
 #include "zf_common_headfile.h"
 #include "IPS200.h"
@@ -26,38 +16,41 @@
 #include "Shared.h"
 #include "isr.h"
 
-/* PID_Flag: set by isr.c cc61_pit_ch0_isr, cleared here */
+/* PID_Flag：由isr.c中cc61_pit_ch0中断置1，本函数处理后清零 */
 volatile uint8_t PID_Flag = 0;
 
-/* CPU1本地变量, CPU0只读用于显示, 无需互斥锁 */
+/* CPU1本地变量：CPU0只读用于显示，无需互斥锁 */
 volatile int16_t EncLeft  = 0;
 volatile int16_t EncRight = 0;
 
-#pragma section all "cpu1_dsram"   /* ---- CPU1 private variables ---- */
+#pragma section all "cpu1_dsram"   /* CPU1私有变量放入DSRAM段 */
 
-/* ---- CPU1 local parameters (future: key / IMU control) ---- */
+/* CPU1本地参数（后续可用按键/IMU调整） */
 static int8_t   StraightSpeed = 40;
 static int16_t  EncCount        = 0;
 
-/* 进环保留速度百分比：70表示保留原速度70%，数值越大越快，越小越慢。 */
+/* 进环保留速度百分比：40表示保留原速度40%，数值越大越快，越小越慢。 */
 #define RING_ENTRY_SPEED_PERCENT 40
 #if RING_ENTRY_SPEED_PERCENT < 0 || RING_ENTRY_SPEED_PERCENT > 100
 #error "RING_ENTRY_SPEED_PERCENT must be between 0 and 100"
 #endif
 
-/* ---- PI参数 ---- */
+/* PI参数 */
 #define PI_KP          0.4f
 #define PI_KI          0.02f
 #define CURVE_SPEED    0
-/* ---- PD参数 ---- */
+
+/* PD参数 */
 #define PD_KP          1.00f
 #define PD_KD          10.0f
 
-static PI_t s_PI_Left, s_PI_Right;   /* Left/Right motor PI controllers */
+/* 左右电机PI控制器 */
+static PI_t s_PI_Left, s_PI_Right;
 
+/* CPU1入口函数 */
 int core1_main(void)
 {
-    /* ---- Core1 init ---- */
+    /* CPU1初始化：关闭看门狗并开总中断 */
     disable_Watchdog();
     interrupt_global_enable(0);
 
@@ -69,12 +62,11 @@ int core1_main(void)
     uint8_t  ring_entry_slowdown = 0U;
     uint8_t  new_ring_entry_slowdown;
 
-
-    /* ---- Peripheral init (CPU1 side) ---- */
-    Key_Init();                          // 4-key button (placeholder, function TBD)
-    Encoder_Init();                      // Quadrature encoder TIM6(L), TIM4(R)
-    Motor_Init();                        // Motor dual-pole PWM (ATOM0)
-    Servo_Init();                        // Servo 50Hz PWM (ATOM0)
+    /* CPU1外设初始化 */
+    Key_Init();                          /* 四键按键（功能预留） */
+    Encoder_Init();                      /* 编码器：左TIM6/右TIM4 */
+    Motor_Init();                        /* 电机双极性PWM(ATOM0) */
+    Servo_Init();                        /* 舵机50Hz PWM(ATOM0) */
 
     PI_Init(&s_PI_Left,  PI_KP, PI_KI, CURVE_SPEED);
     PI_Init(&s_PI_Right, PI_KP, PI_KI, CURVE_SPEED);
@@ -82,42 +74,31 @@ int core1_main(void)
     Motor_SetLeftPWM(0);
     Motor_SetRightPWM(0);
 
-
-    /* ---- Key scan PIT: 5ms (CPU1 PIT) ---- */
+    /* 按键扫描定时器：5ms（CPU1 PIT） */
     pit_ms_init(CCU60_CH1, 5);
 
-    /* ---- Control PIT timer: 10ms, ISR handled by CPU1 ---- */
+    /* 控制周期定时器：10ms，中断由CPU1处理 */
     pit_ms_init(CCU61_CH0, 10);
 
-    /* ---- IMU gyro init (future port) ---- */
-    // TODO: IMU_Init();  // ICM20602 / IMU660RC
-
-    /* ---- Wait for CPU0 ready ---- */
+    /* 等待CPU0就绪 */
     cpu_wait_event_ready();
 
     while (TRUE)
     {
-
-
-        /* ---- Key scanning (placeholder, function TBD) ---- */
         {
+            /* 按键扫描（暂未绑定功能） */
             uint8_t KeyNum = Key_GetNum();
-            (void)KeyNum;   // Not yet bound to any function
-            // TODO: Bind keys to servo angle, speed params
+            (void)KeyNum;
         }
 
-        /* ---- IMU data processing (future port) ---- */
-        // TODO: icm20602_get_gyro(); Yaw_Now = get_zangle(gyro); kalmanFilter();
-
-        /* ---- Wait for control period ---- */
+        /* 等待控制周期 */
         if (!PID_Flag)
         {
             continue;
         }
         PID_Flag = 0;
 
-        /* ---- Encoder acquisition ---- */
-
+        /* 编码器读取：每8个控制周期采样一次 */
         EncCount ++;
         if(EncCount >= 8)
         {
@@ -129,7 +110,7 @@ int core1_main(void)
         EncLeft  = enc_left;
         EncRight = enc_right;
 
-        /* ---- Track error (CPU0图像输出，无新帧时保持上一份快照) ---- */
+        /* 赛道误差：CPU0图像输出，无新帧时保持上一份快照 */
         uint8_t has_new_err = 0U;
         uint8_t Err_abs = 0U;
         if (Shared_TakeErr(&new_position_err, &new_ring_entry_slowdown))
@@ -141,7 +122,7 @@ int core1_main(void)
         if(position_err>0)Err_abs=position_err;
         if(position_err<0)Err_abs=-position_err;
 
-        /* CPU0识别到斑马线并锁定后, 依次置零PWM和PI偏置, 然后设置舵机中位停车。 */
+        /* CPU0识别到斑马线并锁定后，依次置零PWM和PI偏置，然后设置舵机中位停车。 */
         if (StopRequest != 0U)
         {
             pwm_left = 0;
@@ -154,33 +135,12 @@ int core1_main(void)
             continue;
         }
 
-        /* ---- Differential compensation: adjust L/R target speed by error ---- */
-        /*if      (position_err >   7.0f && position_err <  15.0f) {
-            s_PI_Left.TargetBias  = (int16_t)(-StraightSpeed * 0.0f);
-            s_PI_Right.TargetBias = (int16_t)( StraightSpeed * 0.0f);
-        }
-        else if (position_err >= 15.0f) {
-            s_PI_Left.TargetBias  = (int16_t)(-StraightSpeed * 0.0f);
-            s_PI_Right.TargetBias = (int16_t)( StraightSpeed * 0.0f);
-        }
-        else if (position_err <  -7.0f && position_err > -15.0f) {
-            s_PI_Left.TargetBias  = (int16_t)( StraightSpeed * 0.0f);
-            s_PI_Right.TargetBias = (int16_t)(-StraightSpeed * 0.0f);
-        }
-        else if (position_err <= -15.0f) {
-            s_PI_Left.TargetBias  = (int16_t)( StraightSpeed * 0.0f);
-            s_PI_Right.TargetBias = (int16_t)(-StraightSpeed * 0.0f);
-        }
-        else {
-            s_PI_Left.TargetBias  = 0;
-            s_PI_Right.TargetBias = 0;
-        }*/
-
-        /* ---- Speed PI closed-loop ---- */
+        /* 速度PI闭环 */
         pwm_left  = PI_Update(&s_PI_Left,  position_err, enc_left,  StraightSpeed);
         pwm_right = PI_Update(&s_PI_Right, position_err, enc_right, StraightSpeed);
 
         motor_speed = (int16_t)((float)StraightSpeed - 0.3f * (float)Err_abs);
+        /* 进入圆环时按保留比例降速 */
         if (ring_entry_slowdown != 0U)
         {
             motor_speed = (int16_t)(motor_speed * RING_ENTRY_SPEED_PERCENT / 100);
@@ -193,7 +153,6 @@ int core1_main(void)
         Motor_SetRightPWM((int8_t)motor_speed);
 
         /* 每个图像Err只执行一次PD，避免10ms控制周期重复覆盖微分输出。 */
-
         if (has_new_err != 0U)
         {
             PD_Update(PD_KP, PD_KD, position_err);

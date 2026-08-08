@@ -1,52 +1,56 @@
-/* [???] */
 #include "Camera.h"
 #include "Shared.h"
-static uint16 s_ring_state_frames = 0U;      /* [???] */
-static uint8 s_ring_confirm_count = 0U;      /* [???] */
-static uint8 s_ring_feature_count = 0U;      /* [???] */
+/* 圆环识别与状态机相关变量 */
+static uint16 s_ring_state_frames = 0U;
+static uint8 s_ring_confirm_count = 0U;
+static uint8 s_ring_feature_count = 0U;
 static uint8 s_ring_exit_loss_seen = 0U;     /* 出环时是否已观察到对侧丢线 */
-static int s_ring_entry_corner_row = -1;     /* [???] */
-static int s_ring_entry_corner_col = -1;     /* ????????? */
-static uint8 s_ring_edge_squeezed = 0U;      /* row50 edge squeezed */
-static uint8 s_ring_edge_released = 0U;      /* row50 edge released */
+static int s_ring_entry_corner_row = -1;
+static int s_ring_entry_corner_col = -1;
+static uint8 s_ring_edge_squeezed = 0U;
+static uint8 s_ring_edge_released = 0U;
 static int s_ring_prev_valley_row = -1;
-static int s_ring_exit1_corner1_row = -1;  /* ????1 */
+static int s_ring_exit1_corner1_row = -1;
 static int s_ring_exit1_corner1_col = -1;
-static int s_ring_exit1_corner2_row = -1;  /* ????2 */
+static int s_ring_exit1_corner2_row = -1;
 static int s_ring_exit1_corner2_col = -1;
 static uint8 s_ring_exit1_miss_frames = RING_EXIT_POINT_HOLD_FRAMES + 1U;
 static uint8 s_ring_exit2_miss_frames = RING_EXIT_POINT_HOLD_FRAMES + 1U;
 static int s_ring_recovery_valley_row = -1;     /* RECOVERY出环拐点 */
 static int s_ring_recovery_valley_col = -1;
 static int s_ring_prev_recovery_valley_row = -1; /* RECOVERY上一帧出环拐点行 */
-static uint16 s_ring_exit_cooldown = 0U;     /* ring re-entry cooldown frames */     /* 上一帧谷底行号, APPROACH阶段用 */
-volatile int g_corner_black_max = 0;   /* ??????: ???????? */
-volatile int g_bottom_black_width = 0; /* ??????: W-B???? */
-volatile int g_ring_miss_cnt = 0;      /* ????????(Miss_Left?Miss_Right) */
-volatile uint8 g_left_jump_count = 0;   /* left border jump count */
-volatile uint8 g_right_jump_count = 0;  /* right border jump count */
+static uint16 s_ring_exit_cooldown = 0U;           /* 上一帧谷底行号, APPROACH阶段用 */
+volatile int g_corner_black_max = 0;
+volatile int g_bottom_black_width = 0;
+volatile int g_ring_miss_cnt = 0;
+volatile uint8 g_left_jump_count = 0;
+volatile uint8 g_right_jump_count = 0;
 static int s_left_jump_other_lost_count = 0;   /* 左侧断点同行右侧丢线数 */
 static int s_right_jump_other_lost_count = 0;  /* 右侧断点同行左侧丢线数 */
-volatile int g_approach_valley_row = -99; /* debug: approach valley row */
-volatile uint8 g_edge_squeezed_dbg = 0;  /* debug: squeeze state */
-volatile uint8 g_ring_phase_dbg = 0;     /* debug: valley phase 0/1/2 */
+volatile int g_approach_valley_row = -99;
+volatile uint8 g_edge_squeezed_dbg = 0;
+volatile uint8 g_ring_phase_dbg = 0;
+/* 图像与元素处理全局变量 */
 uint8  Pixle[LCDH][LCDW];
 uint8 *Image_Use[LCDH][LCDW];
 uint8  Camera_Threshold = 128;
-int16_t g_ZebraSum = 0;                 /* [???] */
-ImageDealDatatypedef ImageDeal[LCDH];        // [???]
-ImageStatustypedef ImageStatus;              // [???]
+int16_t g_ZebraSum = 0;
+ImageDealDatatypedef ImageDeal[LCDH];
+ImageStatustypedef ImageStatus;
 #define COMPRESS_STEP_H (MT9V03X_H/LCDH)
 #define COMPRESS_STEP_W (MT9V03X_W/LCDW)
 
+/* 摄像头初始化 */
 void Camera_Init(void) { system_delay_ms(200); mt9v03x_init(); }
 
+/* 查询一帧图像是否采集完成 */
 uint8 Camera_IsFrameReady(void) {
     uint8 f = mt9v03x_finish_flag; mt9v03x_finish_flag = 0; return f; }
 
+/* 获取原始图像指针 */
 uint8 (*Camera_GetImage(void))[CAMERA_W] { return mt9v03x_image; }
 
-/* [???] */
+/* 压缩图像指针初始化，建立MT9V03X到LCD尺寸的映射 */
 void Camera_CompressInit(void) {
     uint8 i, j; uint16 r, c;
     for (i = 0; i < LCDH; i++) { r = (uint16)i * COMPRESS_STEP_H;
@@ -54,6 +58,7 @@ void Camera_CompressInit(void) {
             Image_Use[i][j] = &mt9v03x_image[r][c]; } } }
 
 /* 灰度直方图+OTSU大津法计算自适应阈值 */
+/* 返回自适应二值化阈值 */
 uint8 Camera_OTSU_GetThreshold(uint8 *image[][LCDW], uint16 col, uint16 row)
 {
     uint32 hist[256] = {0};
@@ -75,10 +80,7 @@ uint8 Camera_OTSU_GetThreshold(uint8 *image[][LCDW], uint16 col, uint16 row)
             if (v < pmin) pmin = v;
             if (v > pmax) pmax = v;
         }
-
     range = pmax - pmin;
-
-/* [???] */
     if (range > 30) {
         for (i = 0; i < row; i++)
             for (j = 0; j < col; j++) {
@@ -109,12 +111,10 @@ uint8 Camera_OTSU_GetThreshold(uint8 *image[][LCDW], uint16 col, uint16 row)
         }
     }
 
-/* [???] */
     if (range > 30) {
         bestThr = (uint8)(pmin + ((uint16)bestThr * range) / 255U);
     }
 
-/* [???] */
     if (bestThr < OTSU_MIN) bestThr = OTSU_MIN;
     if (bestThr < OTSU_MIN) bestThr = OTSU_MIN;
     if (bestThr > OTSU_MAX) bestThr = OTSU_MAX;
@@ -122,15 +122,9 @@ uint8 Camera_OTSU_GetThreshold(uint8 *image[][LCDW], uint16 col, uint16 row)
     return bestThr;
 }
 
-/* [???] */
+/* 生成二值图像：同步等待DMA后按OTSU阈值二值化 */
 void Camera_GetBinaryImage(void) {
-
-    /* DMA??: ?????DMA???????????
-       ???????IPS200 SPI??????
-       ?????????????????????????????
-       5000?volatile?? ~125us @200MHz? */
     { volatile uint16 _sync; for (_sync = 0; _sync < 5000U; _sync++) {} }
-
     uint8 thr = Camera_OTSU_GetThreshold(Image_Use, LCDW, LCDH);
     Camera_Threshold = thr;
     uint8 i, j;
@@ -139,39 +133,32 @@ void Camera_GetBinaryImage(void) {
             Pixle[i][j] = (*Image_Use[i][j] > thr) ? 1 : 0;
 }
 
+/* 显示二值图像到IPS200 */
 void Camera_ShowBinaryImage(void) {
     uint16 xo = (uint16)((MT9V03X_W - LCDW) / 2);
     ips200_show_gray_image(xo, 0, Pixle[0], LCDW, LCDH, LCDW, LCDH, 1);
 }
 
-/* [???] */
-/* [???] */
+/* 在IPS200上绘制中线与赛道边界 */
 void Camera_DrawCenterLines(void)
 {
     int row;
-    uint16 xo = (uint16)((MT9V03X_W - LCDW) / 2);  /* [???] */
+    uint16 xo = (uint16)((MT9V03X_W - LCDW) / 2);
 
-/* [???] */
-/* [???] */
     ips200_draw_line(94, 0, 94, 119, RGB565_RED);
-/* [???] */
+
     ips200_draw_line(xo + ImageSensorMid, 150, xo + ImageSensorMid, 209, RGB565_RED);
 
-/* [???] */
-/* [???] */
-/* [???] */
     for (row = SCAN_BASE_START_ROW; (row - 2) > ImageStatus.OFFLine; row -= 2)
     {
         if (ImageDeal[row].Center < 0 || ImageDeal[row].Center >= LCDW) continue;
         if (ImageDeal[row-2].Center < 0 || ImageDeal[row-2].Center >= LCDW) continue;
 
-/* [???] */
         ips200_draw_line(
             (uint16)ImageDeal[row].Center * 2, (uint16)row * 2,
             (uint16)ImageDeal[row-2].Center * 2, (uint16)(row-2) * 2,
             RGB565_BLUE);
 
-/* [???] */
         ips200_draw_line(
             xo + (uint16)ImageDeal[row].Center, 150 + (uint16)row,
             xo + (uint16)ImageDeal[row-2].Center, 150 + (uint16)(row-2),
@@ -179,45 +166,37 @@ void Camera_DrawCenterLines(void)
     }
 }
 
+/* 摄像头调试画面：原图、二值图与元素状态 */
 void Camera_ShowDebug(void) {
     uint16 xo;
-/* [???] */
+
     ips200_show_gray_image(0, 0, mt9v03x_image[0],
         MT9V03X_W, MT9V03X_H, MT9V03X_W, MT9V03X_H, 0);
-/* [???] */
+
     ips200_set_color(RGB565_YELLOW, RGB565_BLACK);
     ips200_show_string(2, 125, "OTSU Thr:");
     ips200_show_uint(82, 125, Camera_Threshold, 3);
-/* [???] */
+
     xo = (uint16)((MT9V03X_W - LCDW) / 2);
     ips200_show_gray_image(xo, 150, Pixle[0], LCDW, LCDH, LCDW, LCDH, 1);
-/* [???] */
+
     ips200_set_color(RGB565_WHITE, RGB565_BLACK);
-    /* legend removed */
+
     Camera_ShowElementStatus();
-    
+
     Camera_DrawCenterLines();
     ips200_set_color(RGB565_RED, RGB565_BLACK);
 }
 
-
-//-------------------------------------------------------------------------------
-// [???]
-// [???]
-// [???]
-// [???]
-// [???]
-//-------------------------------------------------------------------------------
+/* 基础巡线：从起始行向下逐行扫描左右边界 */
 void Get_BaseLine(void)
 {
-    uint8 *PicTemp;                             // [???]
-    int   Xsite;                                // [???]
-    int   row;                                  // [???]
+    uint8 *PicTemp;
+    int   Xsite;
+    int   row;
 
-/* [???] */
-    PicTemp = Pixle[SCAN_BASE_START_ROW];       // [???]
+    PicTemp = Pixle[SCAN_BASE_START_ROW];
 
-// [???]
     for (Xsite = ImageSensorMid; Xsite < (LCDW - 1); Xsite++)
     {
         if (*(PicTemp + Xsite) == 0 && *(PicTemp + Xsite + 1) == 0)
@@ -232,7 +211,6 @@ void Get_BaseLine(void)
         }
     }
 
-// [???]
     for (Xsite = ImageSensorMid; Xsite > 0; Xsite--)
     {
         if (*(PicTemp + Xsite) == 0 && *(PicTemp + Xsite - 1) == 0)
@@ -247,25 +225,22 @@ void Get_BaseLine(void)
         }
     }
 
-// [???]
     ImageDeal[SCAN_BASE_START_ROW].Center
         = (ImageDeal[SCAN_BASE_START_ROW].LeftBorder
          + ImageDeal[SCAN_BASE_START_ROW].RightBorder) / 2;
     ImageDeal[SCAN_BASE_START_ROW].Wide
         = ImageDeal[SCAN_BASE_START_ROW].RightBorder
         - ImageDeal[SCAN_BASE_START_ROW].LeftBorder;
-/* [???] */
+
     if (ImageDeal[SCAN_BASE_START_ROW].IsLeftFind != 'F')
         ImageDeal[SCAN_BASE_START_ROW].IsLeftFind  = 'T';
     if (ImageDeal[SCAN_BASE_START_ROW].IsRightFind != 'F')
         ImageDeal[SCAN_BASE_START_ROW].IsRightFind = 'T';
 
-/* [???] */
     for (row = SCAN_BASE_START_ROW - 1; row >= SCAN_BASE_END_ROW; row--)
     {
         PicTemp = Pixle[row];
 
-// [???]
         for (Xsite = ImageDeal[row + 1].Center; Xsite < (LCDW - 1); Xsite++)
         {
             if (*(PicTemp + Xsite) == 0 && *(PicTemp + Xsite + 1) == 0)
@@ -276,12 +251,11 @@ void Get_BaseLine(void)
             else if (Xsite == (LCDW - 2))
             {
                 ImageDeal[row].RightBorder = LCDW - 1;
-                ImageDeal[row].IsRightFind = 'F';   // [???]
+                ImageDeal[row].IsRightFind = 'F';
                 break;
             }
         }
 
-// [???]
         for (Xsite = ImageDeal[row + 1].Center; Xsite > 0; Xsite--)
         {
             if (*(PicTemp + Xsite) == 0 && *(PicTemp + Xsite - 1) == 0)
@@ -292,94 +266,78 @@ void Get_BaseLine(void)
             else if (Xsite == 1)
             {
                 ImageDeal[row].LeftBorder = 0;
-                ImageDeal[row].IsLeftFind = 'F';    // [???]
+                ImageDeal[row].IsLeftFind = 'F';
                 break;
             }
         }
 
-// [???]
         ImageDeal[row].Center
             = (ImageDeal[row].LeftBorder + ImageDeal[row].RightBorder) / 2;
         ImageDeal[row].Wide
             = ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder;
-/* [???] */
+
         if (ImageDeal[row].IsLeftFind != 'F')
             ImageDeal[row].IsLeftFind  = 'T';
         if (ImageDeal[row].IsRightFind != 'F')
             ImageDeal[row].IsRightFind = 'T';
     }
-
-/* [???] */
-// [???]
 }
 
-//-------------------------------------------------------------------------------
-// [???]
-// [???]
-// [???]
-// [???]
-// [???]
-// [???]
-// [???]
-//  @return         void
-//  Sample usage:   Get_Border_And_SideType(PicTemp, 'R', low, high, &jp);
-//-------------------------------------------------------------------------------
+/* 单行边界跳变点检测：T=跳变，W=全白，H=全黑 */
 void Get_Border_And_SideType(uint8* p, uint8 type, int L, int H, JumpPointtypedef* Q)
 {
     int i;
-/* [???] */
+
     LimitL(L);
     LimitH(H);
 
-    if (type == 'L')                            // [???]
+    if (type == 'L')
     {
         for (i = H; i >= L; i--)
         {
-// [???]
             if (*(p + i) == 1 && *(p + i - 1) != 1)
             {
-                Q->point = i;                   // [???]
-                Q->type  = 'T';                 // [???]
+                Q->point = i;
+                Q->type  = 'T';
                 break;
             }
-            else if (i == L)                    // [???]
+            else if (i == L)
             {
-                if (*(p + (L + H) / 2) != 0)    // [???]
+                if (*(p + (L + H) / 2) != 0)
                 {
-                    Q->point = (L + H) / 2;     // [???]
-                    Q->type  = 'W';             // [???]
+                    Q->point = (L + H) / 2;
+                    Q->type  = 'W';
                 }
-                else                            // [???]
+                else
                 {
-                    Q->point = (L + H) / 2;     // [???]
-                    Q->type  = 'H';             // [???]
+                    Q->point = (L + H) / 2;
+                    Q->type  = 'H';
                 }
                 break;
             }
         }
     }
-    else if (type == 'R')                       // [???]
+    else if (type == 'R')
     {
         for (i = L; i <= H; i++)
         {
-// [???]
             if (*(p + i) == 1 && *(p + i + 1) != 1)
             {
-                Q->point = i;                   // [???]
-                Q->type  = 'T';                 // [???]
+                Q->point = i;
+                Q->type  = 'T';
                 break;
             }
-            else if (i == H)                    // [???]
+            else if (i == H)
             {
-                if (*(p + (L + H) / 2) != 0)    // [???]
+                if (*(p + (L + H) / 2) != 0)
                 {
-                    Q->point = (L + H) / 2;     // [???]
-                    Q->type  = 'W';             // [???]
+                    Q->point = (L + H) / 2;
+                    Q->type  = 'W';
                 }
-                else                            // [???]
+                else
                 {
-                    Q->point = (L + H) / 2;     // [???]
-                    Q->type  = 'H';             // [???]
+                    Q->point = (L + H) / 2;
+                    Q->type  = 'H';
                 }
                 break;
             }
@@ -387,50 +345,35 @@ void Get_Border_And_SideType(uint8* p, uint8 type, int L, int H, JumpPointtypede
     }
 }
 
-
-//-------------------------------------------------------------------------------
-// [???]
-// [???]
-// [???]
-// [???]
-//  @parameter      void
-//  @return         void
-// [???]
-// [???]
-//  Sample usage:   Get_AllLine();
-//-------------------------------------------------------------------------------
+/* 全图巡线：逐行检测左右边界并统计丢失与白色行 */
 void Get_AllLine(void)
 {
-    uint8 *PicTemp;                             // [???]
-    int   row;                                  // [???]
-    int   IntervalLow, IntervalHigh;            // [???]
-    int   i;                                    // [???]
+    uint8 *PicTemp;
+    int   row;
+    int   IntervalLow, IntervalHigh;
+    int   i;
 
-/* [???] */
-    ImageStatus.OFFLine          = 2;           // [???]
-    ImageStatus.Miss_Left_lines  = 0;           // [???]
-    ImageStatus.Miss_Right_lines = 0;           // [???]
-    ImageStatus.WhiteLine        = 0;           // [???]
-    ImageStatus.WhiteLine_L      = 0;           // [???]
-    ImageStatus.WhiteLine_R      = 0;           // [???]
-    ImageStatus.OFFLineBoundary  = 0;           // [???]
-    ImageStatus.Det_True         = 0;           // [???]
+    ImageStatus.OFFLine          = 2;
+    ImageStatus.Miss_Left_lines  = 0;
+    ImageStatus.Miss_Right_lines = 0;
+    ImageStatus.WhiteLine        = 0;
+    ImageStatus.WhiteLine_L      = 0;
+    ImageStatus.WhiteLine_R      = 0;
+    ImageStatus.OFFLineBoundary  = 0;
+    ImageStatus.Det_True         = 0;
 
-/* [???] */
     for (row = SCAN_BASE_END_ROW - 1; row > ImageStatus.OFFLine; row--)
     {
-        JumpPointtypedef JumpPoint[2];          // [???]
+        JumpPointtypedef JumpPoint[2];
         PicTemp = Pixle[row];
 
-/* [???] */
         IntervalLow  = ImageDeal[row + 1].RightBorder - ImageScanInterval;
         IntervalHigh = ImageDeal[row + 1].RightBorder + ImageScanInterval;
-        LimitL(IntervalLow);                    // [???]
+        LimitL(IntervalLow);
         LimitH(IntervalHigh);
 
         Get_Border_And_SideType(PicTemp, 'R', IntervalLow, IntervalHigh, &JumpPoint[1]);
 
-/* [???] */
         IntervalLow  = ImageDeal[row + 1].LeftBorder - ImageScanInterval;
         IntervalHigh = ImageDeal[row + 1].LeftBorder + ImageScanInterval;
         LimitL(IntervalLow);
@@ -438,43 +381,40 @@ void Get_AllLine(void)
 
         Get_Border_And_SideType(PicTemp, 'L', IntervalLow, IntervalHigh, &JumpPoint[0]);
 
-/* [???] */
-        if (JumpPoint[0].type == 'W')           // [???]
+        if (JumpPoint[0].type == 'W')
         {
-            ImageDeal[row].LeftBorder = ImageDeal[row + 1].LeftBorder;  // [???]
-            ImageStatus.Miss_Left_lines++;      // [???]
+            ImageDeal[row].LeftBorder = ImageDeal[row + 1].LeftBorder;
+            ImageStatus.Miss_Left_lines++;
         }
-        else                                    // [???]
+        else
         {
             ImageDeal[row].LeftBorder = JumpPoint[0].point;
-            ImageStatus.Miss_Left_lines = 0;    // [???]
+            ImageStatus.Miss_Left_lines = 0;
         }
 
-        if (JumpPoint[1].type == 'W')           // [???]
+        if (JumpPoint[1].type == 'W')
         {
-            ImageDeal[row].RightBorder = ImageDeal[row + 1].RightBorder; // [???]
-            ImageStatus.Miss_Right_lines++;     // [???]
+            ImageDeal[row].RightBorder = ImageDeal[row + 1].RightBorder;
+            ImageStatus.Miss_Right_lines++;
         }
-        else                                    // [???]
+        else
         {
             ImageDeal[row].RightBorder = JumpPoint[1].point;
-            ImageStatus.Miss_Right_lines = 0;   // [???]
+            ImageStatus.Miss_Right_lines = 0;
         }
 
-/* [???] */
         ImageDeal[row].IsLeftFind  = JumpPoint[0].type;
         ImageDeal[row].IsRightFind = JumpPoint[1].type;
 
-/* [???] */
         if (JumpPoint[0].type == 'W' && JumpPoint[1].type == 'W')
         {
-            ImageStatus.WhiteLine++;            // [???]
+            ImageStatus.WhiteLine++;
         }
         else
         {
             if (ImageStatus.WhiteLine > 0) ImageStatus.WhiteLine--;
         }
-/* [???] */
+
         if (JumpPoint[0].type == 'W')
             ImageStatus.WhiteLine_L++;
         else
@@ -484,19 +424,16 @@ void Get_AllLine(void)
         else
             ImageStatus.WhiteLine_R = 0;
 
-/* [???] */
         ImageDeal[row].Center = (ImageDeal[row].LeftBorder + ImageDeal[row].RightBorder) / 2;
         ImageDeal[row].Wide   = ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder;
 
-/* [???] */
         if (ImageDeal[row].IsLeftFind == 'H' || ImageDeal[row].IsRightFind == 'H')
         {
-/* [???] */
             if (ImageDeal[row].IsLeftFind == 'H')
             {
                 for (i = ImageDeal[row].LeftBorder + 1; i <= ImageDeal[row].RightBorder; i++)
                 {
-                    if (*(PicTemp + i) == 1 && *(PicTemp + i - 1) == 0)  // [???]
+                    if (*(PicTemp + i) == 1 && *(PicTemp + i - 1) == 0)
                     {
                         ImageDeal[row].LeftBorder = i;
                         ImageDeal[row].IsLeftFind = 'T';
@@ -505,12 +442,11 @@ void Get_AllLine(void)
                 }
             }
 
-/* [???] */
             if (ImageDeal[row].IsRightFind == 'H')
             {
                 for (i = ImageDeal[row].RightBorder - 1; i >= ImageDeal[row].LeftBorder; i--)
                 {
-                    if (*(PicTemp + i) == 1 && *(PicTemp + i + 1) == 0)  // [???]
+                    if (*(PicTemp + i) == 1 && *(PicTemp + i + 1) == 0)
                     {
                         ImageDeal[row].RightBorder = i;
                         ImageDeal[row].IsRightFind = 'T';
@@ -519,26 +455,19 @@ void Get_AllLine(void)
                 }
             }
 
-/* [???] */
-/* [???] */
             if (ImageDeal[row].IsLeftFind == 'H')  { ImageDeal[row].LeftBorder  = ImageDeal[row + 1].LeftBorder; }
             if (ImageDeal[row].IsRightFind == 'H') { ImageDeal[row].RightBorder = ImageDeal[row + 1].RightBorder; }
             ImageDeal[row].Center = (ImageDeal[row].LeftBorder + ImageDeal[row].RightBorder) / 2;
             ImageDeal[row].Wide   = ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder;
         }
 
-/* [???] */
         if (ImageStatus.Miss_Left_lines > 3 && ImageStatus.Miss_Right_lines > 3
-            && !(JumpPoint[0].type == 'W' && JumpPoint[1].type == 'W'))  /* [???] */
+            && !(JumpPoint[0].type == 'W' && JumpPoint[1].type == 'W'))
         {
-            ImageStatus.OFFLine = row;          // [???]
+            ImageStatus.OFFLine = row;
             break;
         }
 
-        /*
- * [???]
- * [???]
-         */
         if (ImageDeal[row].Wide <= 8)
         {
             ImageStatus.OFFLine = row + 1;
@@ -553,10 +482,8 @@ void Get_AllLine(void)
     }
 }
 
-
-
-/* [???] */
-const uint8 Half_Road_Wide[60] = {           /* [???] */
+/* 直道半宽表：按行给出赛道一半宽度 */
+const uint8 Half_Road_Wide[60] = {
      5, 6, 6, 7, 7, 7, 8, 8, 9, 9,
     11,11,12,12,12,13,14,14,15,15,
     15,16,16,18,18,19,19,20,20,20,
@@ -565,7 +492,7 @@ const uint8 Half_Road_Wide[60] = {           /* [???] */
     32,33,33,33,34,35,36,36,36,38,
 };
 
-const uint8 Half_Bend_Wide[60] = {           /* [???] */
+const uint8 Half_Bend_Wide[60] = {
     39,39,39,39,39,39,39,39,39,39,
     39,39,38,38,35,35,34,34,33,32,
     33,32,32,31,31,29,29,28,28,27,
@@ -574,17 +501,17 @@ const uint8 Half_Bend_Wide[60] = {           /* [???] */
     33,34,34,35,35,36,36,38,38,39,
 };
 
-/* [???] */
-ImageFlagtypedef ImageFlag;                  /* [???] */
+/* 元素标志全局变量 */
+ImageFlagtypedef ImageFlag;
 
-/* [???] */
+/* 直线拟合误差：dir=1检查左边线，dir=2检查右边线 */
 float Straight_Judge(uint8 dir, uint8 start, uint8 end)
 {
     int i;
     float S = 0.0f, Sum = 0.0f, Err = 0.0f, k = 0.0f;
     switch (dir)
     {
-    case 1: /* [???] */
+    case 1:
         k = (float)(ImageDeal[start].LeftBorder - ImageDeal[end].LeftBorder)
           / (float)(start - end);
         for (i = 0; i < (int)(end - start); i++)
@@ -595,7 +522,7 @@ float Straight_Judge(uint8 dir, uint8 start, uint8 end)
         }
         S = Sum / (float)(end - start);
         break;
-    case 2: /* [???] */
+    case 2:
         k = (float)(ImageDeal[start].RightBorder - ImageDeal[end].RightBorder)
           / (float)(start - end);
         for (i = 0; i < (int)(end - start); i++)
@@ -610,7 +537,7 @@ float Straight_Judge(uint8 dir, uint8 start, uint8 end)
     return S;
 }
 
-/* [???] */
+/* 长直道判定 */
 void Straight_long_judge(void)
 {
     if (ImageFlag.Bend_Road || ImageFlag.Zebra_Flag
@@ -627,6 +554,7 @@ void Straight_long_judge(void)
     }
 }
 
+/* 长直道处理：检测退出条件 */
 void Straight_long_handle(void)
 {
     if (!ImageFlag.straight_long) return;
@@ -641,7 +569,7 @@ void Straight_long_handle(void)
     }
 }
 
-/* [???] */
+/* 斜入直道判定 */
 void Straight_xie_judge(void)
 {
     float S, Sum, Err, midd_k;
@@ -673,52 +601,46 @@ void Straight_xie_judge(void)
     }
 }
 
-/* [???] */
+/* 弯道判定 */
 void Element_Judgment_Bend(void)
 {
-/* [???] */
     if (ImageFlag.image_element_rings != 0
         || ImageFlag.Zebra_Flag)
         return;
-/* 若OFFLine<5, 强制全图扫描以保证Miss计数准确 */
-/* 若OFFLine<5, 强制全图扫描以保证Miss计数准确 */
+    /* 若OFFLine<5, 强制全图扫描以保证Miss计数准确 */
     if (ImageStatus.OFFLine < 5)
         return;
 
     if (ImageStatus.Miss_Left_lines < 4
         && ImageStatus.Miss_Right_lines < 4)
-        return;  /* [???] */
+        return;
 
-/* [???] */
-    if (ImageDeal[ImageStatus.OFFLine + 1].RightBorder < 59  /* ponytail: 50*94/80=59 */
+    if (ImageDeal[ImageStatus.OFFLine + 1].RightBorder < 59
      && ImageStatus.Miss_Right_lines < 4
      && ImageStatus.Miss_Left_lines > 12
      && Straight_Judge(2, ImageStatus.OFFLine + 2, SCAN_BASE_START_ROW - 1) > 3.0f)
     {
-        ImageFlag.Bend_Road = 1;              /* [???] */
+        ImageFlag.Bend_Road = 1;
     }
 
-/* [???] */
-    if (ImageDeal[ImageStatus.OFFLine + 1].LeftBorder > 35  /* ponytail: 30*94/80=35 */
+    if (ImageDeal[ImageStatus.OFFLine + 1].LeftBorder > 35
      && ImageStatus.Miss_Left_lines < 4
      && ImageStatus.Miss_Right_lines > 12
      && Straight_Judge(1, ImageStatus.OFFLine + 2, SCAN_BASE_START_ROW - 1) > 3.0f)
     {
-        ImageFlag.Bend_Road = 2;              /* [???] */
+        ImageFlag.Bend_Road = 2;
     }
 }
 
-/* [???] */
+/* 弯道处理：按弯道方向推算Center */
 void Element_Handle_Bend(void)
 {
-    int row;                                  /* [???] */
+    int row;
 
-/* 若OFFLine<5, 强制全图扫描以保证Miss计数准确 */
-/* 若OFFLine<5则忽略OFFLine, 继续按双线扫描防止直道误判弯道 */
+    /* OFFLine过小时清空弯道标志并返回 */
     if (ImageStatus.OFFLine < 5)
         { ImageFlag.Bend_Road = 0; return; }
 
-/* [???] */
     if (ImageStatus.Miss_Left_lines < 4 && ImageStatus.Miss_Right_lines < 4)
         { ImageFlag.Bend_Road = 0; return; }
 
@@ -727,7 +649,7 @@ if (ImageFlag.Bend_Road == 1)             /* 左弯道 */
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
         {
             ImageDeal[row].Center = ImageDeal[row].RightBorder - Half_Bend_Wide[row];
-            LimitL(ImageDeal[row].Center);    /* 闄愬箙 >= 0 */
+            LimitL(ImageDeal[row].Center);    /* 限幅 >= 0 */
         }
     }
 else if (ImageFlag.Bend_Road == 2)        /* 右弯道 */
@@ -735,12 +657,12 @@ else if (ImageFlag.Bend_Road == 2)        /* 右弯道 */
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
         {
             ImageDeal[row].Center = ImageDeal[row].LeftBorder + Half_Bend_Wide[row];
-            LimitH(ImageDeal[row].Center);    /* 闄愬箙 <= 93 */
+            LimitH(ImageDeal[row].Center);    /* 限幅 <= 93 */
         }
     }
 }
 
-/* [???] */
+/* 设置圆环状态并复位相关计数器 */
 static void Ring_Set_State(uint8 state)
 {
     ImageFlag.image_element_rings_flag = state;
@@ -782,6 +704,7 @@ static void Ring_Set_State(uint8 state)
     }
 }
 
+/* 清空圆环状态并启动出环冷却 */
 static void Ring_Clear_State(void)
 {
     ImageFlag.image_element_rings = 0;
@@ -807,27 +730,14 @@ static void Ring_Clear_State(void)
     s_ring_exit_cooldown = 50U;  /* 出环后等待50帧，避免重复识别刚离开的圆环。 */
 }
 
-
-/*
- *******************************************************************************************
- * [???]
- * [???]
- * [???]
- * [???]
- *******************************************************************************************
- */
-
-/* [???] */
-/* ---- ?????????????????????????? ---- */
+/* 拐角黑洞检测：检查左下/右下角黑色像素 */
 static uint8 BlackHole_Check_Corner(uint8 direction)
 {
     int row, col, black_cnt;
     int start_col, end_col;
 
-    /* ponytail: ?????????????????????
-       ?? BlackHole_Check_Bottom ????????? */
-    if (direction == 1U) { start_col = 0; end_col = 9; }      /* ???: ??? */
-    else                 { start_col = LCDW - 10; end_col = LCDW - 1; } /* ???: ??? */
+    if (direction == 1U) { start_col = 0; end_col = 9; }
+    else                 { start_col = LCDW - 10; end_col = LCDW - 1; }
 
     for (row = LCDH - 1; row >= LCDH - 6; row--)
     {
@@ -837,27 +747,26 @@ static uint8 BlackHole_Check_Corner(uint8 direction)
             if (Pixle[row][col] == IMG_BLACK)
                 black_cnt++;
         }
-        /* ????>=4???????????? */
+
         if (black_cnt > g_corner_black_max) g_corner_black_max = black_cnt;
         if (black_cnt >= 3)
             return 1;
     }
     return 0;
 }
+/* 底部黑洞检测：统计底部黑色区域宽度 */
 static uint8 BlackHole_Check_Bottom(uint8 direction)
 {
     int row, col;
-    int state;      /* 0=??, 1=??, 2=?? */
-    int black_cnt;  /* ?????? */
+    int state;
+    int black_cnt;
     int start_col, end_col, step;
 
-    /* ????3??LCDH-1(59), LCDH-2(58), LCDH-3(57) */
     for (row = LCDH - 1; row >= LCDH - 6; row--)
     {
         state = 0;
         black_cnt = 0;
 
-        /* ????????????????? */
         if (direction == 1U) { start_col = 0; end_col = LCDW - 1; step = 1; }
         else                 { start_col = LCDW - 1; end_col = 0; step = -1; }
 
@@ -867,11 +776,11 @@ static uint8 BlackHole_Check_Bottom(uint8 direction)
             {
                                     g_bottom_black_width = black_cnt;
                 if (state == 2 && black_cnt >= 3)
-                    return 1;   /* ???(>=5?)???????? */
+                    return 1;
                 state = 1;
                 black_cnt = 0;
             }
-            else /* IMG_BLACK */
+            else
             {
                 if (state >= 1)
                     black_cnt++;
@@ -883,12 +792,11 @@ static uint8 BlackHole_Check_Bottom(uint8 direction)
     return 0;
 }
 
-
-    /* 谷底行有效且位于探测区间内 */
+/* 上方黑洞检测：确认拐点上方存在黑色区域 */
 static uint8 BlackHole_Check_Above(int inflection_row, int inflection_col)
 {
     int row;
-    
+
     for (row = inflection_row - 2; row > BH_BOTTOM_START_ROW + 10; row--)
     {
         if (Pixle[row][inflection_col] == IMG_WHITE
@@ -908,22 +816,22 @@ static uint8 BlackHole_Check_Above(int inflection_row, int inflection_col)
     return 0;
 }
 
-    /* 检查右侧是否存在横向赛道(十字特征) */
+/* 追踪黑洞谷底：从扫描列向下/侧向跟踪黑色区域 */
 static int BlackHole_Track_Valley(uint8 direction, int *valley_row, int *valley_col, int scan_start, int min_row)
 {
     int row, col;
     int moved;
     int scan_col;
-    
+
     scan_col = (direction == 1U) ? VALLEY_SCAN_COL_LEFT : VALLEY_SCAN_COL_RIGHT;
-    
+
     for (row = scan_start; row > min_row; row--)
     {
         if (Pixle[row][scan_col] == IMG_WHITE
             && Pixle[row - 1][scan_col] == IMG_BLACK)
         {
             col = scan_col;
-            
+
             if (direction == 1U)
             {
                 for (; col + 1 < LCDW - 1; col++)
@@ -968,7 +876,7 @@ static int BlackHole_Track_Valley(uint8 direction, int *valley_row, int *valley_
                     }
                 } while (moved);
             }
-            
+
             if (row > min_row && row < VALLEY_MAX_ROW
                 && col > 0 && col < LCDW - 1)
             {
@@ -982,7 +890,7 @@ static int BlackHole_Track_Valley(uint8 direction, int *valley_row, int *valley_
     return 0;
 }
 
-    /* 黑洞检测: 统计底部黑色像素数量 */
+/* 稳定赛道判定：丢线少且边界平直 */
 static uint8 Ring_Is_Stable_Road(void)
 {
     return (uint8)(ImageStatus.OFFLine <= 2
@@ -992,7 +900,7 @@ static uint8 Ring_Is_Stable_Road(void)
                 && Straight_Judge(2, 5, SCAN_BASE_END_ROW) < 2.0f);
 }
 
-    /* 拐角黑洞检测: 检查侧边黑色区域 */
+/* 圆环候选判定：底部/拐角黑洞加对侧丢线条件 */
 static uint8 Ring_Is_Candidate(uint8 direction)
 {
     if (ImageStatus.OFFLine > 10)
@@ -1006,12 +914,12 @@ static uint8 Ring_Is_Candidate(uint8 direction)
     return 0U;
 }
 
-/* [???] */
+/* 查找圆环谷底点 */
 static int Ring_Find_Valley_Point(uint8 direction, int *valley_col)
 {
     int valley_row = -1;
     int vcol = -1;
-    
+
     if (BlackHole_Track_Valley(direction, &valley_row, &vcol, VALLEY_SCAN_START_ROW, VALLEY_MIN_ROW) == 0)
     {
         *valley_col = -1;
@@ -1024,13 +932,13 @@ static int Ring_Find_Valley_Point(uint8 direction, int *valley_col)
 static int Ring_Check_Border_Jump(uint8 direction, int threshold, int min_row,
                                   int max_row, int *other_lost_count);
 
-/* ---- ENTRY闃舵垫柊鏂规: 浠庡逛晶杈圭紭妯鍚戞壂鎵惧叆鍙ｆ嫄鐐 ----
- * 浠庝笅寰涓婃壂姣忚, 浠庡逛晶杈圭紭鍑哄彂鍚戠幆宀涙柟鍚戞壂,
- * 鎵鹃粦鑹插尯鍩熺殑杩滀晶杈硅烦鍙樼偣浣滀负鎷愮偣, 璁板綍璺冲彉鐐逛笌璧风偣鐨勬í鍚戣窛绂.
- * 鐩搁偦涓よ岃窛绂诲樊缁濆瑰>10鏃, 鍙栭潬涓(琛屾暟灏)閭ｈ岀殑璺冲彉鐐逛綔涓哄叆鍙ｆ嫄鐐.
- * direction=1(宸﹀渾鐜): 浠庡彸杈圭紭鍚戝乏鎵, 鎵鹃粦鑹插尯鍩熷乏杈圭紭(榛->鐧), 宸﹁竟鐨勮烦鍙樼偣浣滀负鎷愮偣
- * direction=2(鍙冲渾鐜): 浠庡乏杈圭紭鍚戝彸鎵, 鎵鹃粦鑹插尯鍩熷彸杈圭紭(榛->鐧), 鍙宠竟鐨勮烦鍙樼偣浣滀负鎷愮偣
- * 杩斿洖: 1=鎵惧埌鎷愮偣, 0=鏈鎵惧埌; 鎷愮偣鍧愭爣閫氳繃 corner_row/corner_col 杈撳嚭
+/* ---- ENTRY阶段方案: 从对侧边缘横向扫描入口拐点 ----
+ * 从下往上逐行扫描，从对侧边缘出发向环岛方向扫，
+ * 找黑色区域的远侧边界跳变点作为拐点，记录跳变点与起点的横向距离。
+ * 相邻两行距离差绝对值>10时，取靠上(行数小)那行的跳变点作为入口拐点。
+ * direction=1(左圆环): 从右边缘向左扫，找黑色区域左边缘(黑->白)，左边的跳变点作为拐点
+ * direction=2(右圆环): 从左边缘向右扫，找黑色区域右边缘(黑->白)，右边的跳变点作为拐点
+ * 返回: 1=找到拐点, 0=未找到; 拐点坐标通过corner_row/corner_col输出
  */
 static uint8 Ring_Find_Entry_Corner(uint8 direction, uint8 require_upper_stable,
                                     int *corner_row, int *corner_col)
@@ -1046,7 +954,7 @@ static uint8 Ring_Find_Entry_Corner(uint8 direction, uint8 require_upper_stable,
     {
         if (direction == 2U)
         {
-    /* 跳变点位置(入环拐角列) */
+            /* 跳变点位置(入环拐角列) */
             jump_col = LCDW - 1;
             in_black = 0U;
             for (col = 0; col < LCDW - 1; col++)
@@ -1055,7 +963,7 @@ static uint8 Ring_Find_Entry_Corner(uint8 direction, uint8 require_upper_stable,
                 {
                     if (Pixle[row][col] == IMG_BLACK && Pixle[row][col + 1] == IMG_WHITE)
                     {
-        jump_col = col;       /* 记录左边界跳变列 */
+        jump_col = col;       /* 记录跳变列 */
                         break;
                     }
                 }
@@ -1063,7 +971,7 @@ static uint8 Ring_Find_Entry_Corner(uint8 direction, uint8 require_upper_stable,
                 {
                     if (Pixle[row][col] == IMG_WHITE && Pixle[row][col + 1] == IMG_BLACK)
                     {
-                        in_black = 1U;       /* 杩涘叆榛戣壊鍖哄煙 */
+                        in_black = 1U;       /* 进入黑色区域 */
                     }
                 }
             }
@@ -1071,7 +979,7 @@ static uint8 Ring_Find_Entry_Corner(uint8 direction, uint8 require_upper_stable,
         }
         else
         {
-    /* 左边界: 从上拐点沿切线方向延伸边界 */
+            /* 左圆环：从右向左扫描黑色区域左边缘 */
             jump_col = 0;
             in_black = 0U;
             for (col = LCDW - 1; col > 0; col--)
@@ -1080,7 +988,7 @@ static uint8 Ring_Find_Entry_Corner(uint8 direction, uint8 require_upper_stable,
                 {
                     if (Pixle[row][col] == IMG_BLACK && Pixle[row][col - 1] == IMG_WHITE)
                     {
-        jump_col = col;       /* 记录右边界跳变列 */
+        jump_col = col;       /* 记录跳变列 */
                         break;
                     }
                 }
@@ -1088,14 +996,14 @@ static uint8 Ring_Find_Entry_Corner(uint8 direction, uint8 require_upper_stable,
                 {
                     if (Pixle[row][col] == IMG_WHITE && Pixle[row][col - 1] == IMG_BLACK)
                     {
-                        in_black = 1U;       /* 杩涘叆榛戣壊鍖哄煙 */
+                        in_black = 1U;       /* 进入黑色区域 */
                     }
                 }
             }
         curr_dist = (LCDW - 1) - jump_col;  /* 当前跳变距离(从右边算) */
         }
 
-    /* 右边界: 从上拐点沿切线方向延伸边界 */
+        /* 比较相邻行跳变距离，距离突变处即为入口拐点 */
         if (prev_dist >= 0
             && (curr_dist - prev_dist > 10 || prev_dist - curr_dist > 10))
         {
@@ -1191,7 +1099,7 @@ static int Ring_Check_Border_Jump(uint8 direction, int threshold, int min_row, i
     return count;
 }
 
-/* ---- APPROACH phase valley: two-scheme detection ---- */
+/* APPROACH阶段谷底检测：先判断第50行是否贴边，再找外移后的回落点 */
 static int Ring_Find_Approach_Valley(uint8 direction, int *valley_col)
 {
     int row;
@@ -1199,7 +1107,6 @@ static int Ring_Find_Approach_Valley(uint8 direction, int *valley_col)
     uint8 moved_away = 0U;
     uint8 is_lost;
 
-    /* Check row 50 state */
     int row50_at_edge;
     if (direction == 1U)
     {
@@ -1215,7 +1122,7 @@ static int Ring_Find_Approach_Valley(uint8 direction, int *valley_col)
     /* ENTRY: 入环阶段 - 确认拐角行有效后进入环中 */
     if (row50_at_edge)
     {
-        uint8 phase = 1U;  /* already squeezed, look for release */
+        uint8 phase = 1U;
         s_ring_edge_squeezed = 1U;
         g_ring_phase_dbg = 1U;
         moved_away = 0U;
@@ -1241,7 +1148,6 @@ static int Ring_Find_Approach_Valley(uint8 direction, int *valley_col)
                 continue;
             }
 
-            /* phase 2: find bounce */
             int diff = curr_col - prev_col;
             if (!moved_away)
             {
@@ -1252,7 +1158,7 @@ static int Ring_Find_Approach_Valley(uint8 direction, int *valley_col)
             {
                 if ((direction == 1U && diff <= 0) || (direction == 2U && diff >= 0))
                 {
-    /* APPROACH: 接近阶段 - 检测到足够谷底黑色进入入环 */
+                    /* APPROACH: 接近阶段，检测到边界回落点后进入入环 */
                     if (row - 1 >= 5)
                     {
                         int k;
@@ -1316,7 +1222,7 @@ static int Ring_Find_Approach_Valley(uint8 direction, int *valley_col)
             {
                 if ((direction == 1U && diff <= 0) || (direction == 2U && diff >= 0))
                 {
-    /* INSIDE: 环中阶段 - 等待边界恢复稳定后出环 */
+                    /* INSIDE: 环中阶段，等待边界恢复稳定后出环 */
                     if (row - 1 >= 5)
                     {
                         int k;
@@ -1349,20 +1255,19 @@ static int Ring_Find_Approach_Valley(uint8 direction, int *valley_col)
         return -1;
     }
 
-    /* row 50 never been at edge */
     g_ring_phase_dbg = 0U;
     return -1;
 }
 
-/* [???] */
+/* 出环特征检测：对侧边界丢线或上方存在黑洞 */
 static uint8 Ring_Has_Exit_Feature(uint8 direction)
 {
     int row;
-    
+
     if ((direction == 1U && ImageStatus.Miss_Right_lines > 4)
         || (direction == 2U && ImageStatus.Miss_Left_lines > 4))
         return 0U;
-    
+
     for (row = SCAN_BASE_START_ROW - 1; row > 5; row--)
     {
         if (direction == 1U
@@ -1385,7 +1290,7 @@ static uint8 Ring_Has_Exit_Feature(uint8 direction)
     return Ring_Is_Stable_Road();
 }
 
-/* ---- ????????????? + ???????ImageDeal ---- */
+/* 线性补线并同步更新ImageDeal边界与中心 */
 static void Ring_DrawAndUpdate(uint8 direction, int s_row, int s_col,
                                int e_row, int e_col, uint8 border_side)
 {
@@ -1407,9 +1312,8 @@ static void Ring_DrawAndUpdate(uint8 direction, int s_row, int s_col,
     {
         col = (int)(k * row) + b;
         if (col >= 0 && col < LCDW)
-            Pixle[row][col] = IMG_WHITE;     /* ??????????????? */
+            Pixle[row][col] = IMG_WHITE;
 
-        /* ???????ImageDeal??Err?????? */
         if (row <= SCAN_BASE_START_ROW && row > ImageStatus.OFFLine)
         {
             if (border_side == 'L')
@@ -1428,8 +1332,7 @@ static void Ring_DrawAndUpdate(uint8 direction, int s_row, int s_col,
     }
 }
 
-/* [???] */
-/* ---- ?????? ---- */
+/* 查找EXIT1阶段的两个出环拐点 */
 static uint8 Ring_Find_Exit1_Corners(uint8 direction,
     int *corner1_row, int *corner1_col,
     int *corner2_row, int *corner2_col)
@@ -1439,7 +1342,7 @@ static uint8 Ring_Find_Exit1_Corners(uint8 direction,
     int increasing_seen;
     *corner1_row = -1; *corner1_col = -1;
     *corner2_row = -1; *corner2_col = -1;
-    /* ??1: 35~55????????? */
+
     prev_col = -1;
     increasing_seen = 0;
     for (row = 55; row >= 30; row--)
@@ -1464,7 +1367,7 @@ static uint8 Ring_Find_Exit1_Corners(uint8 direction,
         }
         prev_col = col;
     }
-    /* ??2: 1~45????????????? */
+
     for (row = 45; row >= 1; row--)
     {
         if (direction == 2U)
@@ -1495,6 +1398,7 @@ static uint8 Ring_Find_Exit1_Corners(uint8 direction,
 }
 
 /* 更新关键点并限制旧坐标最多保留指定帧数。 */
+/* 更新出环关键点，允许跨帧保持最多RING_EXIT_POINT_HOLD_FRAMES帧 */
 static void Ring_Update_Exit_Point(int row, int col,
     int *cached_row, int *cached_col, uint8 *miss_frames)
 {
@@ -1515,7 +1419,7 @@ static void Ring_Update_Exit_Point(int row, int col,
     }
 }
 
-
+/* 按圆环状态返回中心偏移量 */
 static int Ring_Get_Fill_Offset(uint8 ring_state)
 {
     switch (ring_state)
@@ -1599,24 +1503,20 @@ static void Ring_Rebuild_Recovery_Border(uint8 direction)
     }
 }
 
-
-/* ---- ????????????????????????? ---- */
-/* ponytail: ??????????ImageDeal????????? */
+/* 按圆环状态重建巡线边界并填充Center */
 static void Ring_Rebuild_Fill(uint8 direction)
 {
     int row, col;
     int black_segment_seen;
     uint8 ring_state = (uint8)ImageFlag.image_element_rings_flag;
     int fill_offset = Ring_Get_Fill_Offset(ring_state);
-    
+
     switch (ring_state)
     {
     case RING_STATE_CONFIRM:
-        /* ??????????????????? */
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
         {
             if (direction == 1U)
-                /* ???????????-offset?Center????????? */
                 ImageDeal[row].Center = ImageSensorMid
                                       - Half_Bend_Wide[row] * 2 / 3 - fill_offset / 2;
             else
@@ -1629,7 +1529,6 @@ static void Ring_Rebuild_Fill(uint8 direction)
     case RING_STATE_APPROACH:
         if (s_ring_entry_corner_row >= 0)
         {
-            /* found valley: draw line from bottom corner to valley */
             if (direction == 1U)
                 Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW, 0,
                                    s_ring_entry_corner_row, s_ring_entry_corner_col, 'L');
@@ -1639,7 +1538,6 @@ static void Ring_Rebuild_Fill(uint8 direction)
         }
         else if (s_ring_edge_squeezed)
         {
-            /* squeezed but no valley yet: draw line from bottom corner to edge at row 50 */
             if (direction == 1U)
                 Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW, 0,
                                    50, 0, 'L');
@@ -1727,11 +1625,10 @@ static void Ring_Rebuild_Fill(uint8 direction)
         }
         else
         {
-    /* 靠边行数 > 4 则返回1 */
+            /* 未找到入口拐点时，按弯道宽度推算Center */
             for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
             {
                 if (direction == 1U)
-                    /* ?????????????????? */
                     ImageDeal[row].Center = ImageSensorMid
                                           - Half_Bend_Wide[row] * 2 / 3 - fill_offset / 2;
                 else
@@ -1743,7 +1640,6 @@ static void Ring_Rebuild_Fill(uint8 direction)
         }
         break;
     case RING_STATE_EXIT1:
-        /* ????1???2????? */
         if (s_ring_exit1_corner1_row >= 0 && s_ring_exit1_corner2_row >= 0)
         {
             if (direction == 1U)
@@ -1805,7 +1701,6 @@ static void Ring_Rebuild_Fill(uint8 direction)
             LimitH(ImageDeal[row].Center);
         }
         break;
-    
     case RING_STATE_RECOVERY:
         Ring_Rebuild_Recovery_Border(direction);
         break;
@@ -1827,7 +1722,7 @@ static void Ring_Rebuild_Fill(uint8 direction)
     }
 }
 
-/* [???] */
+/* 圆环状态机更新 */
 static void Ring_State_Update(void)
 {
     uint8 direction = (uint8)ImageFlag.image_element_rings;
@@ -1883,10 +1778,10 @@ static void Ring_State_Update(void)
             s_ring_entry_corner_row = valley_row;
             s_ring_entry_corner_col = valley_col;
         }
-        /* 入环进行了3针后在找到了拐点的情况下检测进入INSIDE */
+        /* 入环处理3帧后，找到拐点的情况下检测进入INSIDE */
         if (s_ring_state_frames >= 3U && s_ring_entry_corner_row >= 0)
         {
-            /* 连续两针拐点行数相差大于20 */
+            /* 连续两帧拐点行数相差大于20 */
             if (valley_row >= 0 && s_ring_prev_valley_row >= 0
                 && (valley_row - s_ring_prev_valley_row > 20
                     || s_ring_prev_valley_row - valley_row > 20))
@@ -1894,7 +1789,7 @@ static void Ring_State_Update(void)
                 Ring_Set_State(RING_STATE_INSIDE);
                 break;
             }
-            /* 下一针突然找不到拐点 */
+            /* 下一帧突然找不到拐点 */
             if (valley_row < 0 && s_ring_prev_valley_row >= 0)
             {
                 Ring_Set_State(RING_STATE_INSIDE);
@@ -2043,17 +1938,17 @@ static void Ring_State_Update(void)
 }
 
 /* EXIT2拐点2跳变帧沿用上一帧Err，避免状态切换瞬间舵机突变。 */
+/* 返回是否沿用上一帧Err */
 uint8 Ring_Should_Hold_Err(void)
 {
     return (uint8)(ImageFlag.image_element_rings_flag == RING_STATE_RECOVERY
         && s_ring_state_frames == 0U);
 }
 
-    /* 弯道: 仅在无圆环时判定 */
-/* ---- 璺冲彉灏戠殑閭ｈ竟闈犺竟琛屾暟妫鏌 ----
- * 妫鏌ヨ岃寖鍥 15~45, 杈圭紭margin=8鍍忕礌, 闈犺竟琛>5琛屽垯杩斿洖1
- * direction=1: 妫鏌ュ彸杈圭晫鏄鍚﹀お澶氳屾尋鍒板彸杈圭紭
- * direction=2: 妫鏌ュ乏杈圭晫鏄鍚﹀お澶氳屾尋鍒板乏杈圭紭
+/* ---- 对侧贴边行数检查 ----
+ * 检查10~42行范围，边缘margin=8像素，贴边行>3则返回1
+ * direction=1: 检查右边线是否太多行挤到右边缘
+ * direction=2: 检查左边线是否太多行挤到左边缘
  */
 static uint8 Ring_OtherSide_Too_Much_Edge(uint8 direction)
 {
@@ -2076,10 +1971,10 @@ static uint8 Ring_OtherSide_Too_Much_Edge(uint8 direction)
                 edge_rows++;
         }
     }
-    /* 元素处理: 按优先级依次调用 */
     return (uint8)(edge_rows > 3);
 }
 
+/* 左圆环初判 */
 void Element_Judgment_Left_Rings(void)
 {
     if (ImageStatus.Miss_Right_lines > 15
@@ -2098,7 +1993,7 @@ void Element_Judgment_Left_Rings(void)
     }
 }
 
-    /* 十字补线: 修复十字路口边界 */
+/* 右圆环初判 */
 void Element_Judgment_Right_Rings(void)
 {
     if (ImageStatus.Miss_Left_lines > 15
@@ -2116,7 +2011,8 @@ void Element_Judgment_Right_Rings(void)
         Ring_Set_State(RING_STATE_CONFIRM);
     }
 }
-/* Element_Handle_Left_Rings */
+
+/* 左圆环处理 */
 void Element_Handle_Left_Rings(void)
 {
     Ring_State_Update();
@@ -2126,7 +2022,7 @@ void Element_Handle_Left_Rings(void)
     }
 }
 
-/* Element_Handle_Right_Rings */
+/* 右圆环处理 */
 void Element_Handle_Right_Rings(void)
 {
     Ring_State_Update();
@@ -2136,21 +2032,19 @@ void Element_Handle_Right_Rings(void)
     }
 }
 
-
+/* 斑马线判定 */
 void Element_Judgment_Zebra(void)
 {
     int Ysite, Xsite;
     int trans_count;        /* 当前行跳变计数 */
-    int valid_rows = 0;     /* [???] */
-    static int confirm_cnt = 0;     /* [???] */
+    int valid_rows = 0;
+    static int confirm_cnt = 0;
 
     /* 斑马线优先于十字和圆环，允许在圆环状态中继续判定。 */
     if (ImageFlag.Zebra_Flag != 0)
         return;
 
     /* 扫描窗口: 行44~57, 每行统计黑->白(0->1)跳变次数 */
-
-
     for (Ysite = 44; Ysite < 58 ; Ysite++)
     {
         trans_count = 0;
@@ -2165,35 +2059,21 @@ void Element_Judgment_Zebra(void)
 
     g_ZebraSum = valid_rows;
 
-/* [???] */
     if (valid_rows >= 5)
     {
         confirm_cnt++;
         if (confirm_cnt >= 2)
         {
-            ImageFlag.Zebra_Flag = 1;       /* [???] */
+            ImageFlag.Zebra_Flag = 1;
         }
     }
     else
     {
-        confirm_cnt = 0;                     /* [???] */
+        confirm_cnt = 0;
     }
 }
 
-
-
-
-
-
-
-
-
-
-
-/* [???] */
-/* 斑马线处理: 检测状态+强制直道巡线 */
-/* [???] */
-/* 斑马线处理: 检测状态+强制直道巡线 */
+/* 斑马线处理：检测状态+强制直道巡线 */
 void Element_Handle_Zebra(void)
 {
     int row, Ysite, Xsite;
@@ -2201,7 +2081,6 @@ void Element_Handle_Zebra(void)
     int exit_rows = 0;
     static int lost_cnt = 0;        /* 斑马线丢失计数器 */
 
-/* [???] */
     for (Ysite = 20; Ysite < 33; Ysite++)
     {
         trans_count = 0;
@@ -2215,23 +2094,21 @@ void Element_Handle_Zebra(void)
 
     g_ZebraSum = exit_rows;
 
-/* [???] */
     if (exit_rows < 4)
     {
         lost_cnt++;
         if (lost_cnt >= 3)
         {
-            ImageFlag.Zebra_Flag = 0;       /* [???] */
+            ImageFlag.Zebra_Flag = 0;
             lost_cnt = 0;
             return;
         }
     }
     else
     {
-        lost_cnt = 0;                       /* [???] */
+        lost_cnt = 0;
     }
 
-/* [???] */
     for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLineBoundary + 1; row--)
     {
         ImageDeal[row].Center      = ImageSensorMid;
@@ -2243,12 +2120,12 @@ void Element_Handle_Zebra(void)
     }
 }
 
-
+/* 坡道判定 */
 void Element_Judgment_Ramp(void)
 {
-        return;                              /* [???] */
+        return;
     int Ysite;
-    int i = 0;                           /* [???] */
+    int i = 0;
 
     if (ImageStatus.WhiteLine >= 3) return;
 
@@ -2271,65 +2148,17 @@ void Element_Judgment_Ramp(void)
             }
         }
 
-        if (i >= 3)                           /* [???] */
+        if (i >= 3)
         {
             ImageFlag.Ramp = 1;
         }
     }
 }
 
-/* [???] */
+/* 坡道处理 */
 void Element_Handle_Ramp(void)
 {
-/* [???] */
-
 }
-
-/* [???] */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/* [???] */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/* [???] */
-
-
-
-
-
 
 /* 十字弯道扫描参数 */
 #define CROSS_SCAN_BOTTOM_ROW       50
@@ -2502,6 +2331,7 @@ static uint8 Cross_Find_Corners(int *left_row, int *left_col,
     return (uint8)(left_found && right_found);
 }
 
+/* 十字补线 */
 void Get_ExtensionLine(void)
 {
     int row;
@@ -2539,7 +2369,8 @@ void Get_ExtensionLine(void)
 
     s_cross_detected = 1U;
 }
-/* [???] */
+
+/* 元素扫描：判定斑马线、十字、圆环等 */
 void Scan_Element(void)
 {
     s_cross_detected = 0U;
@@ -2591,14 +2422,10 @@ void Scan_Element(void)
         }
     }
 
-/* [???] */
     if (ImageFlag.Bend_Road)
     {
-
-
     }
 
-/* [???] */
     if (ImageFlag.Bend_Road)
     {
         Element_Judgment_Zebra();
@@ -2606,7 +2433,7 @@ void Scan_Element(void)
     }
 }
 
-/* [???] */
+/* 元素处理：按优先级依次调用 */
 void Element_Handle(void)
 {
     if (ImageFlag.Zebra_Flag != 0)
@@ -2627,7 +2454,8 @@ void Element_Handle(void)
             Straight_long_handle();
     }
 }
-/* [???] */
+
+/* 元素标志初始化 */
 void Flag_init(void)
 {
     ImageFlag.Bend_Road              = 0;
@@ -2635,42 +2463,30 @@ void Flag_init(void)
     ImageFlag.Ramp                   = 0;
     ImageFlag.straight_xie           = 0;
     ImageFlag.straight_long          = 0;
-
 }
 
-
-//-------------------------------------------------------------------------------
-// [???]
-// [???]
-// [???]
-//  @parameter      void
-//  @return         void
-//  Sample usage:   Camera_ShowElementStatus();
-//-------------------------------------------------------------------------------
+/* 显示当前元素与圆环状态 */
 void Camera_ShowElementStatus(void)
 {
-/* [???] */
     ips200_set_color(RGB565_WHITE, RGB565_BLUE);
 
-/* [???] */
         if    (ImageFlag.image_element_rings == 1)
     {
-        ips200_show_string(2, 225, "ELEM: yuan_L ");     /* [???] */
+        ips200_show_string(2, 225, "ELEM: yuan_L ");
     }
     else if (ImageFlag.image_element_rings == 2)
     {
-        ips200_show_string(2, 225, "ELEM: yuan_R ");     /* [???] */
+        ips200_show_string(2, 225, "ELEM: yuan_R ");
     }
     else if (s_cross_detected)
     {
-        ips200_show_string(2, 225, "ELEM: shi    ");     /* [???] */
+        ips200_show_string(2, 225, "ELEM: shi    ");
     }
     else
     {
-        ips200_show_string(2, 225, "ELEM: ---    ");     /* [???] */
+        ips200_show_string(2, 225, "ELEM: ---    ");
     }
 
-/* [???] */
     {
         static const char *rst_name[] = {"IDLE","CNFM","APRC","ENTR","INSD","EX1T","EX2T","RECV"};
         uint8 rst = (uint8)ImageFlag.image_element_rings_flag;
@@ -2690,11 +2506,8 @@ void Camera_ShowElementStatus(void)
         }
     }
 
-/* [???] */
-/* [???] */
     ips200_show_string(120, 225, "Err:");
     ips200_show_float(152, 225, Err, 3, 2);
 
     ips200_set_color(RGB565_RED, RGB565_BLACK);
 }
-

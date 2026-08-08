@@ -2168,7 +2168,7 @@ void Element_Handle_Ramp(void)
 #define CROSS_JUMP_MIN_COLS          3     //跳变确认列数
 #define CROSS_UPPER_CONFIRM_ROWS     2     //向上确认行数
 #define CROSS_CORNER_MAX_ROW_DIFF    10    //左右相隔行数
-#define CROSS_EXIT_DELAY_FRAMES      20U   //十字最后一次识别后继续屏蔽圆环初判的帧数
+#define CROSS_EXIT_DELAY_FRAMES      3U    //十字最后一次识别后继续屏蔽圆环初判的帧数
 
 #if (CROSS_SCAN_TOP_ROW < 0) || (CROSS_SCAN_BOTTOM_ROW >= LCDH) || (CROSS_SCAN_TOP_ROW >= CROSS_SCAN_BOTTOM_ROW)
 #error "CROSS_SCAN_ROW range is invalid"

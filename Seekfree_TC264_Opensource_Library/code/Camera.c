@@ -1442,7 +1442,7 @@ static uint8 Ring_Find_Exit1_Corners(uint8 direction,
     /* ??1: 35~55????????? */
     prev_col = -1;
     increasing_seen = 0;
-    for (row = 55; row >= 35; row--)
+    for (row = 55; row >= 30; row--)
     {
         if (direction == 2U) col = ImageDeal[row].LeftBorder;
         else                 col = ImageDeal[row].RightBorder;
@@ -1867,10 +1867,10 @@ static void Ring_State_Update(void)
             s_ring_entry_corner_col = valley_col;
             /* APPROACH必须完整处理3帧，之后才能进入ENTRY。 */
             if (s_ring_state_frames >= 3U
-                && (valley_row > 40
+                && (valley_row > 42
                     || (s_ring_prev_valley_row >= 0
-                        && (valley_row - s_ring_prev_valley_row > 20
-                            || s_ring_prev_valley_row - valley_row > 20))))
+                        && (valley_row - s_ring_prev_valley_row > 15
+                            || s_ring_prev_valley_row - valley_row > 15))))
                 Ring_Set_State(RING_STATE_ENTRY);
         }
         s_ring_prev_valley_row = valley_row;
@@ -1996,11 +1996,11 @@ static void Ring_State_Update(void)
         uint8 exit2_row_jump = 0U;
         (void)Ring_Find_Exit1_Corners(direction, &c1r, &c1c, &c2r, &c2c);
 
-        /* 相邻有效帧中，拐点2向图像底部突增超过5行即完成EXIT2。 */
+        /* 相邻有效帧中，拐点2向图像底部突增超过2行即完成EXIT2。 */
         if (c2r >= 0
             && s_ring_exit1_corner2_row >= 0
             && s_ring_exit2_miss_frames == 0U
-            && c2r - s_ring_exit1_corner2_row > 5)
+            && c2r - s_ring_exit1_corner2_row > 2)
             exit2_row_jump = 1U;
 
         Ring_Update_Exit_Point(c2r, c2c,
@@ -2061,7 +2061,7 @@ static uint8 Ring_OtherSide_Too_Much_Edge(uint8 direction)
     int edge_rows = 0;
     const int margin = 8;
 
-    for (row = 42; row >= 15; row--)
+    for (row = 42; row >= 10; row--)
     {
         if (direction == 1U)
         {
@@ -2087,7 +2087,7 @@ void Element_Judgment_Left_Rings(void)
         || ImageFlag.image_element_rings)
         return;
 
-    if (g_left_jump_count >= 5
+    if (g_left_jump_count >= 3
         && g_right_jump_count + s_left_jump_other_lost_count <= RING_JUMP_OTHER_MAX
         && !Ring_OtherSide_Too_Much_Edge(1U)
         && s_ring_exit_cooldown == 0U)
@@ -2106,7 +2106,7 @@ void Element_Judgment_Right_Rings(void)
         || ImageFlag.image_element_rings)
         return;
 
-    if (g_right_jump_count >= 5
+    if (g_right_jump_count >= 3
         && g_left_jump_count + s_right_jump_other_lost_count <= RING_JUMP_OTHER_MAX
         && !Ring_OtherSide_Too_Much_Edge(2U)
         && s_ring_exit_cooldown == 0U)
@@ -2333,12 +2333,12 @@ void Element_Handle_Ramp(void)
 
 /* 十字弯道扫描参数 */
 #define CROSS_SCAN_BOTTOM_ROW       50
-#define CROSS_SCAN_TOP_ROW          13
-#define CROSS_STABLE_MIN_ROWS        5
+#define CROSS_SCAN_TOP_ROW          17
+#define CROSS_STABLE_MIN_ROWS        7     //同列行数
 #define CROSS_STABLE_COL_TOLERANCE   1
-#define CROSS_JUMP_MIN_COLS          3
-#define CROSS_UPPER_CONFIRM_ROWS      2
-#define CROSS_CORNER_MAX_ROW_DIFF    10
+#define CROSS_JUMP_MIN_COLS          3     //跳变确认列数
+#define CROSS_UPPER_CONFIRM_ROWS     2     //向上确认行数
+#define CROSS_CORNER_MAX_ROW_DIFF    10    //左右相隔行数
 
 #if (CROSS_SCAN_TOP_ROW < 0) || (CROSS_SCAN_BOTTOM_ROW >= LCDH) || (CROSS_SCAN_TOP_ROW >= CROSS_SCAN_BOTTOM_ROW)
 #error "CROSS_SCAN_ROW range is invalid"

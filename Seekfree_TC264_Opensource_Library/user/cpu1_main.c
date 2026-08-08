@@ -40,7 +40,7 @@ static int8_t   StraightSpeed = 40;
 static int16_t  EncCount        = 0;
 
 /* 进环保留速度百分比：70表示保留原速度70%，数值越大越快，越小越慢。 */
-#define RING_ENTRY_SPEED_PERCENT 70
+#define RING_ENTRY_SPEED_PERCENT 40
 #if RING_ENTRY_SPEED_PERCENT < 0 || RING_ENTRY_SPEED_PERCENT > 100
 #error "RING_ENTRY_SPEED_PERCENT must be between 0 and 100"
 #endif
@@ -51,7 +51,7 @@ static int16_t  EncCount        = 0;
 #define CURVE_SPEED    0
 /* ---- PD参数 ---- */
 #define PD_KP          1.00f
-#define PD_KD          14.0f
+#define PD_KD          10.0f
 
 static PI_t s_PI_Left, s_PI_Right;   /* Left/Right motor PI controllers */
 
@@ -180,7 +180,7 @@ int core1_main(void)
         pwm_left  = PI_Update(&s_PI_Left,  position_err, enc_left,  StraightSpeed);
         pwm_right = PI_Update(&s_PI_Right, position_err, enc_right, StraightSpeed);
 
-        motor_speed = (int16_t)((float)StraightSpeed - 0.25f * (float)Err_abs);
+        motor_speed = (int16_t)((float)StraightSpeed - 0.3f * (float)Err_abs);
         if (ring_entry_slowdown != 0U)
         {
             motor_speed = (int16_t)(motor_speed * RING_ENTRY_SPEED_PERCENT / 100);

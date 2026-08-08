@@ -1,10 +1,10 @@
 #include "Camera.h"
 #include "Shared.h"
-/* Ô²»·Ê¶±ğÓë×´Ì¬»úÏà¹Ø±äÁ¿ */
+/* åœ†ç¯è¯†åˆ«ä¸çŠ¶æ€æœºç›¸å…³å˜é‡ */
 static uint16 s_ring_state_frames = 0U;
 static uint8 s_ring_confirm_count = 0U;
 static uint8 s_ring_feature_count = 0U;
-static uint8 s_ring_exit_loss_seen = 0U;     /* ³ö»·Ê±ÊÇ·ñÒÑ¹Û²ìµ½¶Ô²à¶ªÏß */
+static uint8 s_ring_exit_loss_seen = 0U;     /* å‡ºç¯æ—¶æ˜¯å¦å·²è§‚å¯Ÿåˆ°å¯¹ä¾§ä¸¢çº¿ */
 static int s_ring_entry_corner_row = -1;
 static int s_ring_entry_corner_col = -1;
 static uint8 s_ring_edge_squeezed = 0U;
@@ -16,21 +16,21 @@ static int s_ring_exit1_corner2_row = -1;
 static int s_ring_exit1_corner2_col = -1;
 static uint8 s_ring_exit1_miss_frames = RING_EXIT_POINT_HOLD_FRAMES + 1U;
 static uint8 s_ring_exit2_miss_frames = RING_EXIT_POINT_HOLD_FRAMES + 1U;
-static int s_ring_recovery_valley_row = -1;     /* RECOVERY³ö»·¹Õµã */
+static int s_ring_recovery_valley_row = -1;     /* RECOVERYå‡ºç¯æ‹ç‚¹ */
 static int s_ring_recovery_valley_col = -1;
-static int s_ring_prev_recovery_valley_row = -1; /* RECOVERYÉÏÒ»Ö¡³ö»·¹ÕµãĞĞ */
-static uint16 s_ring_exit_cooldown = 0U;           /* ÉÏÒ»Ö¡¹Èµ×ĞĞºÅ, APPROACH½×¶ÎÓÃ */
+static int s_ring_prev_recovery_valley_row = -1; /* RECOVERYä¸Šä¸€å¸§å‡ºç¯æ‹ç‚¹è¡Œ */
+static uint16 s_ring_exit_cooldown = 0U;           /* ä¸Šä¸€å¸§è°·åº•è¡Œå·, APPROACHé˜¶æ®µç”¨ */
 volatile int g_corner_black_max = 0;
 volatile int g_bottom_black_width = 0;
 volatile int g_ring_miss_cnt = 0;
 volatile uint8 g_left_jump_count = 0;
 volatile uint8 g_right_jump_count = 0;
-static int s_left_jump_other_lost_count = 0;   /* ×ó²à¶ÏµãÍ¬ĞĞÓÒ²à¶ªÏßÊı */
-static int s_right_jump_other_lost_count = 0;  /* ÓÒ²à¶ÏµãÍ¬ĞĞ×ó²à¶ªÏßÊı */
+static int s_left_jump_other_lost_count = 0;   /* å·¦ä¾§æ–­ç‚¹åŒè¡Œå³ä¾§ä¸¢çº¿æ•° */
+static int s_right_jump_other_lost_count = 0;  /* å³ä¾§æ–­ç‚¹åŒè¡Œå·¦ä¾§ä¸¢çº¿æ•° */
 volatile int g_approach_valley_row = -99;
 volatile uint8 g_edge_squeezed_dbg = 0;
 volatile uint8 g_ring_phase_dbg = 0;
-/* Í¼ÏñÓëÔªËØ´¦ÀíÈ«¾Ö±äÁ¿ */
+/* å›¾åƒä¸å…ƒç´ å¤„ç†å…¨å±€å˜é‡ */
 uint8  Pixle[LCDH][LCDW];
 uint8 *Image_Use[LCDH][LCDW];
 uint8  Camera_Threshold = 128;
@@ -40,25 +40,25 @@ ImageStatustypedef ImageStatus;
 #define COMPRESS_STEP_H (MT9V03X_H/LCDH)
 #define COMPRESS_STEP_W (MT9V03X_W/LCDW)
 
-/* ÉãÏñÍ·³õÊ¼»¯ */
+/* æ‘„åƒå¤´åˆå§‹åŒ– */
 void Camera_Init(void) { system_delay_ms(200); mt9v03x_init(); }
 
-/* ²éÑ¯Ò»Ö¡Í¼ÏñÊÇ·ñ²É¼¯Íê³É */
+/* æŸ¥è¯¢ä¸€å¸§å›¾åƒæ˜¯å¦é‡‡é›†å®Œæˆ */
 uint8 Camera_IsFrameReady(void) {
     uint8 f = mt9v03x_finish_flag; mt9v03x_finish_flag = 0; return f; }
 
-/* »ñÈ¡Ô­Ê¼Í¼ÏñÖ¸Õë */
+/* è·å–åŸå§‹å›¾åƒæŒ‡é’ˆ */
 uint8 (*Camera_GetImage(void))[CAMERA_W] { return mt9v03x_image; }
 
-/* Ñ¹ËõÍ¼ÏñÖ¸Õë³õÊ¼»¯£¬½¨Á¢MT9V03Xµ½LCD³ß´çµÄÓ³Éä */
+/* å‹ç¼©å›¾åƒæŒ‡é’ˆåˆå§‹åŒ–ï¼Œå»ºç«‹MT9V03Xåˆ°LCDå°ºå¯¸çš„æ˜ å°„ */
 void Camera_CompressInit(void) {
     uint8 i, j; uint16 r, c;
     for (i = 0; i < LCDH; i++) { r = (uint16)i * COMPRESS_STEP_H;
         for (j = 0; j < LCDW; j++) { c = (uint16)j * COMPRESS_STEP_W;
             Image_Use[i][j] = &mt9v03x_image[r][c]; } } }
 
-/* »Ò¶ÈÖ±·½Í¼+OTSU´ó½ò·¨¼ÆËã×ÔÊÊÓ¦ãĞÖµ */
-/* ·µ»Ø×ÔÊÊÓ¦¶şÖµ»¯ãĞÖµ */
+/* ç°åº¦ç›´æ–¹å›¾+OTSUå¤§æ´¥æ³•è®¡ç®—è‡ªé€‚åº”é˜ˆå€¼ */
+/* è¿”å›è‡ªé€‚åº”äºŒå€¼åŒ–é˜ˆå€¼ */
 uint8 Camera_OTSU_GetThreshold(uint8 *image[][LCDW], uint16 col, uint16 row)
 {
     uint32 hist[256] = {0};
@@ -73,7 +73,7 @@ uint8 Camera_OTSU_GetThreshold(uint8 *image[][LCDW], uint16 col, uint16 row)
     uint8 pmin = 255, pmax = 0;
     uint8 range;
 
-    /* µÚÒ»±éÉ¨ÃèÈ«Í¼£¬ÕÒµ½×îĞ¡ºÍ×î´ó»Ò¶È */
+    /* ç¬¬ä¸€éæ‰«æå…¨å›¾ï¼Œæ‰¾åˆ°æœ€å°å’Œæœ€å¤§ç°åº¦ */
     for (i = 0; i < row; i++)
         for (j = 0; j < col; j++) {
             uint8 v = *image[i][j];
@@ -93,7 +93,7 @@ uint8 Camera_OTSU_GetThreshold(uint8 *image[][LCDW], uint16 col, uint16 row)
                 hist[*image[i][j]]++;
     }
 
-    /* OTSUËã·¨ºËĞÄ£º±éÀúãĞÖµ£¬×î´ó»¯Àà¼ä·½²î */
+    /* OTSUç®—æ³•æ ¸å¿ƒï¼šéå†é˜ˆå€¼ï¼Œæœ€å¤§åŒ–ç±»é—´æ–¹å·® */
     for (t = 0; t < 256; t++)
         totalSum += (uint64)t * hist[t];
 
@@ -122,7 +122,7 @@ uint8 Camera_OTSU_GetThreshold(uint8 *image[][LCDW], uint16 col, uint16 row)
     return bestThr;
 }
 
-/* Éú³É¶şÖµÍ¼Ïñ£ºÍ¬²½µÈ´ıDMAºó°´OTSUãĞÖµ¶şÖµ»¯ */
+/* ç”ŸæˆäºŒå€¼å›¾åƒï¼šåŒæ­¥ç­‰å¾…DMAåæŒ‰OTSUé˜ˆå€¼äºŒå€¼åŒ– */
 void Camera_GetBinaryImage(void) {
     { volatile uint16 _sync; for (_sync = 0; _sync < 5000U; _sync++) {} }
     uint8 thr = Camera_OTSU_GetThreshold(Image_Use, LCDW, LCDH);
@@ -133,13 +133,13 @@ void Camera_GetBinaryImage(void) {
             Pixle[i][j] = (*Image_Use[i][j] > thr) ? 1 : 0;
 }
 
-/* ÏÔÊ¾¶şÖµÍ¼Ïñµ½IPS200 */
+/* æ˜¾ç¤ºäºŒå€¼å›¾åƒåˆ°IPS200 */
 void Camera_ShowBinaryImage(void) {
     uint16 xo = (uint16)((MT9V03X_W - LCDW) / 2);
     ips200_show_gray_image(xo, 0, Pixle[0], LCDW, LCDH, LCDW, LCDH, 1);
 }
 
-/* ÔÚIPS200ÉÏ»æÖÆÖĞÏßÓëÈüµÀ±ß½ç */
+/* åœ¨IPS200ä¸Šç»˜åˆ¶ä¸­çº¿ä¸èµ›é“è¾¹ç•Œ */
 void Camera_DrawCenterLines(void)
 {
     int row;
@@ -166,7 +166,7 @@ void Camera_DrawCenterLines(void)
     }
 }
 
-/* ÉãÏñÍ·µ÷ÊÔ»­Ãæ£ºÔ­Í¼¡¢¶şÖµÍ¼ÓëÔªËØ×´Ì¬ */
+/* æ‘„åƒå¤´è°ƒè¯•ç”»é¢ï¼šåŸå›¾ã€äºŒå€¼å›¾ä¸å…ƒç´ çŠ¶æ€ */
 void Camera_ShowDebug(void) {
     uint16 xo;
 
@@ -188,7 +188,7 @@ void Camera_ShowDebug(void) {
     ips200_set_color(RGB565_RED, RGB565_BLACK);
 }
 
-/* »ù´¡Ñ²Ïß£º´ÓÆğÊ¼ĞĞÏòÏÂÖğĞĞÉ¨Ãè×óÓÒ±ß½ç */
+/* åŸºç¡€å·¡çº¿ï¼šä»èµ·å§‹è¡Œå‘ä¸‹é€è¡Œæ‰«æå·¦å³è¾¹ç•Œ */
 void Get_BaseLine(void)
 {
     uint8 *PicTemp;
@@ -283,7 +283,7 @@ void Get_BaseLine(void)
     }
 }
 
-/* µ¥ĞĞ±ß½çÌø±äµã¼ì²â£ºT=Ìø±ä£¬W=È«°×£¬H=È«ºÚ */
+/* å•è¡Œè¾¹ç•Œè·³å˜ç‚¹æ£€æµ‹ï¼šT=è·³å˜ï¼ŒW=å…¨ç™½ï¼ŒH=å…¨é»‘ */
 void Get_Border_And_SideType(uint8* p, uint8 type, int L, int H, JumpPointtypedef* Q)
 {
     int i;
@@ -345,7 +345,7 @@ void Get_Border_And_SideType(uint8* p, uint8 type, int L, int H, JumpPointtypede
     }
 }
 
-/* È«Í¼Ñ²Ïß£ºÖğĞĞ¼ì²â×óÓÒ±ß½ç²¢Í³¼Æ¶ªÊ§Óë°×É«ĞĞ */
+/* å…¨å›¾å·¡çº¿ï¼šé€è¡Œæ£€æµ‹å·¦å³è¾¹ç•Œå¹¶ç»Ÿè®¡ä¸¢å¤±ä¸ç™½è‰²è¡Œ */
 void Get_AllLine(void)
 {
     uint8 *PicTemp;
@@ -482,7 +482,7 @@ void Get_AllLine(void)
     }
 }
 
-/* Ö±µÀ°ë¿í±í£º°´ĞĞ¸ø³öÈüµÀÒ»°ë¿í¶È */
+/* ç›´é“åŠå®½è¡¨ï¼šæŒ‰è¡Œç»™å‡ºèµ›é“ä¸€åŠå®½åº¦ */
 const uint8 Half_Road_Wide[60] = {
      5, 6, 6, 7, 7, 7, 8, 8, 9, 9,
     11,11,12,12,12,13,14,14,15,15,
@@ -501,10 +501,10 @@ const uint8 Half_Bend_Wide[60] = {
     33,34,34,35,35,36,36,38,38,39,
 };
 
-/* ÔªËØ±êÖ¾È«¾Ö±äÁ¿ */
+/* å…ƒç´ æ ‡å¿—å…¨å±€å˜é‡ */
 ImageFlagtypedef ImageFlag;
 
-/* Ö±ÏßÄâºÏÎó²î£ºdir=1¼ì²é×ó±ßÏß£¬dir=2¼ì²éÓÒ±ßÏß */
+/* ç›´çº¿æ‹Ÿåˆè¯¯å·®ï¼šdir=1æ£€æŸ¥å·¦è¾¹çº¿ï¼Œdir=2æ£€æŸ¥å³è¾¹çº¿ */
 float Straight_Judge(uint8 dir, uint8 start, uint8 end)
 {
     int i;
@@ -537,7 +537,7 @@ float Straight_Judge(uint8 dir, uint8 start, uint8 end)
     return S;
 }
 
-/* ³¤Ö±µÀÅĞ¶¨ */
+/* é•¿ç›´é“åˆ¤å®š */
 void Straight_long_judge(void)
 {
     if (ImageFlag.Bend_Road || ImageFlag.Zebra_Flag
@@ -554,7 +554,7 @@ void Straight_long_judge(void)
     }
 }
 
-/* ³¤Ö±µÀ´¦Àí£º¼ì²âÍË³öÌõ¼ş */
+/* é•¿ç›´é“å¤„ç†ï¼šæ£€æµ‹é€€å‡ºæ¡ä»¶ */
 void Straight_long_handle(void)
 {
     if (!ImageFlag.straight_long) return;
@@ -569,7 +569,7 @@ void Straight_long_handle(void)
     }
 }
 
-/* Ğ±ÈëÖ±µÀÅĞ¶¨ */
+/* æ–œå…¥ç›´é“åˆ¤å®š */
 void Straight_xie_judge(void)
 {
     float S, Sum, Err, midd_k;
@@ -601,13 +601,13 @@ void Straight_xie_judge(void)
     }
 }
 
-/* ÍäµÀÅĞ¶¨ */
+/* å¼¯é“åˆ¤å®š */
 void Element_Judgment_Bend(void)
 {
     if (ImageFlag.image_element_rings != 0
         || ImageFlag.Zebra_Flag)
         return;
-    /* ÈôOFFLine<5, Ç¿ÖÆÈ«Í¼É¨ÃèÒÔ±£Ö¤Miss¼ÆÊı×¼È· */
+    /* è‹¥OFFLine<5, å¼ºåˆ¶å…¨å›¾æ‰«æä»¥ä¿è¯Missè®¡æ•°å‡†ç¡® */
     if (ImageStatus.OFFLine < 5)
         return;
 
@@ -632,37 +632,37 @@ void Element_Judgment_Bend(void)
     }
 }
 
-/* ÍäµÀ´¦Àí£º°´ÍäµÀ·½ÏòÍÆËãCenter */
+/* å¼¯é“å¤„ç†ï¼šæŒ‰å¼¯é“æ–¹å‘æ¨ç®—Center */
 void Element_Handle_Bend(void)
 {
     int row;
 
-    /* OFFLine¹ıĞ¡Ê±Çå¿ÕÍäµÀ±êÖ¾²¢·µ»Ø */
+    /* OFFLineè¿‡å°æ—¶æ¸…ç©ºå¼¯é“æ ‡å¿—å¹¶è¿”å› */
     if (ImageStatus.OFFLine < 5)
         { ImageFlag.Bend_Road = 0; return; }
 
     if (ImageStatus.Miss_Left_lines < 4 && ImageStatus.Miss_Right_lines < 4)
         { ImageFlag.Bend_Road = 0; return; }
 
-if (ImageFlag.Bend_Road == 1)             /* ×óÍäµÀ */
+if (ImageFlag.Bend_Road == 1)             /* å·¦å¼¯é“ */
     {
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
         {
             ImageDeal[row].Center = ImageDeal[row].RightBorder - Half_Bend_Wide[row];
-            LimitL(ImageDeal[row].Center);    /* ÏŞ·ù >= 0 */
+            LimitL(ImageDeal[row].Center);    /* é™å¹… >= 0 */
         }
     }
-else if (ImageFlag.Bend_Road == 2)        /* ÓÒÍäµÀ */
+else if (ImageFlag.Bend_Road == 2)        /* å³å¼¯é“ */
     {
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
         {
             ImageDeal[row].Center = ImageDeal[row].LeftBorder + Half_Bend_Wide[row];
-            LimitH(ImageDeal[row].Center);    /* ÏŞ·ù <= 93 */
+            LimitH(ImageDeal[row].Center);    /* é™å¹… <= 93 */
         }
     }
 }
 
-/* ÉèÖÃÔ²»·×´Ì¬²¢¸´Î»Ïà¹Ø¼ÆÊıÆ÷ */
+/* è®¾ç½®åœ†ç¯çŠ¶æ€å¹¶å¤ä½ç›¸å…³è®¡æ•°å™¨ */
 static void Ring_Set_State(uint8 state)
 {
     ImageFlag.image_element_rings_flag = state;
@@ -672,7 +672,7 @@ static void Ring_Set_State(uint8 state)
     if (state == RING_STATE_CONFIRM)
     {
         s_ring_confirm_count = 0U;
-        s_ring_prev_valley_row = -1;  /* ĞÂÔ²»·²»µÃÑØÓÃÉÏÒ»Ô²»·µÄ¹Èµ×ĞĞ¡£ */
+        s_ring_prev_valley_row = -1;  /* æ–°åœ†ç¯ä¸å¾—æ²¿ç”¨ä¸Šä¸€åœ†ç¯çš„è°·åº•è¡Œã€‚ */
         s_ring_exit_loss_seen = 0U;
         s_ring_exit1_corner1_row = -1;
         s_ring_exit1_corner1_col = -1;
@@ -704,7 +704,7 @@ static void Ring_Set_State(uint8 state)
     }
 }
 
-/* Çå¿ÕÔ²»·×´Ì¬²¢Æô¶¯³ö»·ÀäÈ´ */
+/* æ¸…ç©ºåœ†ç¯çŠ¶æ€å¹¶å¯åŠ¨å‡ºç¯å†·å´ */
 static void Ring_Clear_State(void)
 {
     ImageFlag.image_element_rings = 0;
@@ -727,10 +727,10 @@ static void Ring_Clear_State(void)
     s_ring_prev_recovery_valley_row = -1;
     s_ring_edge_squeezed = 0U;
     s_ring_edge_released = 0U;
-    s_ring_exit_cooldown = 50U;  /* ³ö»·ºóµÈ´ı50Ö¡£¬±ÜÃâÖØ¸´Ê¶±ğ¸ÕÀë¿ªµÄÔ²»·¡£ */
+    s_ring_exit_cooldown = 50U;  /* å‡ºç¯åç­‰å¾…50å¸§ï¼Œé¿å…é‡å¤è¯†åˆ«åˆšç¦»å¼€çš„åœ†ç¯ã€‚ */
 }
 
-/* ¹Õ½ÇºÚ¶´¼ì²â£º¼ì²é×óÏÂ/ÓÒÏÂ½ÇºÚÉ«ÏñËØ */
+/* æ‹è§’é»‘æ´æ£€æµ‹ï¼šæ£€æŸ¥å·¦ä¸‹/å³ä¸‹è§’é»‘è‰²åƒç´  */
 static uint8 BlackHole_Check_Corner(uint8 direction)
 {
     int row, col, black_cnt;
@@ -754,7 +754,7 @@ static uint8 BlackHole_Check_Corner(uint8 direction)
     }
     return 0;
 }
-/* µ×²¿ºÚ¶´¼ì²â£ºÍ³¼Æµ×²¿ºÚÉ«ÇøÓò¿í¶È */
+/* åº•éƒ¨é»‘æ´æ£€æµ‹ï¼šç»Ÿè®¡åº•éƒ¨é»‘è‰²åŒºåŸŸå®½åº¦ */
 static uint8 BlackHole_Check_Bottom(uint8 direction)
 {
     int row, col;
@@ -792,7 +792,7 @@ static uint8 BlackHole_Check_Bottom(uint8 direction)
     return 0;
 }
 
-/* ÉÏ·½ºÚ¶´¼ì²â£ºÈ·ÈÏ¹ÕµãÉÏ·½´æÔÚºÚÉ«ÇøÓò */
+/* ä¸Šæ–¹é»‘æ´æ£€æµ‹ï¼šç¡®è®¤æ‹ç‚¹ä¸Šæ–¹å­˜åœ¨é»‘è‰²åŒºåŸŸ */
 static uint8 BlackHole_Check_Above(int inflection_row, int inflection_col)
 {
     int row;
@@ -816,7 +816,7 @@ static uint8 BlackHole_Check_Above(int inflection_row, int inflection_col)
     return 0;
 }
 
-/* ×·×ÙºÚ¶´¹Èµ×£º´ÓÉ¨ÃèÁĞÏòÏÂ/²àÏò¸ú×ÙºÚÉ«ÇøÓò */
+/* è¿½è¸ªé»‘æ´è°·åº•ï¼šä»æ‰«æåˆ—å‘ä¸‹/ä¾§å‘è·Ÿè¸ªé»‘è‰²åŒºåŸŸ */
 static int BlackHole_Track_Valley(uint8 direction, int *valley_row, int *valley_col, int scan_start, int min_row)
 {
     int row, col;
@@ -890,7 +890,7 @@ static int BlackHole_Track_Valley(uint8 direction, int *valley_row, int *valley_
     return 0;
 }
 
-/* ÎÈ¶¨ÈüµÀÅĞ¶¨£º¶ªÏßÉÙÇÒ±ß½çÆ½Ö± */
+/* ç¨³å®šèµ›é“åˆ¤å®šï¼šä¸¢çº¿å°‘ä¸”è¾¹ç•Œå¹³ç›´ */
 static uint8 Ring_Is_Stable_Road(void)
 {
     return (uint8)(ImageStatus.OFFLine <= 2
@@ -900,7 +900,7 @@ static uint8 Ring_Is_Stable_Road(void)
                 && Straight_Judge(2, 5, SCAN_BASE_END_ROW) < 2.0f);
 }
 
-/* Ô²»·ºòÑ¡ÅĞ¶¨£ºµ×²¿/¹Õ½ÇºÚ¶´¼Ó¶Ô²à¶ªÏßÌõ¼ş */
+/* åœ†ç¯å€™é€‰åˆ¤å®šï¼šåº•éƒ¨/æ‹è§’é»‘æ´åŠ å¯¹ä¾§ä¸¢çº¿æ¡ä»¶ */
 static uint8 Ring_Is_Candidate(uint8 direction)
 {
     if (ImageStatus.OFFLine > 10)
@@ -914,7 +914,7 @@ static uint8 Ring_Is_Candidate(uint8 direction)
     return 0U;
 }
 
-/* ²éÕÒÔ²»·¹Èµ×µã */
+/* æŸ¥æ‰¾åœ†ç¯è°·åº•ç‚¹ */
 static int Ring_Find_Valley_Point(uint8 direction, int *valley_col)
 {
     int valley_row = -1;
@@ -932,13 +932,13 @@ static int Ring_Find_Valley_Point(uint8 direction, int *valley_col)
 static int Ring_Check_Border_Jump(uint8 direction, int threshold, int min_row,
                                   int max_row, int *other_lost_count);
 
-/* ---- ENTRY½×¶Î·½°¸: ´Ó¶Ô²à±ßÔµºáÏòÉ¨ÃèÈë¿Ú¹Õµã ----
- * ´ÓÏÂÍùÉÏÖğĞĞÉ¨Ãè£¬´Ó¶Ô²à±ßÔµ³ö·¢Ïò»·µº·½ÏòÉ¨£¬
- * ÕÒºÚÉ«ÇøÓòµÄÔ¶²à±ß½çÌø±äµã×÷Îª¹Õµã£¬¼ÇÂ¼Ìø±äµãÓëÆğµãµÄºáÏò¾àÀë¡£
- * ÏàÁÚÁ½ĞĞ¾àÀë²î¾ø¶ÔÖµ>10Ê±£¬È¡¿¿ÉÏ(ĞĞÊıĞ¡)ÄÇĞĞµÄÌø±äµã×÷ÎªÈë¿Ú¹Õµã¡£
- * direction=1(×óÔ²»·): ´ÓÓÒ±ßÔµÏò×óÉ¨£¬ÕÒºÚÉ«ÇøÓò×ó±ßÔµ(ºÚ->°×)£¬×ó±ßµÄÌø±äµã×÷Îª¹Õµã
- * direction=2(ÓÒÔ²»·): ´Ó×ó±ßÔµÏòÓÒÉ¨£¬ÕÒºÚÉ«ÇøÓòÓÒ±ßÔµ(ºÚ->°×)£¬ÓÒ±ßµÄÌø±äµã×÷Îª¹Õµã
- * ·µ»Ø: 1=ÕÒµ½¹Õµã, 0=Î´ÕÒµ½; ¹Õµã×ø±êÍ¨¹ıcorner_row/corner_colÊä³ö
+/* ---- ENTRYé˜¶æ®µæ–¹æ¡ˆ: ä»å¯¹ä¾§è¾¹ç¼˜æ¨ªå‘æ‰«æå…¥å£æ‹ç‚¹ ----
+ * ä»ä¸‹å¾€ä¸Šé€è¡Œæ‰«æï¼Œä»å¯¹ä¾§è¾¹ç¼˜å‡ºå‘å‘ç¯å²›æ–¹å‘æ‰«ï¼Œ
+ * æ‰¾é»‘è‰²åŒºåŸŸçš„è¿œä¾§è¾¹ç•Œè·³å˜ç‚¹ä½œä¸ºæ‹ç‚¹ï¼Œè®°å½•è·³å˜ç‚¹ä¸èµ·ç‚¹çš„æ¨ªå‘è·ç¦»ã€‚
+ * ç›¸é‚»ä¸¤è¡Œè·ç¦»å·®ç»å¯¹å€¼>10æ—¶ï¼Œå–é ä¸Š(è¡Œæ•°å°)é‚£è¡Œçš„è·³å˜ç‚¹ä½œä¸ºå…¥å£æ‹ç‚¹ã€‚
+ * direction=1(å·¦åœ†ç¯): ä»å³è¾¹ç¼˜å‘å·¦æ‰«ï¼Œæ‰¾é»‘è‰²åŒºåŸŸå·¦è¾¹ç¼˜(é»‘->ç™½)ï¼Œå·¦è¾¹çš„è·³å˜ç‚¹ä½œä¸ºæ‹ç‚¹
+ * direction=2(å³åœ†ç¯): ä»å·¦è¾¹ç¼˜å‘å³æ‰«ï¼Œæ‰¾é»‘è‰²åŒºåŸŸå³è¾¹ç¼˜(é»‘->ç™½)ï¼Œå³è¾¹çš„è·³å˜ç‚¹ä½œä¸ºæ‹ç‚¹
+ * è¿”å›: 1=æ‰¾åˆ°æ‹ç‚¹, 0=æœªæ‰¾åˆ°; æ‹ç‚¹åæ ‡é€šè¿‡corner_row/corner_colè¾“å‡º
  */
 static uint8 Ring_Find_Entry_Corner(uint8 direction, uint8 require_upper_stable,
                                     int *corner_row, int *corner_col)
@@ -954,7 +954,7 @@ static uint8 Ring_Find_Entry_Corner(uint8 direction, uint8 require_upper_stable,
     {
         if (direction == 2U)
         {
-            /* Ìø±äµãÎ»ÖÃ(Èë»·¹Õ½ÇÁĞ) */
+            /* è·³å˜ç‚¹ä½ç½®(å…¥ç¯æ‹è§’åˆ—) */
             jump_col = LCDW - 1;
             in_black = 0U;
             for (col = 0; col < LCDW - 1; col++)
@@ -963,7 +963,7 @@ static uint8 Ring_Find_Entry_Corner(uint8 direction, uint8 require_upper_stable,
                 {
                     if (Pixle[row][col] == IMG_BLACK && Pixle[row][col + 1] == IMG_WHITE)
                     {
-        jump_col = col;       /* ¼ÇÂ¼Ìø±äÁĞ */
+        jump_col = col;       /* è®°å½•è·³å˜åˆ— */
                         break;
                     }
                 }
@@ -971,15 +971,15 @@ static uint8 Ring_Find_Entry_Corner(uint8 direction, uint8 require_upper_stable,
                 {
                     if (Pixle[row][col] == IMG_WHITE && Pixle[row][col + 1] == IMG_BLACK)
                     {
-                        in_black = 1U;       /* ½øÈëºÚÉ«ÇøÓò */
+                        in_black = 1U;       /* è¿›å…¥é»‘è‰²åŒºåŸŸ */
                     }
                 }
             }
-        curr_dist = jump_col;         /* µ±Ç°Ìø±ä¾àÀë = Ìø±äÁĞ */
+        curr_dist = jump_col;         /* å½“å‰è·³å˜è·ç¦» = è·³å˜åˆ— */
         }
         else
         {
-            /* ×óÔ²»·£º´ÓÓÒÏò×óÉ¨ÃèºÚÉ«ÇøÓò×ó±ßÔµ */
+            /* å·¦åœ†ç¯ï¼šä»å³å‘å·¦æ‰«æé»‘è‰²åŒºåŸŸå·¦è¾¹ç¼˜ */
             jump_col = 0;
             in_black = 0U;
             for (col = LCDW - 1; col > 0; col--)
@@ -988,7 +988,7 @@ static uint8 Ring_Find_Entry_Corner(uint8 direction, uint8 require_upper_stable,
                 {
                     if (Pixle[row][col] == IMG_BLACK && Pixle[row][col - 1] == IMG_WHITE)
                     {
-        jump_col = col;       /* ¼ÇÂ¼Ìø±äÁĞ */
+        jump_col = col;       /* è®°å½•è·³å˜åˆ— */
                         break;
                     }
                 }
@@ -996,14 +996,14 @@ static uint8 Ring_Find_Entry_Corner(uint8 direction, uint8 require_upper_stable,
                 {
                     if (Pixle[row][col] == IMG_WHITE && Pixle[row][col - 1] == IMG_BLACK)
                     {
-                        in_black = 1U;       /* ½øÈëºÚÉ«ÇøÓò */
+                        in_black = 1U;       /* è¿›å…¥é»‘è‰²åŒºåŸŸ */
                     }
                 }
             }
-        curr_dist = (LCDW - 1) - jump_col;  /* µ±Ç°Ìø±ä¾àÀë(´ÓÓÒ±ßËã) */
+        curr_dist = (LCDW - 1) - jump_col;  /* å½“å‰è·³å˜è·ç¦»(ä»å³è¾¹ç®—) */
         }
 
-        /* ±È½ÏÏàÁÚĞĞÌø±ä¾àÀë£¬¾àÀëÍ»±ä´¦¼´ÎªÈë¿Ú¹Õµã */
+        /* æ¯”è¾ƒç›¸é‚»è¡Œè·³å˜è·ç¦»ï¼Œè·ç¦»çªå˜å¤„å³ä¸ºå…¥å£æ‹ç‚¹ */
         if (prev_dist >= 0
             && (curr_dist - prev_dist > 10 || prev_dist - curr_dist > 10))
         {
@@ -1032,7 +1032,7 @@ static uint8 Ring_Find_Entry_Corner(uint8 direction, uint8 require_upper_stable,
     return 0U;
 }
 
-/* ---- Í³¼ÆÏàÁÚĞĞ±ß½ç¶ÏµãÊıÁ¿ ---- */
+/* ---- ç»Ÿè®¡ç›¸é‚»è¡Œè¾¹ç•Œæ–­ç‚¹æ•°é‡ ---- */
 static int Ring_Check_Border_Jump(uint8 direction, int threshold, int min_row, int max_row,
                                   int *other_lost_count)
 {
@@ -1088,7 +1088,7 @@ static int Ring_Check_Border_Jump(uint8 direction, int threshold, int min_row, i
             if (curr_col - prev_col > threshold || curr_col - prev_col < -threshold)
             {
                 count++;
-                /* Ä¿±ê²à±¾ĞĞÊÇ¶ÏµãÊ±£¬°ÑÍ¬ĞĞÁíÒ»²à¶ªÏß¼ÆÈëÁªºÏÏŞÖÆ¡£ */
+                /* ç›®æ ‡ä¾§æœ¬è¡Œæ˜¯æ–­ç‚¹æ—¶ï¼ŒæŠŠåŒè¡Œå¦ä¸€ä¾§ä¸¢çº¿è®¡å…¥è”åˆé™åˆ¶ã€‚ */
                 if ((direction == 1U && ImageDeal[row].IsRightFind != 'T')
                     || (direction == 2U && ImageDeal[row].IsLeftFind != 'T'))
                     (*other_lost_count)++;
@@ -1099,7 +1099,7 @@ static int Ring_Check_Border_Jump(uint8 direction, int threshold, int min_row, i
     return count;
 }
 
-/* APPROACH½×¶Î¹Èµ×¼ì²â£ºÏÈÅĞ¶ÏµÚ50ĞĞÊÇ·ñÌù±ß£¬ÔÙÕÒÍâÒÆºóµÄ»ØÂäµã */
+/* APPROACHé˜¶æ®µè°·åº•æ£€æµ‹ï¼šå…ˆåˆ¤æ–­ç¬¬50è¡Œæ˜¯å¦è´´è¾¹ï¼Œå†æ‰¾å¤–ç§»åçš„å›è½ç‚¹ */
 static int Ring_Find_Approach_Valley(uint8 direction, int *valley_col)
 {
     int row;
@@ -1119,7 +1119,7 @@ static int Ring_Find_Approach_Valley(uint8 direction, int *valley_col)
                       || (ImageDeal[50].RightBorder >= LCDW - 11);
     }
 
-    /* ENTRY: Èë»·½×¶Î - È·ÈÏ¹Õ½ÇĞĞÓĞĞ§ºó½øÈë»·ÖĞ */
+    /* ENTRY: å…¥ç¯é˜¶æ®µ - ç¡®è®¤æ‹è§’è¡Œæœ‰æ•ˆåè¿›å…¥ç¯ä¸­ */
     if (row50_at_edge)
     {
         uint8 phase = 1U;
@@ -1158,7 +1158,7 @@ static int Ring_Find_Approach_Valley(uint8 direction, int *valley_col)
             {
                 if ((direction == 1U && diff <= 0) || (direction == 2U && diff >= 0))
                 {
-                    /* APPROACH: ½Ó½ü½×¶Î£¬¼ì²âµ½±ß½ç»ØÂäµãºó½øÈëÈë»· */
+                    /* APPROACH: æ¥è¿‘é˜¶æ®µï¼Œæ£€æµ‹åˆ°è¾¹ç•Œå›è½ç‚¹åè¿›å…¥å…¥ç¯ */
                     if (row - 1 >= 5)
                     {
                         int k;
@@ -1177,7 +1177,7 @@ static int Ring_Find_Approach_Valley(uint8 direction, int *valley_col)
                         }
                         if (is_lost >= 3)
                         {
-                            /* ¼Ù¹Õµã½öÌø¹ıµ±Ç°ºòÑ¡£¬±£ÁôÍâÒÆÇ÷ÊÆÒÔ¼ÌĞøÏòÉÏÑ°ÕÒÕæ¹Õµã¡£ */
+                            /* å‡æ‹ç‚¹ä»…è·³è¿‡å½“å‰å€™é€‰ï¼Œä¿ç•™å¤–ç§»è¶‹åŠ¿ä»¥ç»§ç»­å‘ä¸Šå¯»æ‰¾çœŸæ‹ç‚¹ã€‚ */
                             prev_col = curr_col;
                             continue;
                         }
@@ -1191,7 +1191,7 @@ static int Ring_Find_Approach_Valley(uint8 direction, int *valley_col)
         return -1;
     }
 
-    /* CONFIRM: È·ÈÏ½×¶Î - ³ÖĞø¼ì²âÌØÕ÷Ö¡Êıºó½øÈë½Ó½ü */
+    /* CONFIRM: ç¡®è®¤é˜¶æ®µ - æŒç»­æ£€æµ‹ç‰¹å¾å¸§æ•°åè¿›å…¥æ¥è¿‘ */
     if (s_ring_edge_squeezed)
     {
         g_ring_phase_dbg = 2U;
@@ -1222,7 +1222,7 @@ static int Ring_Find_Approach_Valley(uint8 direction, int *valley_col)
             {
                 if ((direction == 1U && diff <= 0) || (direction == 2U && diff >= 0))
                 {
-                    /* INSIDE: »·ÖĞ½×¶Î£¬µÈ´ı±ß½ç»Ö¸´ÎÈ¶¨ºó³ö»· */
+                    /* INSIDE: ç¯ä¸­é˜¶æ®µï¼Œç­‰å¾…è¾¹ç•Œæ¢å¤ç¨³å®šåå‡ºç¯ */
                     if (row - 1 >= 5)
                     {
                         int k;
@@ -1241,7 +1241,7 @@ static int Ring_Find_Approach_Valley(uint8 direction, int *valley_col)
                         }
                         if (is_lost >= 3)
                         {
-                            /* ¼Ù¹Õµã½öÌø¹ıµ±Ç°ºòÑ¡£¬±£ÁôÍâÒÆÇ÷ÊÆÒÔ¼ÌĞøÏòÉÏÑ°ÕÒÕæ¹Õµã¡£ */
+                            /* å‡æ‹ç‚¹ä»…è·³è¿‡å½“å‰å€™é€‰ï¼Œä¿ç•™å¤–ç§»è¶‹åŠ¿ä»¥ç»§ç»­å‘ä¸Šå¯»æ‰¾çœŸæ‹ç‚¹ã€‚ */
                             prev_col = curr_col;
                             continue;
                         }
@@ -1259,7 +1259,7 @@ static int Ring_Find_Approach_Valley(uint8 direction, int *valley_col)
     return -1;
 }
 
-/* ³ö»·ÌØÕ÷¼ì²â£º¶Ô²à±ß½ç¶ªÏß»òÉÏ·½´æÔÚºÚ¶´ */
+/* å‡ºç¯ç‰¹å¾æ£€æµ‹ï¼šå¯¹ä¾§è¾¹ç•Œä¸¢çº¿æˆ–ä¸Šæ–¹å­˜åœ¨é»‘æ´ */
 static uint8 Ring_Has_Exit_Feature(uint8 direction)
 {
     int row;
@@ -1290,7 +1290,7 @@ static uint8 Ring_Has_Exit_Feature(uint8 direction)
     return Ring_Is_Stable_Road();
 }
 
-/* ÏßĞÔ²¹Ïß²¢Í¬²½¸üĞÂImageDeal±ß½çÓëÖĞĞÄ */
+/* çº¿æ€§è¡¥çº¿å¹¶åŒæ­¥æ›´æ–°ImageDealè¾¹ç•Œä¸ä¸­å¿ƒ */
 static void Ring_DrawAndUpdate(uint8 direction, int s_row, int s_col,
                                int e_row, int e_col, uint8 border_side)
 {
@@ -1332,7 +1332,7 @@ static void Ring_DrawAndUpdate(uint8 direction, int s_row, int s_col,
     }
 }
 
-/* ²éÕÒEXIT1½×¶ÎµÄÁ½¸ö³ö»·¹Õµã */
+/* æŸ¥æ‰¾EXIT1é˜¶æ®µçš„ä¸¤ä¸ªå‡ºç¯æ‹ç‚¹ */
 static uint8 Ring_Find_Exit1_Corners(uint8 direction,
     int *corner1_row, int *corner1_col,
     int *corner2_row, int *corner2_col)
@@ -1374,7 +1374,7 @@ static uint8 Ring_Find_Exit1_Corners(uint8 direction,
         {
             for (col = LCDW - 1; col > LCDW - 8; col--)
             {
-                /* EXIT2ÊÇ²à±ßºÚÇøÏÂ¶Ëµã£¬ÏÂÃæ±ØĞëÁ¬ĞøÎª°×É«ÈüµÀ¡£ */
+                /* EXIT2æ˜¯ä¾§è¾¹é»‘åŒºä¸‹ç«¯ç‚¹ï¼Œä¸‹é¢å¿…é¡»è¿ç»­ä¸ºç™½è‰²èµ›é“ã€‚ */
                 if (Pixle[row][col] == IMG_BLACK
                     && Pixle[row + 1][col] == IMG_WHITE
                     && Pixle[row + 2][col] == IMG_WHITE)
@@ -1397,8 +1397,8 @@ static uint8 Ring_Find_Exit1_Corners(uint8 direction,
     return 0U;
 }
 
-/* ¸üĞÂ¹Ø¼üµã²¢ÏŞÖÆ¾É×ø±ê×î¶à±£ÁôÖ¸¶¨Ö¡Êı¡£ */
-/* ¸üĞÂ³ö»·¹Ø¼üµã£¬ÔÊĞí¿çÖ¡±£³Ö×î¶àRING_EXIT_POINT_HOLD_FRAMESÖ¡ */
+/* æ›´æ–°å…³é”®ç‚¹å¹¶é™åˆ¶æ—§åæ ‡æœ€å¤šä¿ç•™æŒ‡å®šå¸§æ•°ã€‚ */
+/* æ›´æ–°å‡ºç¯å…³é”®ç‚¹ï¼Œå…è®¸è·¨å¸§ä¿æŒæœ€å¤šRING_EXIT_POINT_HOLD_FRAMESå¸§ */
 static void Ring_Update_Exit_Point(int row, int col,
     int *cached_row, int *cached_col, uint8 *miss_frames)
 {
@@ -1419,7 +1419,7 @@ static void Ring_Update_Exit_Point(int row, int col,
     }
 }
 
-/* °´Ô²»·×´Ì¬·µ»ØÖĞĞÄÆ«ÒÆÁ¿ */
+/* æŒ‰åœ†ç¯çŠ¶æ€è¿”å›ä¸­å¿ƒåç§»é‡ */
 static int Ring_Get_Fill_Offset(uint8 ring_state)
 {
     switch (ring_state)
@@ -1435,7 +1435,7 @@ static int Ring_Get_Fill_Offset(uint8 ring_state)
     }
 }
 
-/* RECOVERY°´³ö»·¹ÕµãÖØ½¨ÄÚ²à±ßÏß£¬×óÓÒÔ²»·ÍêÈ«¾µÏñ¡£ */
+/* RECOVERYæŒ‰å‡ºç¯æ‹ç‚¹é‡å»ºå†…ä¾§è¾¹çº¿ï¼Œå·¦å³åœ†ç¯å®Œå…¨é•œåƒã€‚ */
 static void Ring_Rebuild_Recovery_Border(uint8 direction)
 {
     int row, col;
@@ -1503,7 +1503,7 @@ static void Ring_Rebuild_Recovery_Border(uint8 direction)
     }
 }
 
-/* °´Ô²»·×´Ì¬ÖØ½¨Ñ²Ïß±ß½ç²¢Ìî³äCenter */
+/* æŒ‰åœ†ç¯çŠ¶æ€é‡å»ºå·¡çº¿è¾¹ç•Œå¹¶å¡«å……Center */
 static void Ring_Rebuild_Fill(uint8 direction)
 {
     int row, col;
@@ -1550,7 +1550,7 @@ static void Ring_Rebuild_Fill(uint8 direction)
             for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
             {
                 if (direction == 1U)
-                    /* ×óÔ²»·ÓëÓÒÔ²»·ÑÏ¸ñ¾µÏñ£¬Ê¹ÓÃÓÒ±ßÏßÏò×ó»Ö¸´ÖĞĞÄ¡£ */
+                    /* å·¦åœ†ç¯ä¸å³åœ†ç¯ä¸¥æ ¼é•œåƒï¼Œä½¿ç”¨å³è¾¹çº¿å‘å·¦æ¢å¤ä¸­å¿ƒã€‚ */
                     ImageDeal[row].Center = ImageDeal[row].RightBorder
                                           - Half_Bend_Wide[row] * 2 / 3 - fill_offset;
                 else
@@ -1562,7 +1562,7 @@ static void Ring_Rebuild_Fill(uint8 direction)
         }
         break;
     case RING_STATE_ENTRY:
-        /* ÏÈÁ¬½ÓÍ¼Ïñµ×²¿ÓëÈë»·¹Õµã¡£ */
+        /* å…ˆè¿æ¥å›¾åƒåº•éƒ¨ä¸å…¥ç¯æ‹ç‚¹ã€‚ */
         if (s_ring_entry_corner_row > 0)
         {
             if (direction == 1U)
@@ -1572,7 +1572,7 @@ static void Ring_Rebuild_Fill(uint8 direction)
                 Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW, 0,
                                    s_ring_entry_corner_row, s_ring_entry_corner_col, 'L');
 
-            /* ¹ÕµãÉÏ·½ÖØĞÂÑ°ÕÒ»·ÄÚ²à±ßÏß£¬×óÓÒÔ²»·ÍêÈ«¾µÏñ¡£ */
+            /* æ‹ç‚¹ä¸Šæ–¹é‡æ–°å¯»æ‰¾ç¯å†…ä¾§è¾¹çº¿ï¼Œå·¦å³åœ†ç¯å®Œå…¨é•œåƒã€‚ */
             for (row = s_ring_entry_corner_row - 1; row > ImageStatus.OFFLine; row--)
             {
                 if (direction == 2U)
@@ -1625,7 +1625,7 @@ static void Ring_Rebuild_Fill(uint8 direction)
         }
         else
         {
-            /* Î´ÕÒµ½Èë¿Ú¹ÕµãÊ±£¬°´ÍäµÀ¿í¶ÈÍÆËãCenter */
+            /* æœªæ‰¾åˆ°å…¥å£æ‹ç‚¹æ—¶ï¼ŒæŒ‰å¼¯é“å®½åº¦æ¨ç®—Center */
             for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
             {
                 if (direction == 1U)
@@ -1662,10 +1662,10 @@ static void Ring_Rebuild_Fill(uint8 direction)
         }
         break;
     case RING_STATE_EXIT2:
-        /* ×´Ì¬6£ºEXIT1Àë¿ªÊÓÒ°ºó£¬´ÓÍ¼Ïñµ×²¿¼ÌĞøÁ¬½ÓEXIT2¡£ */
+        /* çŠ¶æ€6ï¼šEXIT1ç¦»å¼€è§†é‡åï¼Œä»å›¾åƒåº•éƒ¨ç»§ç»­è¿æ¥EXIT2ã€‚ */
         if (s_ring_exit1_corner2_row >= 0)
         {
-            /* µ×²¿ÃªÔÚ³µµÀ±ß½ç£¬Ê¹×ó»·ÖĞĞÄÏò×ó¡¢ÓÒ»·ÖĞĞÄÏòÓÒ¡£ */
+            /* åº•éƒ¨é”šåœ¨è½¦é“è¾¹ç•Œï¼Œä½¿å·¦ç¯ä¸­å¿ƒå‘å·¦ã€å³ç¯ä¸­å¿ƒå‘å³ã€‚ */
             if (direction == 1U)
                 Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW,
                                    ImageSensorMid + Half_Bend_Wide[SCAN_BASE_START_ROW] * 2 / 3,
@@ -1691,7 +1691,7 @@ static void Ring_Rebuild_Fill(uint8 direction)
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
         {
             if (direction == 1U)
-                /* ×óÔ²»·Ê¹ÓÃÓÒ±ßÏßÏò×óÍÆËãÖĞĞÄ£¬ÓëÓÒÔ²»·ÑÏ¸ñ¾µÏñ¡£ */
+                /* å·¦åœ†ç¯ä½¿ç”¨å³è¾¹çº¿å‘å·¦æ¨ç®—ä¸­å¿ƒï¼Œä¸å³åœ†ç¯ä¸¥æ ¼é•œåƒã€‚ */
                 ImageDeal[row].Center = ImageDeal[row].RightBorder
                                       - Half_Bend_Wide[row] * 2 / 3 - fill_offset;
             else
@@ -1722,7 +1722,7 @@ static void Ring_Rebuild_Fill(uint8 direction)
     }
 }
 
-/* Ô²»·×´Ì¬»ú¸üĞÂ */
+/* åœ†ç¯çŠ¶æ€æœºæ›´æ–° */
 static void Ring_State_Update(void)
 {
     uint8 direction = (uint8)ImageFlag.image_element_rings;
@@ -1760,7 +1760,7 @@ static void Ring_State_Update(void)
         {
             s_ring_entry_corner_row = valley_row;
             s_ring_entry_corner_col = valley_col;
-            /* APPROACH±ØĞëÍêÕû´¦Àí3Ö¡£¬Ö®ºó²ÅÄÜ½øÈëENTRY¡£ */
+            /* APPROACHå¿…é¡»å®Œæ•´å¤„ç†3å¸§ï¼Œä¹‹åæ‰èƒ½è¿›å…¥ENTRYã€‚ */
             if (s_ring_state_frames >= 3U
                 && (valley_row > 42
                     || (s_ring_prev_valley_row >= 0
@@ -1778,10 +1778,10 @@ static void Ring_State_Update(void)
             s_ring_entry_corner_row = valley_row;
             s_ring_entry_corner_col = valley_col;
         }
-        /* Èë»·´¦Àí3Ö¡ºó£¬ÕÒµ½¹ÕµãµÄÇé¿öÏÂ¼ì²â½øÈëINSIDE */
+        /* å…¥ç¯å¤„ç†3å¸§åï¼Œæ‰¾åˆ°æ‹ç‚¹çš„æƒ…å†µä¸‹æ£€æµ‹è¿›å…¥INSIDE */
         if (s_ring_state_frames >= 3U && s_ring_entry_corner_row >= 0)
         {
-            /* Á¬ĞøÁ½Ö¡¹ÕµãĞĞÊıÏà²î´óÓÚ20 */
+            /* è¿ç»­ä¸¤å¸§æ‹ç‚¹è¡Œæ•°ç›¸å·®å¤§äº20 */
             if (valley_row >= 0 && s_ring_prev_valley_row >= 0
                 && (valley_row - s_ring_prev_valley_row > 20
                     || s_ring_prev_valley_row - valley_row > 20))
@@ -1789,7 +1789,7 @@ static void Ring_State_Update(void)
                 Ring_Set_State(RING_STATE_INSIDE);
                 break;
             }
-            /* ÏÂÒ»Ö¡Í»È»ÕÒ²»µ½¹Õµã */
+            /* ä¸‹ä¸€å¸§çªç„¶æ‰¾ä¸åˆ°æ‹ç‚¹ */
             if (valley_row < 0 && s_ring_prev_valley_row >= 0)
             {
                 Ring_Set_State(RING_STATE_INSIDE);
@@ -1797,7 +1797,7 @@ static void Ring_State_Update(void)
             }
         }
         s_ring_prev_valley_row = valley_row;
-        /* ³¬Ê±±£»¤ */
+        /* è¶…æ—¶ä¿æŠ¤ */
         if (s_ring_state_frames >= RING_ENTRY_MAX_FRAMES)
             Ring_Set_State(RING_STATE_INSIDE);
         break;
@@ -1807,7 +1807,7 @@ static void Ring_State_Update(void)
         int c1r, c1c, c2r, c2c;
         (void)Ring_Find_Exit1_Corners(direction, &c1r, &c1c, &c2r, &c2c);
 
-        /* Á½¸ö¹Ø¼üµãÔÊĞí¶ÌÔİ¿çÖ¡±£³Ö£¬±ÜÃâµ¥Ö¡Â©¼ìµ¼ÖÂ¶àÈÆÒ»È¦¡£ */
+        /* ä¸¤ä¸ªå…³é”®ç‚¹å…è®¸çŸ­æš‚è·¨å¸§ä¿æŒï¼Œé¿å…å•å¸§æ¼æ£€å¯¼è‡´å¤šç»•ä¸€åœˆã€‚ */
         Ring_Update_Exit_Point(c1r, c1c,
             &s_ring_exit1_corner1_row, &s_ring_exit1_corner1_col,
             &s_ring_exit1_miss_frames);
@@ -1824,7 +1824,7 @@ static void Ring_State_Update(void)
             break;
         }
 
-        /* ³¬Ê±Ö»ÖØĞÂ²É¼¯¹Ø¼üµã£¬ÑÏ½ûÈÆ¹ı×´Ì¬5¡¢6´Ó´íÎó·½Ïò³ö»·¡£ */
+        /* è¶…æ—¶åªé‡æ–°é‡‡é›†å…³é”®ç‚¹ï¼Œä¸¥ç¦ç»•è¿‡çŠ¶æ€5ã€6ä»é”™è¯¯æ–¹å‘å‡ºç¯ã€‚ */
         if (s_ring_state_frames >= RING_INSIDE_MAX_FRAMES)
         {
             s_ring_state_frames = 0U;
@@ -1871,7 +1871,7 @@ static void Ring_State_Update(void)
             s_ring_feature_count = 0U;
         }
 
-        /* Á¬ĞøÈ·ÈÏEXIT1Àë¿ªºóÔÙ½øÈë×´Ì¬6£¬µ¥Ö¡Â©¼ì²»ÇĞ×´Ì¬¡£ */
+        /* è¿ç»­ç¡®è®¤EXIT1ç¦»å¼€åå†è¿›å…¥çŠ¶æ€6ï¼Œå•å¸§æ¼æ£€ä¸åˆ‡çŠ¶æ€ã€‚ */
         if (s_ring_feature_count >= RING_EXIT_CONFIRM_FRAMES
             && s_ring_exit1_corner2_row >= 0
             && s_ring_exit2_miss_frames <= RING_EXIT_POINT_HOLD_FRAMES)
@@ -1891,7 +1891,7 @@ static void Ring_State_Update(void)
         uint8 exit2_row_jump = 0U;
         (void)Ring_Find_Exit1_Corners(direction, &c1r, &c1c, &c2r, &c2c);
 
-        /* ÏàÁÚÓĞĞ§Ö¡ÖĞ£¬¹Õµã2ÏòÍ¼Ïñµ×²¿Í»Ôö³¬¹ı2ĞĞ¼´Íê³ÉEXIT2¡£ */
+        /* ç›¸é‚»æœ‰æ•ˆå¸§ä¸­ï¼Œæ‹ç‚¹2å‘å›¾åƒåº•éƒ¨çªå¢è¶…è¿‡2è¡Œå³å®ŒæˆEXIT2ã€‚ */
         if (c2r >= 0
             && s_ring_exit1_corner2_row >= 0
             && s_ring_exit2_miss_frames == 0U
@@ -1902,7 +1902,7 @@ static void Ring_State_Update(void)
             &s_ring_exit1_corner2_row, &s_ring_exit1_corner2_col,
             &s_ring_exit2_miss_frames);
 
-        /* EXIT2Êµ³µÕï¶Ï£ºCB=µãĞĞºÅ£¬BW=¶ªÊ§Ö¡£¬MS=×´Ì¬ÀÛ¼ÆÖ¡¡£ */
+        /* EXIT2å®è½¦è¯Šæ–­ï¼šCB=ç‚¹è¡Œå·ï¼ŒBW=ä¸¢å¤±å¸§ï¼ŒMS=çŠ¶æ€ç´¯è®¡å¸§ã€‚ */
         g_corner_black_max = (c2r >= 0) ? c2r : 99;
         g_bottom_black_width = (int)s_ring_exit2_miss_frames;
         g_ring_miss_cnt = (int)s_ring_state_frames;
@@ -1915,7 +1915,7 @@ static void Ring_State_Update(void)
     case RING_STATE_RECOVERY:
         valley_row = -1;
         valley_col = -1;
-        /* ¸´ÓÃENTRYºáÏòÉ¨Ãè£¬²¢ÒªÇó³ö»·¹ÕµãÉÏ·½Á½ĞĞÁ¬Ğø¡£ */
+        /* å¤ç”¨ENTRYæ¨ªå‘æ‰«æï¼Œå¹¶è¦æ±‚å‡ºç¯æ‹ç‚¹ä¸Šæ–¹ä¸¤è¡Œè¿ç»­ã€‚ */
         if (!Ring_Find_Entry_Corner(direction, 1U, &valley_row, &valley_col)
             || valley_row > 50
             || (s_ring_prev_recovery_valley_row >= 0
@@ -1937,18 +1937,18 @@ static void Ring_State_Update(void)
     }
 }
 
-/* EXIT2¹Õµã2Ìø±äÖ¡ÑØÓÃÉÏÒ»Ö¡Err£¬±ÜÃâ×´Ì¬ÇĞ»»Ë²¼ä¶æ»úÍ»±ä¡£ */
-/* ·µ»ØÊÇ·ñÑØÓÃÉÏÒ»Ö¡Err */
+/* EXIT2æ‹ç‚¹2è·³å˜å¸§æ²¿ç”¨ä¸Šä¸€å¸§Errï¼Œé¿å…çŠ¶æ€åˆ‡æ¢ç¬é—´èˆµæœºçªå˜ã€‚ */
+/* è¿”å›æ˜¯å¦æ²¿ç”¨ä¸Šä¸€å¸§Err */
 uint8 Ring_Should_Hold_Err(void)
 {
     return (uint8)(ImageFlag.image_element_rings_flag == RING_STATE_RECOVERY
         && s_ring_state_frames == 0U);
 }
 
-/* ---- ¶Ô²àÌù±ßĞĞÊı¼ì²é ----
- * ¼ì²é10~42ĞĞ·¶Î§£¬±ßÔµmargin=8ÏñËØ£¬Ìù±ßĞĞ>3Ôò·µ»Ø1
- * direction=1: ¼ì²éÓÒ±ßÏßÊÇ·ñÌ«¶àĞĞ¼·µ½ÓÒ±ßÔµ
- * direction=2: ¼ì²é×ó±ßÏßÊÇ·ñÌ«¶àĞĞ¼·µ½×ó±ßÔµ
+/* ---- å¯¹ä¾§è´´è¾¹è¡Œæ•°æ£€æŸ¥ ----
+ * æ£€æŸ¥10~42è¡ŒèŒƒå›´ï¼Œè¾¹ç¼˜margin=8åƒç´ ï¼Œè´´è¾¹è¡Œ>3åˆ™è¿”å›1
+ * direction=1: æ£€æŸ¥å³è¾¹çº¿æ˜¯å¦å¤ªå¤šè¡ŒæŒ¤åˆ°å³è¾¹ç¼˜
+ * direction=2: æ£€æŸ¥å·¦è¾¹çº¿æ˜¯å¦å¤ªå¤šè¡ŒæŒ¤åˆ°å·¦è¾¹ç¼˜
  */
 static uint8 Ring_OtherSide_Too_Much_Edge(uint8 direction)
 {
@@ -1974,7 +1974,7 @@ static uint8 Ring_OtherSide_Too_Much_Edge(uint8 direction)
     return (uint8)(edge_rows > 3);
 }
 
-/* ×óÔ²»·³õÅĞ */
+/* å·¦åœ†ç¯åˆåˆ¤ */
 void Element_Judgment_Left_Rings(void)
 {
     if (ImageStatus.Miss_Right_lines > 15
@@ -1993,7 +1993,7 @@ void Element_Judgment_Left_Rings(void)
     }
 }
 
-/* ÓÒÔ²»·³õÅĞ */
+/* å³åœ†ç¯åˆåˆ¤ */
 void Element_Judgment_Right_Rings(void)
 {
     if (ImageStatus.Miss_Left_lines > 15
@@ -2012,7 +2012,7 @@ void Element_Judgment_Right_Rings(void)
     }
 }
 
-/* ×óÔ²»·´¦Àí */
+/* å·¦åœ†ç¯å¤„ç† */
 void Element_Handle_Left_Rings(void)
 {
     Ring_State_Update();
@@ -2022,7 +2022,7 @@ void Element_Handle_Left_Rings(void)
     }
 }
 
-/* ÓÒÔ²»·´¦Àí */
+/* å³åœ†ç¯å¤„ç† */
 void Element_Handle_Right_Rings(void)
 {
     Ring_State_Update();
@@ -2032,19 +2032,19 @@ void Element_Handle_Right_Rings(void)
     }
 }
 
-/* °ßÂíÏßÅĞ¶¨ */
+/* æ–‘é©¬çº¿åˆ¤å®š */
 void Element_Judgment_Zebra(void)
 {
     int Ysite, Xsite;
-    int trans_count;        /* µ±Ç°ĞĞÌø±ä¼ÆÊı */
+    int trans_count;        /* å½“å‰è¡Œè·³å˜è®¡æ•° */
     int valid_rows = 0;
     static int confirm_cnt = 0;
 
-    /* °ßÂíÏßÓÅÏÈÓÚÊ®×ÖºÍÔ²»·£¬ÔÊĞíÔÚÔ²»·×´Ì¬ÖĞ¼ÌĞøÅĞ¶¨¡£ */
+    /* æ–‘é©¬çº¿ä¼˜å…ˆäºåå­—å’Œåœ†ç¯ï¼Œå…è®¸åœ¨åœ†ç¯çŠ¶æ€ä¸­ç»§ç»­åˆ¤å®šã€‚ */
     if (ImageFlag.Zebra_Flag != 0)
         return;
 
-    /* É¨Ãè´°¿Ú: ĞĞ44~57, Ã¿ĞĞÍ³¼ÆºÚ->°×(0->1)Ìø±ä´ÎÊı */
+    /* æ‰«æçª—å£: è¡Œ44~57, æ¯è¡Œç»Ÿè®¡é»‘->ç™½(0->1)è·³å˜æ¬¡æ•° */
     for (Ysite = 44; Ysite < 58 ; Ysite++)
     {
         trans_count = 0;
@@ -2073,13 +2073,13 @@ void Element_Judgment_Zebra(void)
     }
 }
 
-/* °ßÂíÏß´¦Àí£º¼ì²â×´Ì¬+Ç¿ÖÆÖ±µÀÑ²Ïß */
+/* æ–‘é©¬çº¿å¤„ç†ï¼šæ£€æµ‹çŠ¶æ€+å¼ºåˆ¶ç›´é“å·¡çº¿ */
 void Element_Handle_Zebra(void)
 {
     int row, Ysite, Xsite;
     int trans_count;
     int exit_rows = 0;
-    static int lost_cnt = 0;        /* °ßÂíÏß¶ªÊ§¼ÆÊıÆ÷ */
+    static int lost_cnt = 0;        /* æ–‘é©¬çº¿ä¸¢å¤±è®¡æ•°å™¨ */
 
     for (Ysite = 20; Ysite < 33; Ysite++)
     {
@@ -2120,7 +2120,7 @@ void Element_Handle_Zebra(void)
     }
 }
 
-/* ÆÂµÀÅĞ¶¨ */
+/* å¡é“åˆ¤å®š */
 void Element_Judgment_Ramp(void)
 {
         return;
@@ -2137,7 +2137,7 @@ void Element_Judgment_Ramp(void)
              && ImageDeal[Ysite].IsRightFind == 'T'
              && ImageDeal[Ysite].IsLeftFind == 'T'
              && ImageDeal[Ysite].LeftBorder < 40
-             && ImageDeal[Ysite].RightBorder > 55   /* TC264: >55(Ô­>40) */
+             && ImageDeal[Ysite].RightBorder > 55   /* TC264: >55(åŸ>40) */
              && Pixle[Ysite][ImageDeal[Ysite].Center] == 1
              && Pixle[Ysite][ImageDeal[Ysite].Center - 2] == 1
              && Pixle[Ysite][ImageDeal[Ysite].Center + 2] == 1
@@ -2155,20 +2155,20 @@ void Element_Judgment_Ramp(void)
     }
 }
 
-/* ÆÂµÀ´¦Àí */
+/* å¡é“å¤„ç† */
 void Element_Handle_Ramp(void)
 {
 }
 
-/* Ê®×ÖÍäµÀÉ¨Ãè²ÎÊı */
+/* åå­—å¼¯é“æ‰«æå‚æ•° */
 #define CROSS_SCAN_BOTTOM_ROW       50
 #define CROSS_SCAN_TOP_ROW          17
-#define CROSS_STABLE_MIN_ROWS        7     //Í¬ÁĞĞĞÊı
+#define CROSS_STABLE_MIN_ROWS        7     //åŒåˆ—è¡Œæ•°
 #define CROSS_STABLE_COL_TOLERANCE   1
-#define CROSS_JUMP_MIN_COLS          3     //Ìø±äÈ·ÈÏÁĞÊı
-#define CROSS_UPPER_CONFIRM_ROWS     2     //ÏòÉÏÈ·ÈÏĞĞÊı
-#define CROSS_CORNER_MAX_ROW_DIFF    10    //×óÓÒÏà¸ôĞĞÊı
-#define CROSS_EXIT_DELAY_FRAMES      20U   //Ê®×Ö×îºóÒ»´ÎÊ¶±ğºó¼ÌĞøÆÁ±ÎÔ²»·³õÅĞµÄÖ¡Êı
+#define CROSS_JUMP_MIN_COLS          3     //è·³å˜ç¡®è®¤åˆ—æ•°
+#define CROSS_UPPER_CONFIRM_ROWS     2     //å‘ä¸Šç¡®è®¤è¡Œæ•°
+#define CROSS_CORNER_MAX_ROW_DIFF    10    //å·¦å³ç›¸éš”è¡Œæ•°
+#define CROSS_EXIT_DELAY_FRAMES      20U   //åå­—æœ€åä¸€æ¬¡è¯†åˆ«åç»§ç»­å±è”½åœ†ç¯åˆåˆ¤çš„å¸§æ•°
 
 #if (CROSS_SCAN_TOP_ROW < 0) || (CROSS_SCAN_BOTTOM_ROW >= LCDH) || (CROSS_SCAN_TOP_ROW >= CROSS_SCAN_BOTTOM_ROW)
 #error "CROSS_SCAN_ROW range is invalid"
@@ -2177,10 +2177,10 @@ void Element_Handle_Ramp(void)
 #error "CROSS_EXIT_DELAY_FRAMES is too large"
 #endif
 
-static uint8 s_cross_detected = 0U;  /* µ±Ç°Ö¡×óÓÒ¹ÕµãÓĞĞ§²¢ÒÑÍê³É²¹Ïß */
-static uint16 s_cross_exit_delay_frames = 0U; /* Ê®×ÖÏûÊ§ºóÊ£ÓàµÄÔ²»·ÆÁ±ÎÖ¡Êı */
+static uint8 s_cross_detected = 0U;  /* å½“å‰å¸§å·¦å³æ‹ç‚¹æœ‰æ•ˆå¹¶å·²å®Œæˆè¡¥çº¿ */
+static uint16 s_cross_exit_delay_frames = 0U; /* åå­—æ¶ˆå¤±åå‰©ä½™çš„åœ†ç¯å±è”½å¸§æ•° */
 
-/* ºòÑ¡µãÉÏ·½Á¬ĞøÁ½ĞĞ¾ùÎŞÌø±ä£¬²ÅÈ·ÈÏºòÑ¡µãÎªÊ®×Ö¹Õµã¡£ */
+/* å€™é€‰ç‚¹ä¸Šæ–¹è¿ç»­ä¸¤è¡Œå‡æ— è·³å˜ï¼Œæ‰ç¡®è®¤å€™é€‰ç‚¹ä¸ºåå­—æ‹ç‚¹ã€‚ */
 static uint8 Cross_Upper_Rows_Have_No_Jump(int row, uint8 check_left)
 {
     int offset;
@@ -2212,7 +2212,7 @@ static uint8 Cross_Upper_Rows_Have_No_Jump(int row, uint8 check_left)
     return 1U;
 }
 
-/* ´ÓÉ¨ÃèÏÂ±ß½çÏòÉÏÍ¬²½É¨Ãè×óÓÒ»­Ïß£¬ÕÒµ½ÎÈ¶¨Ö±Ïß½áÊø´¦µÄÊ®×Ö¹Õµã¡£ */
+/* ä»æ‰«æä¸‹è¾¹ç•Œå‘ä¸ŠåŒæ­¥æ‰«æå·¦å³ç”»çº¿ï¼Œæ‰¾åˆ°ç¨³å®šç›´çº¿ç»“æŸå¤„çš„åå­—æ‹ç‚¹ã€‚ */
 static uint8 Cross_Find_Corners(int *left_row, int *left_col,
                                 int *right_row, int *right_col)
 {
@@ -2231,7 +2231,7 @@ static uint8 Cross_Find_Corners(int *left_row, int *left_col,
     *right_row = -1;
     *right_col = -1;
 
-    /* °´ÆÁÄ»»­Ïß×ø±êÉ¨Ãè£¬OFFLineºÍ±ß½çÕÒµ½±êÖ¾²»ÔÙ¹ıÂË¡£ */
+    /* æŒ‰å±å¹•ç”»çº¿åæ ‡æ‰«æï¼ŒOFFLineå’Œè¾¹ç•Œæ‰¾åˆ°æ ‡å¿—ä¸å†è¿‡æ»¤ã€‚ */
     for (row = CROSS_SCAN_BOTTOM_ROW; row >= CROSS_SCAN_TOP_ROW; row--)
     {
         if (!left_found)
@@ -2256,12 +2256,12 @@ static uint8 Cross_Find_Corners(int *left_row, int *left_col,
                     {
                         if (Cross_Upper_Rows_Have_No_Jump(row, 1U))
                         {
-                            /* ×ó±ß½çÏòÓÒÍ»ÌøÇÒÉÏ·½Á½ĞĞÁ¬Ğø£¬È·ÈÏµ±Ç°µãÎª×óÊ®×Ö¹Õµã¡£ */
+                            /* å·¦è¾¹ç•Œå‘å³çªè·³ä¸”ä¸Šæ–¹ä¸¤è¡Œè¿ç»­ï¼Œç¡®è®¤å½“å‰ç‚¹ä¸ºå·¦åå­—æ‹ç‚¹ã€‚ */
                             *left_row = row;
                             *left_col = border;
                             left_found = 1U;
                         }
-                        /* ÉÏ·½ÈÔÓĞÌø±äÊ±ÂÔ¹ıºòÑ¡£¬±£ÁôÎÈ¶¨Ö±Ïß»ù×¼¼ÌĞøÏòÉÏËÑË÷¡£ */
+                        /* ä¸Šæ–¹ä»æœ‰è·³å˜æ—¶ç•¥è¿‡å€™é€‰ï¼Œä¿ç•™ç¨³å®šç›´çº¿åŸºå‡†ç»§ç»­å‘ä¸Šæœç´¢ã€‚ */
                     }
                     else if (delta >= -CROSS_STABLE_COL_TOLERANCE
                              && delta <= CROSS_STABLE_COL_TOLERANCE)
@@ -2301,12 +2301,12 @@ static uint8 Cross_Find_Corners(int *left_row, int *left_col,
                     {
                         if (Cross_Upper_Rows_Have_No_Jump(row, 0U))
                         {
-                            /* ÓÒ±ß½çÏò×óÍ»ÌøÇÒÉÏ·½Á½ĞĞÁ¬Ğø£¬È·ÈÏµ±Ç°µãÎªÓÒÊ®×Ö¹Õµã¡£ */
+                            /* å³è¾¹ç•Œå‘å·¦çªè·³ä¸”ä¸Šæ–¹ä¸¤è¡Œè¿ç»­ï¼Œç¡®è®¤å½“å‰ç‚¹ä¸ºå³åå­—æ‹ç‚¹ã€‚ */
                             *right_row = row;
                             *right_col = border;
                             right_found = 1U;
                         }
-                        /* ÉÏ·½ÈÔÓĞÌø±äÊ±ÂÔ¹ıºòÑ¡£¬±£ÁôÎÈ¶¨Ö±Ïß»ù×¼¼ÌĞøÏòÉÏËÑË÷¡£ */
+                        /* ä¸Šæ–¹ä»æœ‰è·³å˜æ—¶ç•¥è¿‡å€™é€‰ï¼Œä¿ç•™ç¨³å®šç›´çº¿åŸºå‡†ç»§ç»­å‘ä¸Šæœç´¢ã€‚ */
                     }
                     else if (delta >= -CROSS_STABLE_COL_TOLERANCE
                              && delta <= CROSS_STABLE_COL_TOLERANCE)
@@ -2331,7 +2331,7 @@ static uint8 Cross_Find_Corners(int *left_row, int *left_col,
     return (uint8)(left_found && right_found);
 }
 
-/* Ê®×Ö²¹Ïß */
+/* åå­—è¡¥çº¿ */
 void Get_ExtensionLine(void)
 {
     int row;
@@ -2352,7 +2352,7 @@ void Get_ExtensionLine(void)
         || left_col >= right_col)
         return;
 
-    /* ¸´ÓÃÏÖÓĞÏßĞÔ²¹Ïß¹¤¾ß£º×óÏÂ½Ç¡¢ÓÒÏÂ½Ç·Ö±ğÁ¬½Óµ½¶ÔÓ¦Ê®×Ö¹Õµã¡£ */
+    /* å¤ç”¨ç°æœ‰çº¿æ€§è¡¥çº¿å·¥å…·ï¼šå·¦ä¸‹è§’ã€å³ä¸‹è§’åˆ†åˆ«è¿æ¥åˆ°å¯¹åº”åå­—æ‹ç‚¹ã€‚ */
     Ring_DrawAndUpdate(0U, SCAN_BASE_START_ROW, 0,
                        left_row, left_col, 'L');
     Ring_DrawAndUpdate(0U, SCAN_BASE_START_ROW, LCDW - 1,
@@ -2370,22 +2370,22 @@ void Get_ExtensionLine(void)
     s_cross_detected = 1U;
 }
 
-/* ÔªËØÉ¨Ãè£ºÅĞ¶¨°ßÂíÏß¡¢Ê®×Ö¡¢Ô²»·µÈ */
+/* å…ƒç´ æ‰«æï¼šåˆ¤å®šæ–‘é©¬çº¿ã€åå­—ã€åœ†ç¯ç­‰ */
 void Scan_Element(void)
 {
     s_cross_detected = 0U;
 
-    /* Ã¿Ö¡µİ¼õ³ö»·ÀäÈ´£¬¹éÁãºóÔÊĞíÊ¶±ğÏÂÒ»¸öÔ²»·¡£ */
+    /* æ¯å¸§é€’å‡å‡ºç¯å†·å´ï¼Œå½’é›¶åå…è®¸è¯†åˆ«ä¸‹ä¸€ä¸ªåœ†ç¯ã€‚ */
     if (s_ring_exit_cooldown > 0U)
         s_ring_exit_cooldown--;
 
-    /* Ã¿Ö¡Ö»Í³¼Æ20~59ĞĞ¶Ïµã£¬½µµÍ½ü¶ËÔëÉù¶ÔÔ²»·³õÅĞµÄÓ°Ïì¡£ */
+    /* æ¯å¸§åªç»Ÿè®¡20~59è¡Œæ–­ç‚¹ï¼Œé™ä½è¿‘ç«¯å™ªå£°å¯¹åœ†ç¯åˆåˆ¤çš„å½±å“ã€‚ */
     g_left_jump_count  = (uint8)Ring_Check_Border_Jump(1U, RING_JUMP_THRESHOLD, RING_JUMP_SCAN_MIN_ROW, RING_JUMP_SCAN_MAX_ROW,
                                                        &s_left_jump_other_lost_count);
     g_right_jump_count = (uint8)Ring_Check_Border_Jump(2U, RING_JUMP_THRESHOLD, RING_JUMP_SCAN_MIN_ROW, RING_JUMP_SCAN_MAX_ROW,
                                                        &s_right_jump_other_lost_count);
 
-    /* ÔªËØÓÅÏÈ¼¶£º°ßÂíÏß > Ê®×Ö > Ô²»·¡£ */
+    /* å…ƒç´ ä¼˜å…ˆçº§ï¼šæ–‘é©¬çº¿ > åå­— > åœ†ç¯ã€‚ */
     if (ImageFlag.Ramp == 0)
     {
         Element_Judgment_Zebra();
@@ -2405,7 +2405,7 @@ void Scan_Element(void)
             return;
         }
 
-        /* Ê®×Ö¹ÕµãÀë¿ªÊÓÒ°ºó¼ÌĞøµÈ´ıNÖ¡£¬±ÜÃâ³µÌåÈÔÔÚÊ®×ÖÊ±ÌáÇ°´¥·¢Ô²»·¼õËÙ¡£ */
+        /* åå­—æ‹ç‚¹ç¦»å¼€è§†é‡åç»§ç»­ç­‰å¾…Nå¸§ï¼Œé¿å…è½¦ä½“ä»åœ¨åå­—æ—¶æå‰è§¦å‘åœ†ç¯å‡é€Ÿã€‚ */
         if (s_cross_exit_delay_frames > 0U)
         {
             s_cross_exit_delay_frames--;
@@ -2416,7 +2416,7 @@ void Scan_Element(void)
         {
             Element_Judgment_Left_Rings();
             Element_Judgment_Right_Rings();
-            /* ÍäµÀÑØÓÃ»ù´¡Ñ²ÏßÖĞÏß£¬²»ÔÙµ¥¶ÀÊ¶±ğ»ò¸²¸ÇCenter¡£ */
+            /* å¼¯é“æ²¿ç”¨åŸºç¡€å·¡çº¿ä¸­çº¿ï¼Œä¸å†å•ç‹¬è¯†åˆ«æˆ–è¦†ç›–Centerã€‚ */
             Element_Judgment_Ramp();
             Straight_long_judge();
         }
@@ -2433,14 +2433,14 @@ void Scan_Element(void)
     }
 }
 
-/* ÔªËØ´¦Àí£º°´ÓÅÏÈ¼¶ÒÀ´Îµ÷ÓÃ */
+/* å…ƒç´ å¤„ç†ï¼šæŒ‰ä¼˜å…ˆçº§ä¾æ¬¡è°ƒç”¨ */
 void Element_Handle(void)
 {
     if (ImageFlag.Zebra_Flag != 0)
         Element_Handle_Zebra();
     else if (s_cross_detected)
     {
-        /* Ê®×ÖÒÑÔÚScan_ElementÖĞÍê³É²¹Ïß¡£ */
+        /* åå­—å·²åœ¨Scan_Elementä¸­å®Œæˆè¡¥çº¿ã€‚ */
     }
     else if (ImageFlag.image_element_rings == 1)
         Element_Handle_Left_Rings();
@@ -2455,7 +2455,7 @@ void Element_Handle(void)
     }
 }
 
-/* ÔªËØ±êÖ¾³õÊ¼»¯ */
+/* å…ƒç´ æ ‡å¿—åˆå§‹åŒ– */
 void Flag_init(void)
 {
     ImageFlag.Bend_Road              = 0;
@@ -2465,7 +2465,7 @@ void Flag_init(void)
     ImageFlag.straight_long          = 0;
 }
 
-/* ÏÔÊ¾µ±Ç°ÔªËØÓëÔ²»·×´Ì¬ */
+/* æ˜¾ç¤ºå½“å‰å…ƒç´ ä¸åœ†ç¯çŠ¶æ€ */
 void Camera_ShowElementStatus(void)
 {
     ips200_set_color(RGB565_WHITE, RGB565_BLUE);

@@ -1,13 +1,13 @@
 /******************************************************************************
- * PID.c - PD¶æ»ú + PIµç»ú
+ * PID.c - PDèˆµæœº + PIç”µæœº
  ******************************************************************************/
 #include "PID.h"
 #include "Servo.h"
 
 /* ---- PD ---- */
-#define PD_ERR_DEAD_ZONE 0.0f  /* ErrËÀÇø±ß½ç£¬·¶Î§ÄÚ¶æ»ú»ØÖĞ¡£ */
-#define SERVO_MIN_SIDE_WEIGHT  0.80f  /* 100·½Ïò»ù´¡È¨ÖØ£¬¸ºÏòÎó²îÔ½´óÊ±ÔÙ°´±ÈÀıÔöÇ¿¡£ */
-#define SERVO_MAX_SIDE_WEIGHT  0.75f  /* 175·½Ïò¹Ì¶¨È¨ÖØ£¬ÒÔ1Îª¹éÒ»»¯»ù×¼¡£ */
+#define PD_ERR_DEAD_ZONE 0.0f  /* Erræ­»åŒºè¾¹ç•Œï¼ŒèŒƒå›´å†…èˆµæœºå›ä¸­ã€‚ */
+#define SERVO_MIN_SIDE_WEIGHT  0.80f  /* 100æ–¹å‘åŸºç¡€æƒé‡ï¼Œè´Ÿå‘è¯¯å·®è¶Šå¤§æ—¶å†æŒ‰æ¯”ä¾‹å¢å¼ºã€‚ */
+#define SERVO_MAX_SIDE_WEIGHT  0.75f  /* 175æ–¹å‘å›ºå®šæƒé‡ï¼Œä»¥1ä¸ºå½’ä¸€åŒ–åŸºå‡†ã€‚ */
 static float   s_pd_out = 0.0f, s_pd_offset = 0.0f;
 static float   s_pd_err0 = 0.0f, s_pd_err1 = 0.0f;
 
@@ -16,17 +16,17 @@ void PD_Update(float Kp, float Kd, float err)
     s_pd_err1 = s_pd_err0;
     s_pd_err0 = err;
 
-    //ÒÔÏÂÊÇ¼ÆËãpd
+    //ä»¥ä¸‹æ˜¯è®¡ç®—pd
     if(s_pd_err0 > 0)
         s_pd_offset = Kp * s_pd_err0 + Kd * (s_pd_err0 - s_pd_err1);
     else
         s_pd_offset = Kp * s_pd_err0 + Kd * (s_pd_err0 - s_pd_err1);
 
-    //ÒÔÏÂÊÇ¼ÆËãÆ«ÒÆ
+    //ä»¥ä¸‹æ˜¯è®¡ç®—åç§»
     if (s_pd_offset < -8.0f)
-        s_pd_offset *= SERVO_MIN_SIDE_WEIGHT * (1+(-8-s_pd_offset)/50);  //×óÆ«Ôö´ó
+        s_pd_offset *= SERVO_MIN_SIDE_WEIGHT * (1+(-8-s_pd_offset)/50);  //å·¦åå¢å¤§
     else if(s_pd_offset > 5.0f)
-        s_pd_offset *= SERVO_MAX_SIDE_WEIGHT * (1+(-5+s_pd_offset)/40);   //ÓÒÆ«Ôö´ó
+        s_pd_offset *= SERVO_MAX_SIDE_WEIGHT * (1+(-5+s_pd_offset)/40);   //å³åå¢å¤§
     else
         s_pd_offset *= SERVO_MAX_SIDE_WEIGHT;
 

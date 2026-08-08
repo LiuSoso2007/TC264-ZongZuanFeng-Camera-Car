@@ -3,7 +3,7 @@
 
 #include "zf_common_headfile.h"
 
-/* ʵ�����У׼��������ʼ���Ϳ��Ʊ��빲�á� */
+/* 实车舵机校准参数，初始化和控制必须共用。 */
 #define SERVO_CENTER_ANGLE  151U
 #define SERVO_MIN_ANGLE      100U
 #define SERVO_MAX_ANGLE    175U
@@ -15,7 +15,7 @@
 #endif
 
 /*
- * �������ӿ�˵����50Hz PWM��ʵ��ת��Χ���Ϸ��޷�����ơ�
+ * 舵机输出接口说明：50Hz PWM，实车转向范围由上方限幅宏控制。
  */
 
 void Servo_Init(void);

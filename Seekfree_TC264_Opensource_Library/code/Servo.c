@@ -24,7 +24,7 @@ void Servo_Init(void)
 void Servo_SetAngleDeg(uint8_t angle_deg)
 {
     uint32_t pulse;
-    /* Çý¶¯²ãÔÙ´ÎÖ´ÐÐË«ÏòÏÞ·ù£¬·ÀÖ¹ÉÏ²ãÒì³£Êä³ö¡£ */
+    /* é©±åŠ¨å±‚å†æ¬¡æ‰§è¡ŒåŒå‘é™å¹…ï¼Œé˜²æ­¢ä¸Šå±‚å¼‚å¸¸è¾“å‡ºã€‚ */
     if (angle_deg > SERVO_MAX_ANGLE) angle_deg = SERVO_MAX_ANGLE;
     if (angle_deg < SERVO_MIN_ANGLE) angle_deg = SERVO_MIN_ANGLE;
     pulse = SERVO_MIN + ((uint32_t)angle_deg * (SERVO_MAX - SERVO_MIN)) / 180U;

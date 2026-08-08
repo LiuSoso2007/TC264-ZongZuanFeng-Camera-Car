@@ -3,7 +3,7 @@
 
 #include "zf_common_headfile.h"
 
-/* º¯ÊýËµÃ÷£ºMotor_Init¡£ */
+/* å‡½æ•°è¯´æ˜Žï¼šMotor_Initã€‚ */
 
 void Motor_Init(void);
 void Motor_SetLeftPWM(int8_t Speed);

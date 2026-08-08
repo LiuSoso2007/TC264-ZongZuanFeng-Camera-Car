@@ -1,9 +1,9 @@
 /**
- * CPU1: ÔË¶¯¿ØÖÆ
+ * CPU1: è¿åŠ¨æŽ§åˆ¶
  *
- * CPU0: Í¼Ïñ²É¼¯Óë´¦Àí£¬Êä³öÈüµÀÆ«²îErrÓëÔªËØ±êÖ¾
- * CPU1: ±àÂëÆ÷¡¢¶æ»úPD¡¢µç»úPIËÙ¶È»·£¬¿ØÖÆÖÜÆÚ10ms
- * ¿ØÖÆ¶¨Ê±Æ÷: CCU61_CH0 PIT 10ms£¨ÖÐ¶ÏÔÚisr.cÖÐ£©
+ * CPU0: å›¾åƒé‡‡é›†ä¸Žå¤„ç†ï¼Œè¾“å‡ºèµ›é“åå·®Errä¸Žå…ƒç´ æ ‡å¿—
+ * CPU1: ç¼–ç å™¨ã€èˆµæœºPDã€ç”µæœºPIé€Ÿåº¦çŽ¯ï¼ŒæŽ§åˆ¶å‘¨æœŸ10ms
+ * æŽ§åˆ¶å®šæ—¶å™¨: CCU61_CH0 PIT 10msï¼ˆä¸­æ–­åœ¨isr.cä¸­ï¼‰
  */
 
 #include "zf_common_headfile.h"
@@ -16,41 +16,41 @@
 #include "Shared.h"
 #include "isr.h"
 
-/* PID_Flag£ºÓÉisr.cÖÐcc61_pit_ch0ÖÐ¶ÏÖÃ1£¬±¾º¯Êý´¦ÀíºóÇåÁã */
+/* PID_Flagï¼šç”±isr.cä¸­cc61_pit_ch0ä¸­æ–­ç½®1ï¼Œæœ¬å‡½æ•°å¤„ç†åŽæ¸…é›¶ */
 volatile uint8_t PID_Flag = 0;
 
-/* CPU1±¾µØ±äÁ¿£ºCPU0Ö»¶ÁÓÃÓÚÏÔÊ¾£¬ÎÞÐè»¥³âËø */
+/* CPU1æœ¬åœ°å˜é‡ï¼šCPU0åªè¯»ç”¨äºŽæ˜¾ç¤ºï¼Œæ— éœ€äº’æ–¥é” */
 volatile int16_t EncLeft  = 0;
 volatile int16_t EncRight = 0;
 
-#pragma section all "cpu1_dsram"   /* CPU1Ë½ÓÐ±äÁ¿·ÅÈëDSRAM¶Î */
+#pragma section all "cpu1_dsram"   /* CPU1ç§æœ‰å˜é‡æ”¾å…¥DSRAMæ®µ */
 
-/* CPU1±¾µØ²ÎÊý£¨ºóÐø¿ÉÓÃ°´¼ü/IMUµ÷Õû£© */
+/* CPU1æœ¬åœ°å‚æ•°ï¼ˆåŽç»­å¯ç”¨æŒ‰é”®/IMUè°ƒæ•´ï¼‰ */
 static int8_t   StraightSpeed = 40;
 static int16_t  EncCount        = 0;
 
-/* ½ø»·±£ÁôËÙ¶È°Ù·Ö±È£º40±íÊ¾±£ÁôÔ­ËÙ¶È40%£¬ÊýÖµÔ½´óÔ½¿ì£¬Ô½Ð¡Ô½Âý¡£ */
+/* è¿›çŽ¯ä¿ç•™é€Ÿåº¦ç™¾åˆ†æ¯”ï¼š40è¡¨ç¤ºä¿ç•™åŽŸé€Ÿåº¦40%ï¼Œæ•°å€¼è¶Šå¤§è¶Šå¿«ï¼Œè¶Šå°è¶Šæ…¢ã€‚ */
 #define RING_ENTRY_SPEED_PERCENT 40
 #if RING_ENTRY_SPEED_PERCENT < 0 || RING_ENTRY_SPEED_PERCENT > 100
 #error "RING_ENTRY_SPEED_PERCENT must be between 0 and 100"
 #endif
 
-/* PI²ÎÊý */
+/* PIå‚æ•° */
 #define PI_KP          0.4f
 #define PI_KI          0.02f
 #define CURVE_SPEED    0
 
-/* PD²ÎÊý */
+/* PDå‚æ•° */
 #define PD_KP          1.00f
 #define PD_KD          10.0f
 
-/* ×óÓÒµç»úPI¿ØÖÆÆ÷ */
+/* å·¦å³ç”µæœºPIæŽ§åˆ¶å™¨ */
 static PI_t s_PI_Left, s_PI_Right;
 
-/* CPU1Èë¿Úº¯Êý */
+/* CPU1å…¥å£å‡½æ•° */
 int core1_main(void)
 {
-    /* CPU1³õÊ¼»¯£º¹Ø±Õ¿´ÃÅ¹·²¢¿ª×ÜÖÐ¶Ï */
+    /* CPU1åˆå§‹åŒ–ï¼šå…³é—­çœ‹é—¨ç‹—å¹¶å¼€æ€»ä¸­æ–­ */
     disable_Watchdog();
     interrupt_global_enable(0);
 
@@ -62,11 +62,11 @@ int core1_main(void)
     uint8_t  ring_entry_slowdown = 0U;
     uint8_t  new_ring_entry_slowdown;
 
-    /* CPU1ÍâÉè³õÊ¼»¯ */
-    Key_Init();                          /* ËÄ¼ü°´¼ü£¨¹¦ÄÜÔ¤Áô£© */
-    Encoder_Init();                      /* ±àÂëÆ÷£º×óTIM6/ÓÒTIM4 */
-    Motor_Init();                        /* µç»úË«¼«ÐÔPWM(ATOM0) */
-    Servo_Init();                        /* ¶æ»ú50Hz PWM(ATOM0) */
+    /* CPU1å¤–è®¾åˆå§‹åŒ– */
+    Key_Init();                          /* å››é”®æŒ‰é”®ï¼ˆåŠŸèƒ½é¢„ç•™ï¼‰ */
+    Encoder_Init();                      /* ç¼–ç å™¨ï¼šå·¦TIM6/å³TIM4 */
+    Motor_Init();                        /* ç”µæœºåŒæžæ€§PWM(ATOM0) */
+    Servo_Init();                        /* èˆµæœº50Hz PWM(ATOM0) */
 
     PI_Init(&s_PI_Left,  PI_KP, PI_KI, CURVE_SPEED);
     PI_Init(&s_PI_Right, PI_KP, PI_KI, CURVE_SPEED);
@@ -74,31 +74,31 @@ int core1_main(void)
     Motor_SetLeftPWM(0);
     Motor_SetRightPWM(0);
 
-    /* °´¼üÉ¨Ãè¶¨Ê±Æ÷£º5ms£¨CPU1 PIT£© */
+    /* æŒ‰é”®æ‰«æå®šæ—¶å™¨ï¼š5msï¼ˆCPU1 PITï¼‰ */
     pit_ms_init(CCU60_CH1, 5);
 
-    /* ¿ØÖÆÖÜÆÚ¶¨Ê±Æ÷£º10ms£¬ÖÐ¶ÏÓÉCPU1´¦Àí */
+    /* æŽ§åˆ¶å‘¨æœŸå®šæ—¶å™¨ï¼š10msï¼Œä¸­æ–­ç”±CPU1å¤„ç† */
     pit_ms_init(CCU61_CH0, 10);
 
-    /* µÈ´ýCPU0¾ÍÐ÷ */
+    /* ç­‰å¾…CPU0å°±ç»ª */
     cpu_wait_event_ready();
 
     while (TRUE)
     {
         {
-            /* °´¼üÉ¨Ãè£¨ÔÝÎ´°ó¶¨¹¦ÄÜ£© */
+            /* æŒ‰é”®æ‰«æï¼ˆæš‚æœªç»‘å®šåŠŸèƒ½ï¼‰ */
             uint8_t KeyNum = Key_GetNum();
             (void)KeyNum;
         }
 
-        /* µÈ´ý¿ØÖÆÖÜÆÚ */
+        /* ç­‰å¾…æŽ§åˆ¶å‘¨æœŸ */
         if (!PID_Flag)
         {
             continue;
         }
         PID_Flag = 0;
 
-        /* ±àÂëÆ÷¶ÁÈ¡£ºÃ¿8¸ö¿ØÖÆÖÜÆÚ²ÉÑùÒ»´Î */
+        /* ç¼–ç å™¨è¯»å–ï¼šæ¯8ä¸ªæŽ§åˆ¶å‘¨æœŸé‡‡æ ·ä¸€æ¬¡ */
         EncCount ++;
         if(EncCount >= 8)
         {
@@ -110,7 +110,7 @@ int core1_main(void)
         EncLeft  = enc_left;
         EncRight = enc_right;
 
-        /* ÈüµÀÎó²î£ºCPU0Í¼ÏñÊä³ö£¬ÎÞÐÂÖ¡Ê±±£³ÖÉÏÒ»·Ý¿ìÕÕ */
+        /* èµ›é“è¯¯å·®ï¼šCPU0å›¾åƒè¾“å‡ºï¼Œæ— æ–°å¸§æ—¶ä¿æŒä¸Šä¸€ä»½å¿«ç…§ */
         uint8_t has_new_err = 0U;
         uint8_t Err_abs = 0U;
         if (Shared_TakeErr(&new_position_err, &new_ring_entry_slowdown))
@@ -122,7 +122,7 @@ int core1_main(void)
         if(position_err>0)Err_abs=position_err;
         if(position_err<0)Err_abs=-position_err;
 
-        /* CPU0Ê¶±ðµ½°ßÂíÏß²¢Ëø¶¨ºó£¬ÒÀ´ÎÖÃÁãPWMºÍPIÆ«ÖÃ£¬È»ºóÉèÖÃ¶æ»úÖÐÎ»Í£³µ¡£ */
+        /* CPU0è¯†åˆ«åˆ°æ–‘é©¬çº¿å¹¶é”å®šåŽï¼Œä¾æ¬¡ç½®é›¶PWMå’ŒPIåç½®ï¼Œç„¶åŽè®¾ç½®èˆµæœºä¸­ä½åœè½¦ã€‚ */
         if (StopRequest != 0U)
         {
             pwm_left = 0;
@@ -135,24 +135,24 @@ int core1_main(void)
             continue;
         }
 
-        /* ËÙ¶ÈPI±Õ»· */
+        /* é€Ÿåº¦PIé—­çŽ¯ */
         pwm_left  = PI_Update(&s_PI_Left,  position_err, enc_left,  StraightSpeed);
         pwm_right = PI_Update(&s_PI_Right, position_err, enc_right, StraightSpeed);
 
         motor_speed = (int16_t)((float)StraightSpeed - 0.3f * (float)Err_abs);
-        /* ½øÈëÔ²»·Ê±°´±£Áô±ÈÀý½µËÙ */
+        /* è¿›å…¥åœ†çŽ¯æ—¶æŒ‰ä¿ç•™æ¯”ä¾‹é™é€Ÿ */
         if (ring_entry_slowdown != 0U)
         {
             motor_speed = (int16_t)(motor_speed * RING_ENTRY_SPEED_PERCENT / 100);
         }
 
-        /* Ë«ÏòÊä³öÍ³Ò»ÏÞÖÆÔÚ-100~100£¬·ÀÖ¹µ÷²ÎºóÔ½¹ýµç»úPWM±ß½ç¡£ */
+        /* åŒå‘è¾“å‡ºç»Ÿä¸€é™åˆ¶åœ¨-100~100ï¼Œé˜²æ­¢è°ƒå‚åŽè¶Šè¿‡ç”µæœºPWMè¾¹ç•Œã€‚ */
         if (motor_speed > 100)  motor_speed = 100;
         if (motor_speed < -100) motor_speed = -100;
         Motor_SetLeftPWM((int8_t)motor_speed);
         Motor_SetRightPWM((int8_t)motor_speed);
 
-        /* Ã¿¸öÍ¼ÏñErrÖ»Ö´ÐÐÒ»´ÎPD£¬±ÜÃâ10ms¿ØÖÆÖÜÆÚÖØ¸´¸²¸ÇÎ¢·ÖÊä³ö¡£ */
+        /* æ¯ä¸ªå›¾åƒErråªæ‰§è¡Œä¸€æ¬¡PDï¼Œé¿å…10msæŽ§åˆ¶å‘¨æœŸé‡å¤è¦†ç›–å¾®åˆ†è¾“å‡ºã€‚ */
         if (has_new_err != 0U)
         {
             PD_Update(PD_KP, PD_KD, position_err);

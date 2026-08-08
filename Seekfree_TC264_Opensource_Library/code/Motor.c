@@ -1,11 +1,11 @@
 /******************************************************************************
- * Motor.c - TC264 ������� (˫��PWM)
- * ����: ���� IN1=P21_2, IN2=P21_4 / �ҵ�� IN1=P21_3, IN2=P21_5
- * PWMƵ��: 10kHz, ռ�ձȷ�Χ: 0~10000 (0%~100%)
+ * Motor.c - TC264 电机驱动 (双极PWM)
+ * 引脚: 左电机 IN1=P21_2, IN2=P21_4 / 右电机 IN1=P21_3, IN2=P21_5
+ * PWM频率: 10kHz, 占空比范围: 0~10000 (0%~100%)
  ******************************************************************************/
 #include "Motor.h"
 
-/* ---------- ���Ŷ��� (��ʵ�ʽ����޸�) ---------- */
+/* ---------- 引脚定义 (按实际接线修改) ---------- */
 #define MOTOR_LEFT_IN1   ATOM0_CH0_P21_2
 #define MOTOR_LEFT_IN2   ATOM0_CH2_P21_4
 #define MOTOR_RIGHT_IN1  ATOM1_CH1_P21_3
@@ -32,7 +32,7 @@ void Motor_Init(void)
 void Motor_SetLeftPWM(int8_t Speed)
 {
     uint32_t duty = SpeedToDuty(Speed);
-    /* ���ٱ���ͬʱ�ر������űۣ����ⷽ�����Ų������µ������ת���� */
+    /* 零速必须同时关闭两个桥臂，避免方向引脚残留导致电机继续转动。 */
     if (Speed == 0) {
         pwm_set_duty(MOTOR_LEFT_IN1, 0);
         pwm_set_duty(MOTOR_LEFT_IN2, 0);
@@ -50,7 +50,7 @@ void Motor_SetLeftPWM(int8_t Speed)
 void Motor_SetRightPWM(int8_t Speed)
 {
     uint32_t duty = SpeedToDuty(Speed);
-    /* �ҵ�����߼����෴��������ͬ�����뽫�����ű�ȫ�����㡣 */
+    /* 右电机接线极性相反，但零速同样必须将两个桥臂全部清零。 */
     if (Speed == 0) {
         pwm_set_duty(MOTOR_RIGHT_IN1, 0);
         pwm_set_duty(MOTOR_RIGHT_IN2, 0);

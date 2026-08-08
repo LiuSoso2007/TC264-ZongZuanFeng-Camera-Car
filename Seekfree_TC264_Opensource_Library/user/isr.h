@@ -4,56 +4,56 @@
 #include "zf_common_headfile.h"
 
 /*
- * isr.h --- ÖÐ¶Ï·þÎñº¯ÊýÉùÃ÷Óë¹²Ïí±äÁ¿
+ * isr.h --- ä¸­æ–­æœåŠ¡å‡½æ•°å£°æ˜Žä¸Žå…±äº«å˜é‡
  *
- * ±¾ÎÄ¼þÉùÃ÷:
- *   1. ¿çºË¹²Ïí±äÁ¿ (PID_Flag, Err)
- *   2. ¿çºË¹²Ïí»Øµ÷ (Key_Tick)
- *   3. À´×ÔÖð·ÉÉè±¸¿âµÄ»Øµ÷º¯ÊýÒýÓÃ (extern callback_function)
+ * æœ¬æ–‡ä»¶å£°æ˜Ž:
+ *   1. è·¨æ ¸å…±äº«å˜é‡ (PID_Flag, Err)
+ *   2. è·¨æ ¸å…±äº«å›žè°ƒ (Key_Tick)
+ *   3. æ¥è‡ªé€é£žè®¾å¤‡åº“çš„å›žè°ƒå‡½æ•°å¼•ç”¨ (extern callback_function)
  *
- * ÖÐ¶Ï·ÖÅä:
- *   CPU0: ÉãÏñÍ· ERU/DMA + UART1(ÉãÏñÍ·ÅäÖÃ) + UART0(µ÷ÊÔ)
- *   CPU1: CCU60_CH1 (°´¼üÉ¨Ãè 5ms) + CCU61_CH0 (PID¶¨Ê± 10ms)
+ * ä¸­æ–­åˆ†é…:
+ *   CPU0: æ‘„åƒå¤´ ERU/DMA + UART1(æ‘„åƒå¤´é…ç½®) + UART0(è°ƒè¯•)
+ *   CPU1: CCU60_CH1 (æŒ‰é”®æ‰«æ 5ms) + CCU61_CH0 (PIDå®šæ—¶ 10ms)
  */
 
-/* ---- ¿çºË¹²Ïí±äÁ¿ ---- */
+/* ---- è·¨æ ¸å…±äº«å˜é‡ ---- */
 
 /*
- * PID_Flag - PID¶¨Ê±±êÖ¾
- * Éú²úÕß: isr.c cc61_pit_ch0_isr (10ms¶¨Ê±ÖÐ¶Ï, CPU1)
- * Ïû·ÑÕß: cpu1_main.c (CPU1 Ö÷Ñ­»·)
- * ÓÃÍ¾: Ã¿10ms´¥·¢Ò»´ÎPID¿ØÖÆ¼ÆËã
+ * PID_Flag - PIDå®šæ—¶æ ‡å¿—
+ * ç”Ÿäº§è€…: isr.c cc61_pit_ch0_isr (10mså®šæ—¶ä¸­æ–­, CPU1)
+ * æ¶ˆè´¹è€…: cpu1_main.c (CPU1 ä¸»å¾ªçŽ¯)
+ * ç”¨é€”: æ¯10msè§¦å‘ä¸€æ¬¡PIDæŽ§åˆ¶è®¡ç®—
  */
 extern volatile uint8_t PID_Flag;
 
 /*
- * Err - Í¼ÏñÆ«²î¹²Ïí±äÁ¿
- * Éú²úÕß: cpu0_main.c (CPU0 Í¼Ïñ´¦Àíºó)
- * Ïû·ÑÕß: cpu1_main.c (CPU1 PD/µç»ú¿ØÖÆ)
- * º¬Òå: Èü³µÖÐÐÄÏßÆ«ÀëÍ¼ÏñÖÐÏßµÄÏñËØÆ«²î (Õý=ÓÒÆ«, ¸º=×óÆ«)
+ * Err - å›¾åƒåå·®å…±äº«å˜é‡
+ * ç”Ÿäº§è€…: cpu0_main.c (CPU0 å›¾åƒå¤„ç†åŽ)
+ * æ¶ˆè´¹è€…: cpu1_main.c (CPU1 PD/ç”µæœºæŽ§åˆ¶)
+ * å«ä¹‰: èµ›è½¦ä¸­å¿ƒçº¿åç¦»å›¾åƒä¸­çº¿çš„åƒç´ åå·® (æ­£=å³å, è´Ÿ=å·¦å)
  */
 extern volatile float    Err;
 
-/* ---- ¿çºË¹²Ïí»Øµ÷ ---- */
+/* ---- è·¨æ ¸å…±äº«å›žè°ƒ ---- */
 
 /*
- * Key_Tick - °´¼üÉ¨Ãè¶¨Ê±»Øµ÷
- * Éú²úÕß: cpu1_main.c ¶¨Òå
- * Ïû·ÑÕß: isr.c cc60_pit_ch1_isr (5ms¶¨Ê±ÖÐ¶Ï, CPU1)
- * ÓÃÍ¾: Ã¿5msÖ´ÐÐÒ»´Î°´¼ü×´Ì¬É¨Ãè
+ * Key_Tick - æŒ‰é”®æ‰«æå®šæ—¶å›žè°ƒ
+ * ç”Ÿäº§è€…: cpu1_main.c å®šä¹‰
+ * æ¶ˆè´¹è€…: isr.c cc60_pit_ch1_isr (5mså®šæ—¶ä¸­æ–­, CPU1)
+ * ç”¨é€”: æ¯5msæ‰§è¡Œä¸€æ¬¡æŒ‰é”®çŠ¶æ€æ‰«æ
  */
 extern void Key_Tick(void);
 
 /*
- * ÒÔÏÂ»Øµ÷º¯ÊýÓÉÖð·É zf_device_type.h ÖÐµÄ callback_function ½á¹¹Ìå¶¨Òå,
- * Êµ¼ÊÊµÏÖÔÚÖð·ÉÉè±¸¿âÖÐ (zf_device_mt9v03x / zf_device_wireless_uart µÈ),
- * ±¾´¦½öÉùÃ÷ÒýÓÃ, ²»ÐÞ¸ÄÊµÏÖ:
+ * ä»¥ä¸‹å›žè°ƒå‡½æ•°ç”±é€é£ž zf_device_type.h ä¸­çš„ callback_function ç»“æž„ä½“å®šä¹‰,
+ * å®žé™…å®žçŽ°åœ¨é€é£žè®¾å¤‡åº“ä¸­ (zf_device_mt9v03x / zf_device_wireless_uart ç­‰),
+ * æœ¬å¤„ä»…å£°æ˜Žå¼•ç”¨, ä¸ä¿®æ”¹å®žçŽ°:
  *
- *   camera_vsync_handler         - ÉãÏñÍ·³¡Í¬²½ÖÐ¶Ï (ERU_CH3)
- *   camera_dma_handler           - ÉãÏñÍ·DMA´«ÊäÍê³ÉÖÐ¶Ï (DMA_CH5)
- *   camera_uart_handler          - ÉãÏñÍ·UART½ÓÊÕÖÐ¶Ï (UART1 RX)
- *   wireless_module_uart_handler - ÎÞÏßÄ£¿éUART½ÓÊÕÖÐ¶Ï (UART2 RX)
- *   tof_module_exti_handler      - TOF²â¾àÄ£¿éÍâ²¿ÖÐ¶Ï (ERU_CH1)
+ *   camera_vsync_handler         - æ‘„åƒå¤´åœºåŒæ­¥ä¸­æ–­ (ERU_CH3)
+ *   camera_dma_handler           - æ‘„åƒå¤´DMAä¼ è¾“å®Œæˆä¸­æ–­ (DMA_CH5)
+ *   camera_uart_handler          - æ‘„åƒå¤´UARTæŽ¥æ”¶ä¸­æ–­ (UART1 RX)
+ *   wireless_module_uart_handler - æ— çº¿æ¨¡å—UARTæŽ¥æ”¶ä¸­æ–­ (UART2 RX)
+ *   tof_module_exti_handler      - TOFæµ‹è·æ¨¡å—å¤–éƒ¨ä¸­æ–­ (ERU_CH1)
  */
 
 #endif

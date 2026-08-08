@@ -6,10 +6,10 @@
 #define PI_OUT_MIN    -100
 #define PI_OUT_MAX     100
 
-/* PDÎ»ÖÃÊ½ -- ¶æ»ú */
+/* PDä½ç½®å¼ -- èˆµæœº */
 void PD_Update(float Kp, float Kd, float err);
 
-/* PIÔöÁ¿Ê½ -- µç»ú */
+/* PIå¢é‡å¼ -- ç”µæœº */
 typedef struct {
     float   Kp;
     float   Ki;

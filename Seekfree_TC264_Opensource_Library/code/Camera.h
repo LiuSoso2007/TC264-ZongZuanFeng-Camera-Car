@@ -6,234 +6,234 @@
 #include "zf_device_ips200.h"
 
 /*
- * Camera.h --- MT9V03X ÉãÏñÍ·²É¼¯ + Í¼ÏñÑ¹Ëõ + OTSU¶şÖµ»¯ + IPS200ÆÁÄ»ÏÔÊ¾
+ * Camera.h --- MT9V03X æ‘„åƒå¤´é‡‡é›† + å›¾åƒå‹ç¼© + OTSUäºŒå€¼åŒ– + IPS200å±å¹•æ˜¾ç¤º
  *
- * »ùÓÚ zf_device_mt9v03x ¿â, À©Õ¹ÁË:
- *   1. ÉãÏñÍ·³õÊ¼»¯ (UART ÅäÖÃ + ERU Íâ²¿ÖĞ¶Ï + DMA Æ¹ÅÒ´«Êä)
- *   2. Í¼ÏñÑ¹Ëõ - ½« 188x120 Ô­Ê¼»Ò¶ÈÍ¼µÈ±ÈÑ¹ËõÎª 94x60
- *   3. OTSU ´ó½ò·¨¶şÖµ»¯ - ×ÔÊÊÓ¦¹âÕÕ¼ÆËããĞÖµ, »Ò¶È×ª¶şÖµ
- *   4. IPS200ÆÁÄ»ÏÔÊ¾ - Ô­Ê¼Í¼+Ñ¹ËõÍ¼+¶şÖµÍ¼Í¬ÆÁÏÔÊ¾
+ * åŸºäº zf_device_mt9v03x åº“, æ‰©å±•äº†:
+ *   1. æ‘„åƒå¤´åˆå§‹åŒ– (UART é…ç½® + ERU å¤–éƒ¨ä¸­æ–­ + DMA ä¹’ä¹“ä¼ è¾“)
+ *   2. å›¾åƒå‹ç¼© - å°† 188x120 åŸå§‹ç°åº¦å›¾ç­‰æ¯”å‹ç¼©ä¸º 94x60
+ *   3. OTSU å¤§æ´¥æ³•äºŒå€¼åŒ– - è‡ªé€‚åº”å…‰ç…§è®¡ç®—é˜ˆå€¼, ç°åº¦è½¬äºŒå€¼
+ *   4. IPS200å±å¹•æ˜¾ç¤º - åŸå§‹å›¾+å‹ç¼©å›¾+äºŒå€¼å›¾åŒå±æ˜¾ç¤º
  *
- * ¸ß¼¶Í¼Ïñ´¦Àí (»·µº/ÍäµÀ/ÔªËØÊ¶±ğ) ÔÚ Camera.c ÖĞÊµÏÖ
+ * é«˜çº§å›¾åƒå¤„ç† (ç¯å²›/å¼¯é“/å…ƒç´ è¯†åˆ«) åœ¨ Camera.c ä¸­å®ç°
  *
- * Ó²¼ş½ÓÏß:
+ * ç¡¬ä»¶æ¥çº¿:
  *   TXD   -> P02_3 (UART1 RX)        VCC  -> 3.3V
  *   RXD   -> P02_2 (UART1 TX)        GND  -> GND
- *   PCLK  -> P02_1 (ERU_CH2)         Êı¾İÍ¬²½Ê±ÖÓ
+ *   PCLK  -> P02_1 (ERU_CH2)         æ•°æ®åŒæ­¥æ—¶é’Ÿ
  *   VSY   -> P02_0 (ERU_CH3)
  *   D0-D7 -> P00_0 ~ P00_7
  */
 
-/* ---- Ô­Ê¼Í¼Ïñ³ß´ç (²»¿ÉĞŞ¸Ä) ---- */
-#define CAMERA_W       MT9V03X_W        // 188 ÁĞ
-#define CAMERA_H       MT9V03X_H        // 120 ĞĞ
+/* ---- åŸå§‹å›¾åƒå°ºå¯¸ (ä¸å¯ä¿®æ”¹) ---- */
+#define CAMERA_W       MT9V03X_W        // 188 åˆ—
+#define CAMERA_H       MT9V03X_H        // 120 è¡Œ
 
-/* ---- Ñ¹ËõºóÍ¼Ïñ³ß´ç (2:1 µÈ±ÈÑ¹Ëõ) ---- */
-#define LCDW           94               // Ñ¹Ëõºó¿í (ÁĞ) = 188/2
-#define LCDH           60               // Ñ¹Ëõºó¸ß (ĞĞ) = 120/2
+/* ---- å‹ç¼©åå›¾åƒå°ºå¯¸ (2:1 ç­‰æ¯”å‹ç¼©) ---- */
+#define LCDW           94               // å‹ç¼©åå®½ (åˆ—) = 188/2
+#define LCDH           60               // å‹ç¼©åé«˜ (è¡Œ) = 120/2
 
-/* ---- OTSUãĞÖµÏà¹Ø (·ÀÖ¹µÍ¹âÕÕ/¸ß¹âÕÕÒì³£) ---- */
-#define OTSU_MIN       30               // ×îĞ¡ãĞÖµ (µÍ¹âÕÕ±£»¤)
-#define OTSU_MAX       220              // ×î´óãĞÖµ (±ÜÃâÈ«°×Òì³£)
-#define OTSU_BIAS      20               // ãĞÖµÆ«ÖÃ, ×îÖÕthreshold=clamp(otsu)+bias
+/* ---- OTSUé˜ˆå€¼ç›¸å…³ (é˜²æ­¢ä½å…‰ç…§/é«˜å…‰ç…§å¼‚å¸¸) ---- */
+#define OTSU_MIN       30               // æœ€å°é˜ˆå€¼ (ä½å…‰ç…§ä¿æŠ¤)
+#define OTSU_MAX       220              // æœ€å¤§é˜ˆå€¼ (é¿å…å…¨ç™½å¼‚å¸¸)
+#define OTSU_BIAS      20               // é˜ˆå€¼åç½®, æœ€ç»ˆthreshold=clamp(otsu)+bias
 
 /*
- * ÆÁÄ»²¼¾ÖËµÃ÷:
- *   188x120 Ô­Ê¼Í¼ -> ÏÔÊ¾ÔÚ (0,0) ~ (188,120)
- *   94x60  Ñ¹ËõÍ¼ -> ÏÔÊ¾ÔÚ (47,150) ~ (47+94, 150+60) Æ«ÓÒ¾ÓÖĞ
- *   ×Ü¸ß¶È 120 + 10(¼äÏ¶) + 60 = 190 < 240 ÆÁÄ»¸ß¶È
+ * å±å¹•å¸ƒå±€è¯´æ˜:
+ *   188x120 åŸå§‹å›¾ -> æ˜¾ç¤ºåœ¨ (0,0) ~ (188,120)
+ *   94x60  å‹ç¼©å›¾ -> æ˜¾ç¤ºåœ¨ (47,150) ~ (47+94, 150+60) åå³å±…ä¸­
+ *   æ€»é«˜åº¦ 120 + 10(é—´éš™) + 60 = 190 < 240 å±å¹•é«˜åº¦
  */
-/* ---- ÉãÏñÍ·Í¼Ïñ²ÎÊı (Camera) ---- */
-// TC264: 94ÁĞ¿í, Í¼ÏñÖĞÏß = 94/2 = 47
-#define ImageSensorMid    (LCDW / 2)           // Í¼Ïñ´«¸ĞÆ÷ÖĞÏßÎ»ÖÃ: 47
+/* ---- æ‘„åƒå¤´å›¾åƒå‚æ•° (Camera) ---- */
+// TC264: 94åˆ—å®½, å›¾åƒä¸­çº¿ = 94/2 = 47
+#define ImageSensorMid    (LCDW / 2)           // å›¾åƒä¼ æ„Ÿå™¨ä¸­çº¿ä½ç½®: 47
 
-// É¨ÃèËµÃ÷: ¿¿½ü³µÌå 59~57 ĞĞÔ¤É¨, ´Ó 56 ĞĞ¿ªÊ¼ÕæÕıÑ²Ïß 5 ĞĞ (56->52)
-// ´ÓÍ¼ÏñÖĞÏß (ImageSensorMid=47) ÏòÍâËÑË÷, È·±£ÕÒµ½±ß½ç
-// 5 ĞĞÈ«É¨Ò»´Î, È·±£»ùÏßÎÈ¶¨
-#define SCAN_BASE_START_ROW    59              // É¨ÃèÆğÊ¼ĞĞ (¿¿½ü³µÌå×î½ü, ²Î¿¼°²²Æ´úÂë)
-#define SCAN_BASE_END_ROW      55              // É¨Ãè½áÊøĞĞ (¹²5ĞĞ»ùÏß: 59,58,57,56,55)
+// æ‰«æè¯´æ˜: é è¿‘è½¦ä½“ 59~57 è¡Œé¢„æ‰«, ä» 56 è¡Œå¼€å§‹çœŸæ­£å·¡çº¿ 5 è¡Œ (56->52)
+// ä»å›¾åƒä¸­çº¿ (ImageSensorMid=47) å‘å¤–æœç´¢, ç¡®ä¿æ‰¾åˆ°è¾¹ç•Œ
+// 5 è¡Œå…¨æ‰«ä¸€æ¬¡, ç¡®ä¿åŸºçº¿ç¨³å®š
+#define SCAN_BASE_START_ROW    59              // æ‰«æèµ·å§‹è¡Œ (é è¿‘è½¦ä½“æœ€è¿‘, å‚è€ƒå®‰è´¢ä»£ç )
+#define SCAN_BASE_END_ROW      55              // æ‰«æç»“æŸè¡Œ (å…±5è¡ŒåŸºçº¿: 59,58,57,56,55)
 
-// ÏŞ·ùºê, ±£Ö¤L/HÔÚÓĞĞ§Ë÷Òı·¶Î§ÄÚ
-#define LimitL(L)  ((L) = ((L) < 1)  ? 1  : (L))        // L>=1 ±£Ö¤p[i-1]²»Ô½½ç
-#define LimitH(H)  ((H) = ((H) > (LCDW - 2)) ? (LCDW - 2) : (H))  // H<=92 ±£Ö¤p[i+1]²»Ô½½ç
+// é™å¹…å®, ä¿è¯L/Håœ¨æœ‰æ•ˆç´¢å¼•èŒƒå›´å†…
+#define LimitL(L)  ((L) = ((L) < 1)  ? 1  : (L))        // L>=1 ä¿è¯p[i-1]ä¸è¶Šç•Œ
+#define LimitH(H)  ((H) = ((H) > (LCDW - 2)) ? (LCDW - 2) : (H))  // H<=92 ä¿è¯p[i+1]ä¸è¶Šç•Œ
 
-/* ---- Í¼ÏñĞĞÊı¾İ½á¹¹ ---- */
+/* ---- å›¾åƒè¡Œæ•°æ®ç»“æ„ ---- */
 typedef struct {
-    uint8 IsRightFind;    // ÓÒ±ß½çÕÒµ½±êÖ¾: 'T'=ÕÒµ½ 'F'=¶ªÊ§ 'W'=È«°×
-    uint8 IsLeftFind;     // ×ó±ß½çÕÒµ½±êÖ¾: 'T'=ÕÒµ½ 'F'=¶ªÊ§ 'W'=È«°×
-    int   Wide;           // ÈüµÀ¿í¶È = RightBorder - LeftBorder
-    int   LeftBorder;     // ×ó±ß½çÁĞ×ø±ê
-    int   RightBorder;    // ÓÒ±ß½çÁĞ×ø±ê
-    int   Center;         // ÈüµÀÖĞÏß = (LeftBorder + RightBorder) / 2
+    uint8 IsRightFind;    // å³è¾¹ç•Œæ‰¾åˆ°æ ‡å¿—: 'T'=æ‰¾åˆ° 'F'=ä¸¢å¤± 'W'=å…¨ç™½
+    uint8 IsLeftFind;     // å·¦è¾¹ç•Œæ‰¾åˆ°æ ‡å¿—: 'T'=æ‰¾åˆ° 'F'=ä¸¢å¤± 'W'=å…¨ç™½
+    int   Wide;           // èµ›é“å®½åº¦ = RightBorder - LeftBorder
+    int   LeftBorder;     // å·¦è¾¹ç•Œåˆ—åæ ‡
+    int   RightBorder;    // å³è¾¹ç•Œåˆ—åæ ‡
+    int   Center;         // èµ›é“ä¸­çº¿ = (LeftBorder + RightBorder) / 2
 } ImageDealDatatypedef;
 
 
-/* ---- È«¾ÖÍ¼ÏñÊı¾İ ---- */
-extern uint8  Pixle[LCDH][LCDW];                // ¶şÖµÍ¼ (0=ºÚ/ÈüµÀ, 1=°×/±³¾°)
-extern uint8 *Image_Use[LCDH][LCDW];            // Ñ¹ËõºóµÄÏñËØÖ¸ÕëË÷Òı
-extern uint8  Camera_Threshold;                 // µ±Ç°OTSUãĞÖµ (0~255)
+/* ---- å…¨å±€å›¾åƒæ•°æ® ---- */
+extern uint8  Pixle[LCDH][LCDW];                // äºŒå€¼å›¾ (0=é»‘/èµ›é“, 1=ç™½/èƒŒæ™¯)
+extern uint8 *Image_Use[LCDH][LCDW];            // å‹ç¼©åçš„åƒç´ æŒ‡é’ˆç´¢å¼•
+extern uint8  Camera_Threshold;                 // å½“å‰OTSUé˜ˆå€¼ (0~255)
 
-/* ---- Í¼ÏñĞĞ´¦Àí½á¹û ---- */
-extern ImageDealDatatypedef ImageDeal[LCDH];   // Ã¿ĞĞÍ¼Ïñ´¦Àí½á¹ûÊı×é
+/* ---- å›¾åƒè¡Œå¤„ç†ç»“æœ ---- */
+extern ImageDealDatatypedef ImageDeal[LCDH];   // æ¯è¡Œå›¾åƒå¤„ç†ç»“æœæ•°ç»„
 
 
-/* ---- ³õÊ¼»¯ ---- */
+/* ---- åˆå§‹åŒ– ---- */
 void Camera_Init(void);
-void Camera_CompressInit(void);                  // Í¼ÏñÑ¹Ëõ³õÊ¼»¯ (µ÷ÓÃÒ»´Î)
+void Camera_CompressInit(void);                  // å›¾åƒå‹ç¼©åˆå§‹åŒ– (è°ƒç”¨ä¸€æ¬¡)
 
-/* ---- Í¼Ïñ²É¼¯ ---- */
-uint8 Camera_IsFrameReady(void);                 // ²éÑ¯ mt9v03x_finish_flag ±êÖ¾Î»
-uint8 (*Camera_GetImage(void))[CAMERA_W];        // ·µ»Ø mt9v03x_image Ô­Ê¼Í¼Ö¸Õë
+/* ---- å›¾åƒé‡‡é›† ---- */
+uint8 Camera_IsFrameReady(void);                 // æŸ¥è¯¢ mt9v03x_finish_flag æ ‡å¿—ä½
+uint8 (*Camera_GetImage(void))[CAMERA_W];        // è¿”å› mt9v03x_image åŸå§‹å›¾æŒ‡é’ˆ
 
-/* ---- Í¼Ïñ´¦Àí ---- */
+/* ---- å›¾åƒå¤„ç† ---- */
 uint8 Camera_OTSU_GetThreshold(uint8 *image[][LCDW], uint16 col, uint16 row);
-                                                 // »ùÓÚ»Ò¶ÈÖ±·½Í¼¼ÆËãOTSUãĞÖµ
-void  Camera_GetBinaryImage(void);               // »Ò¶ÈÍ¼ -> ¶şÖµÍ¼ (×ÔÊÊÓ¦OTSU)
+                                                 // åŸºäºç°åº¦ç›´æ–¹å›¾è®¡ç®—OTSUé˜ˆå€¼
+void  Camera_GetBinaryImage(void);               // ç°åº¦å›¾ -> äºŒå€¼å›¾ (è‡ªé€‚åº”OTSU)
 
-/* ---- IPS200ÆÁÄ»ÏÔÊ¾ ---- */
-void  Camera_ShowDebug(void);                    // IPS200 ÏÔÊ¾Ô­Ê¼Í¼+Ñ¹ËõÍ¼+¶şÖµ
-void  Camera_ShowBinaryImage(void);              // ¿ìËÙÏÔÊ¾¶şÖµÍ¼ (ÇáÁ¿°æ, SPI´«ÊäÁ¿Ğ¡)
+/* ---- IPS200å±å¹•æ˜¾ç¤º ---- */
+void  Camera_ShowDebug(void);                    // IPS200 æ˜¾ç¤ºåŸå§‹å›¾+å‹ç¼©å›¾+äºŒå€¼
+void  Camera_ShowBinaryImage(void);              // å¿«é€Ÿæ˜¾ç¤ºäºŒå€¼å›¾ (è½»é‡ç‰ˆ, SPIä¼ è¾“é‡å°)
 
 
-/* ---- Í¼ÏñÑ²Ïß ---- */
-void  Camera_ShowElementStatus(void);            // ÏÔÊ¾µ±Ç°ÔªËØ×´Ì¬(µ÷ÊÔÓÃ)
-void  Get_BaseLine(void);                       // »ñÈ¡»ù×¼Ïß: ´Ó56->52, 5ĞĞ
-// Ñ²ÏßÉ¨ÃèÇø¼ä: ÒÔÉÏÒ»ĞĞ±ß½çÎ»ÖÃ +/- ImageScanInterval ·¶Î§ÄÚ
+/* ---- å›¾åƒå·¡çº¿ ---- */
+void  Camera_ShowElementStatus(void);            // æ˜¾ç¤ºå½“å‰å…ƒç´ çŠ¶æ€(è°ƒè¯•ç”¨)
+void  Get_BaseLine(void);                       // è·å–åŸºå‡†çº¿: ä»56->52, 5è¡Œ
+// å·¡çº¿æ‰«æåŒºé—´: ä»¥ä¸Šä¸€è¡Œè¾¹ç•Œä½ç½® +/- ImageScanInterval èŒƒå›´å†…
 #define ZEBRA_SCAN_LEFT            17
 #define ZEBRA_SCAN_RIGHT           77
 
-#define ImageScanInterval  5                   // É¨ÃèËÑË÷Çø¼ä(ÏñËØ)
+#define ImageScanInterval  5                   // æ‰«ææœç´¢åŒºé—´(åƒç´ )
 
-/* ---- Ìø±äµã½á¹¹ ---- */
+/* ---- è·³å˜ç‚¹ç»“æ„ ---- */
 typedef struct {
-    int   point;                               // Ìø±äµãÎ»ÖÃ(ÁĞ×ø±ê)
-    uint8 type;                                // Ìø±äÀàĞÍ: 'T'=ºÚ°×Ìø±ä, 'W'=È«°×Ìõ, 'H'=È«ºÚ
+    int   point;                               // è·³å˜ç‚¹ä½ç½®(åˆ—åæ ‡)
+    uint8 type;                                // è·³å˜ç±»å‹: 'T'=é»‘ç™½è·³å˜, 'W'=å…¨ç™½æ¡, 'H'=å…¨é»‘
 } JumpPointtypedef;
 
-/* ---- Í¼Ïñ×´Ì¬½á¹¹ ---- */
+/* ---- å›¾åƒçŠ¶æ€ç»“æ„ ---- */
 typedef struct {
-    int16 OFFLine;                             // ¶ªÏßĞĞ: ÏòÉÏ¿ªÊ¼¶ªÏßµÄĞĞºÅ
-    int16 Miss_Left_lines;                     // ×ó±ß½çÁ¬Ğø¶ªÊ§ĞĞÊı
-    int16 Miss_Right_lines;                    // ÓÒ±ß½çÁ¬Ğø¶ªÊ§ĞĞÊı
-    int16 WhiteLine;                           // °×É«ĞĞÊı(Ê®×ÖÂ·¿ÚÅĞ¶¨)
-    int16 OFFLineBoundary;                     // ¶ªÏß±ß½ç
-    int16 Det_True;                            // ÓĞĞ§¼ì²â±êÖ¾
-    int16 WhiteLine_L;                         // ×ó²à°×ĞĞ
-    int16 WhiteLine_R;                         // ÓÒ²à°×ĞĞ
+    int16 OFFLine;                             // ä¸¢çº¿è¡Œ: å‘ä¸Šå¼€å§‹ä¸¢çº¿çš„è¡Œå·
+    int16 Miss_Left_lines;                     // å·¦è¾¹ç•Œè¿ç»­ä¸¢å¤±è¡Œæ•°
+    int16 Miss_Right_lines;                    // å³è¾¹ç•Œè¿ç»­ä¸¢å¤±è¡Œæ•°
+    int16 WhiteLine;                           // ç™½è‰²è¡Œæ•°(åå­—è·¯å£åˆ¤å®š)
+    int16 OFFLineBoundary;                     // ä¸¢çº¿è¾¹ç•Œ
+    int16 Det_True;                            // æœ‰æ•ˆæ£€æµ‹æ ‡å¿—
+    int16 WhiteLine_L;                         // å·¦ä¾§ç™½è¡Œ
+    int16 WhiteLine_R;                         // å³ä¾§ç™½è¡Œ
 } ImageStatustypedef;
 
-extern ImageStatustypedef ImageStatus;         // Í¼Ïñ×´Ì¬È«¾Ö±äÁ¿
+extern ImageStatustypedef ImageStatus;         // å›¾åƒçŠ¶æ€å…¨å±€å˜é‡
 
-/* Ô²»·Ö»ÔÚÖ¸¶¨½×¶Îµ÷ÓÃ²¹Ïß, ÆäÓà½×¶ÎÓÉ image_element_rings ±êÖ¾¿ØÖÆ¡£ */
+/* åœ†ç¯åªåœ¨æŒ‡å®šé˜¶æ®µè°ƒç”¨è¡¥çº¿, å…¶ä½™é˜¶æ®µç”± image_element_rings æ ‡å¿—æ§åˆ¶ã€‚ */
 
-/* ---- Ô²»·ºÚ¶´·¨²ÎÊı ---- */
+/* ---- åœ†ç¯é»‘æ´æ³•å‚æ•° ---- */
 #define IMG_BLACK                   0
 #define IMG_WHITE                   1
-#define BH_BOTTOM_START_ROW        52   // ºÚ¶´¼ì²âÆğÊ¼ĞĞ
-#define BH_LEFT_COL_MIN             1   // ×óºÚ¶´ÇøÉ¨Ãè×ó±ß½ç
-#define BH_LEFT_COL_MAX            12   // ×óºÚ¶´ÇøÉ¨ÃèÓÒ±ß½ç
-#define BH_RIGHT_COL_MIN           82   // ÓÒºÚ¶´ÇøÉ¨Ãè×ó±ß½ç
-#define BH_RIGHT_COL_MAX           93   // ÓÒºÚ¶´ÇøÉ¨ÃèÓÒ±ß½ç
-#define VALLEY_SCAN_START_ROW      59   // ¹Èµ×É¨ÃèÆğÊ¼ĞĞ
-#define VALLEY_SCAN_COL_LEFT       10   // ¹Èµ×É¨ÃèÁĞ×ó±ß½ç
-#define VALLEY_SCAN_COL_RIGHT      75   // ¹Èµ×É¨ÃèÁĞÓÒ±ß½ç
-#define VALLEY_MAX_ROW             59   // ¹Èµ×É¨Ãè×î´óĞĞ
-#define VALLEY_MIN_ROW             28   // ¹Èµ×É¨Ãè×îĞ¡ĞĞ
-#define EXIT_LOST_MIN               8   // ³ö»·Ê±×îĞ¡¶ªÏßÊı
-#define FILL_ENTRY_OFFSET          10   // Èë»·²¹ÏßÆ«ÒÆ
+#define BH_BOTTOM_START_ROW        52   // é»‘æ´æ£€æµ‹èµ·å§‹è¡Œ
+#define BH_LEFT_COL_MIN             1   // å·¦é»‘æ´åŒºæ‰«æå·¦è¾¹ç•Œ
+#define BH_LEFT_COL_MAX            12   // å·¦é»‘æ´åŒºæ‰«æå³è¾¹ç•Œ
+#define BH_RIGHT_COL_MIN           82   // å³é»‘æ´åŒºæ‰«æå·¦è¾¹ç•Œ
+#define BH_RIGHT_COL_MAX           93   // å³é»‘æ´åŒºæ‰«æå³è¾¹ç•Œ
+#define VALLEY_SCAN_START_ROW      59   // è°·åº•æ‰«æèµ·å§‹è¡Œ
+#define VALLEY_SCAN_COL_LEFT       10   // è°·åº•æ‰«æåˆ—å·¦è¾¹ç•Œ
+#define VALLEY_SCAN_COL_RIGHT      75   // è°·åº•æ‰«æåˆ—å³è¾¹ç•Œ
+#define VALLEY_MAX_ROW             59   // è°·åº•æ‰«ææœ€å¤§è¡Œ
+#define VALLEY_MIN_ROW             28   // è°·åº•æ‰«ææœ€å°è¡Œ
+#define EXIT_LOST_MIN               8   // å‡ºç¯æ—¶æœ€å°ä¸¢çº¿æ•°
+#define FILL_ENTRY_OFFSET          10   // å…¥ç¯è¡¥çº¿åç§»
 #define FILL_INSIDE_OFFSET         14
 #define FILL_EXIT1_OFFSET          8
-#define FILL_EXIT2_OFFSET          6   // »·ÖĞ²¹ÏßÆ«ÒÆ
-#define FILL_RECOVERY_OFFSET        0   // »Ö¸´²¹ÏßÆ«ÒÆ
+#define FILL_EXIT2_OFFSET          6   // ç¯ä¸­è¡¥çº¿åç§»
+#define FILL_RECOVERY_OFFSET        0   // æ¢å¤è¡¥çº¿åç§»
 
-#define RING_JUMP_THRESHOLD         2   // ¶ÏµãÅĞ¶¨: Á¬ĞøÌø±äÏñËØãĞÖµ
-#define RING_JUMP_SCAN_MIN_ROW     17   // ¶ÏµãÍ³¼Æ×îĞ¡ĞĞ(º¬)
-#define RING_JUMP_SCAN_MAX_ROW     50   // ¶ÏµãÍ³¼Æ×î´óĞĞ(º¬)
+#define RING_JUMP_THRESHOLD         2   // æ–­ç‚¹åˆ¤å®š: è¿ç»­è·³å˜åƒç´ é˜ˆå€¼
+#define RING_JUMP_SCAN_MIN_ROW     17   // æ–­ç‚¹ç»Ÿè®¡æœ€å°è¡Œ(å«)
+#define RING_JUMP_SCAN_MAX_ROW     50   // æ–­ç‚¹ç»Ÿè®¡æœ€å¤§è¡Œ(å«)
 #if (RING_JUMP_SCAN_MIN_ROW < 0) || (RING_JUMP_SCAN_MAX_ROW >= LCDH) || (RING_JUMP_SCAN_MIN_ROW > RING_JUMP_SCAN_MAX_ROW)
 #error "RING_JUMP_SCAN_ROW range is invalid"
 #endif
-#define RING_JUMP_MIN_COUNT         5   // ×îĞ¡Ìø±ä´ÎÊı
-#define RING_JUMP_OTHER_MAX         0   // ÁíÒ»²à×î´óÌø±ä´ÎÊı
-#define RING_EXIT_POINT_HOLD_FRAMES 3U  // EXIT1/EXIT2µ¥µã¶ÌÊ±¶ªÊ§±£³ÖÖ¡Êı
-#define RING_EXIT2_PASS_ROW         40   // EXIT2ÏÂÒÆµ½¸ÃĞĞºóÅĞ¶¨ÒÑ¾­Í¨¹ı»ÆÉ«µã
+#define RING_JUMP_MIN_COUNT         5   // æœ€å°è·³å˜æ¬¡æ•°
+#define RING_JUMP_OTHER_MAX         0   // å¦ä¸€ä¾§æœ€å¤§è·³å˜æ¬¡æ•°
+#define RING_EXIT_POINT_HOLD_FRAMES 3U  // EXIT1/EXIT2å•ç‚¹çŸ­æ—¶ä¸¢å¤±ä¿æŒå¸§æ•°
+#define RING_EXIT2_PASS_ROW         40   // EXIT2ä¸‹ç§»åˆ°è¯¥è¡Œååˆ¤å®šå·²ç»é€šè¿‡é»„è‰²ç‚¹
 
-/* ---- Ô²»·×´Ì¬»ú ---- */
-#define RING_STATE_IDLE       0    // ¿ÕÏĞ: ÎŞ»·
-#define RING_STATE_CONFIRM    1    // È·ÈÏ: Ìø±äµã¼ì²âµ½»·
-#define RING_STATE_APPROACH   2    // ½Ó½ü: Ïò»·Èë¿Ú¿¿½ü
-#define RING_STATE_ENTRY      3    // Èë»·: ½øÈë»·ĞÎÈüµÀ
-#define RING_STATE_INSIDE     4    // »·ÖĞ: ÔÚ»·ĞÎÈüµÀÄÚ²¿
-#define RING_STATE_EXIT1      5    // ³ö»·µÚÒ»½×¶Î: Á¬½ÓEXIT1ÓëEXIT2
-#define RING_STATE_EXIT2      6    // ³ö»·µÚ¶ş½×¶Î: Í¼Ïñµ×²¿Á¬½ÓEXIT2
-#define RING_STATE_RECOVERY   7    // »Ö¸´: ¸ú×Ù³ö»·¹Õµã3
+/* ---- åœ†ç¯çŠ¶æ€æœº ---- */
+#define RING_STATE_IDLE       0    // ç©ºé—²: æ— ç¯
+#define RING_STATE_CONFIRM    1    // ç¡®è®¤: è·³å˜ç‚¹æ£€æµ‹åˆ°ç¯
+#define RING_STATE_APPROACH   2    // æ¥è¿‘: å‘ç¯å…¥å£é è¿‘
+#define RING_STATE_ENTRY      3    // å…¥ç¯: è¿›å…¥ç¯å½¢èµ›é“
+#define RING_STATE_INSIDE     4    // ç¯ä¸­: åœ¨ç¯å½¢èµ›é“å†…éƒ¨
+#define RING_STATE_EXIT1      5    // å‡ºç¯ç¬¬ä¸€é˜¶æ®µ: è¿æ¥EXIT1ä¸EXIT2
+#define RING_STATE_EXIT2      6    // å‡ºç¯ç¬¬äºŒé˜¶æ®µ: å›¾åƒåº•éƒ¨è¿æ¥EXIT2
+#define RING_STATE_RECOVERY   7    // æ¢å¤: è·Ÿè¸ªå‡ºç¯æ‹ç‚¹3
 
-/* ---- Ô²»·½×¶ÎÖ¡¼ÆÊı ---- */
-#define RING_CONFIRM_FRAMES       20U    // È·ÈÏ½×¶Î×îĞ¡Ö¡Êı
-#define RING_EXIT_CONFIRM_FRAMES  10U    // ³ö»·È·ÈÏ×îĞ¡Ö¡Êı
-#define RING_CONFIRM_MAX_FRAMES   300U   // È·ÈÏ½×¶Î³¬Ê±Ö¡Êı
-#define RING_ENTRY_MAX_FRAMES     2000U   // Èë»·½×¶Î³¬Ê±Ö¡Êı
+/* ---- åœ†ç¯é˜¶æ®µå¸§è®¡æ•° ---- */
+#define RING_CONFIRM_FRAMES       20U    // ç¡®è®¤é˜¶æ®µæœ€å°å¸§æ•°
+#define RING_EXIT_CONFIRM_FRAMES  10U    // å‡ºç¯ç¡®è®¤æœ€å°å¸§æ•°
+#define RING_CONFIRM_MAX_FRAMES   300U   // ç¡®è®¤é˜¶æ®µè¶…æ—¶å¸§æ•°
+#define RING_ENTRY_MAX_FRAMES     2000U   // å…¥ç¯é˜¶æ®µè¶…æ—¶å¸§æ•°
 #define RING_INSIDE_MAX_FRAMES    2000U
 #define RING_EXIT1_MAX_FRAMES     450U
 
 void  Get_Border_And_SideType(uint8* p, uint8 type, int L, int H, JumpPointtypedef* Q);
-                                               // »ñÈ¡±ß½çÌø±äµãÎ»ÖÃºÍÀàĞÍ
-void  Get_AllLine(void);                       // È«Í¼É¨Ãè: ´Ó51ĞĞÏòÉÏÉ¨Ãèµ½0
+                                               // è·å–è¾¹ç•Œè·³å˜ç‚¹ä½ç½®å’Œç±»å‹
+void  Get_AllLine(void);                       // å…¨å›¾æ‰«æ: ä»51è¡Œå‘ä¸Šæ‰«æåˆ°0
 
-/* ---- Í¼Ïñ±êÖ¾½á¹¹ ---- */
+/* ---- å›¾åƒæ ‡å¿—ç»“æ„ ---- */
 typedef struct {
-    int16 Bend_Road;                           /* ÍäµÀ: 0=Ö±µÀ 1=×óÍä 2=ÓÒÍä */
-    int16 image_element_rings;                 /* Ô²»·: 0=ÎŞ 1=×óÔ²»· 2=ÓÒÔ²»· */
-    int16 ring_big_small;                      /* Ô²»·´óĞ¡: 0=ÎŞ 1=´ó»· 2=Ğ¡»· */
-    int16 image_element_rings_flag;            /* Ô²»·×´Ì¬±êÖ¾ */
-    int16 straight_long;                       /* ³¤Ö±µÀ±êÖ¾ */
-    int16 straight_xie;                        /* Ğ±ÈëÖ±µÀ±êÖ¾ */
-    int16 Zebra_Flag;                          /* °ßÂíÏß: 0=ÎŞ 1=×ó²à 2=ÓÒ²à */
-    int16 Ramp;                                /* ÆÂµÀ: 0=ÎŞ 1=¼ì²âµ½ */
+    int16 Bend_Road;                           /* å¼¯é“: 0=ç›´é“ 1=å·¦å¼¯ 2=å³å¼¯ */
+    int16 image_element_rings;                 /* åœ†ç¯: 0=æ—  1=å·¦åœ†ç¯ 2=å³åœ†ç¯ */
+    int16 ring_big_small;                      /* åœ†ç¯å¤§å°: 0=æ—  1=å¤§ç¯ 2=å°ç¯ */
+    int16 image_element_rings_flag;            /* åœ†ç¯çŠ¶æ€æ ‡å¿— */
+    int16 straight_long;                       /* é•¿ç›´é“æ ‡å¿— */
+    int16 straight_xie;                        /* æ–œå…¥ç›´é“æ ‡å¿— */
+    int16 Zebra_Flag;                          /* æ–‘é©¬çº¿: 0=æ—  1=å·¦ä¾§ 2=å³ä¾§ */
+    int16 Ramp;                                /* å¡é“: 0=æ—  1=æ£€æµ‹åˆ° */
 
 } ImageFlagtypedef;
 
-/* ---- Í¼Ïñ±êÖ¾½á¹¹ËµÃ÷ ---- */
-// ÒÑÒÆ³ıµÄÔªËØ×Ö¶Î: WhiteLine(Ê®×Ö), OFFLineBoundary(¶ªÏß±ß½ç), Det_True(ÓĞĞ§¼ì²â)
-// ×´Ì¬: OFFLine/Miss_Left_lines/Miss_Right_lines ÔÚImageStatus½á¹¹ÌåÖĞ
+/* ---- å›¾åƒæ ‡å¿—ç»“æ„è¯´æ˜ ---- */
+// å·²ç§»é™¤çš„å…ƒç´ å­—æ®µ: WhiteLine(åå­—), OFFLineBoundary(ä¸¢çº¿è¾¹ç•Œ), Det_True(æœ‰æ•ˆæ£€æµ‹)
+// çŠ¶æ€: OFFLine/Miss_Left_lines/Miss_Right_lines åœ¨ImageStatusç»“æ„ä½“ä¸­
 
-extern ImageFlagtypedef ImageFlag;             /* Í¼Ïñ±êÖ¾È«¾Ö±äÁ¿ */
-extern int16_t g_ZebraSum;                     /* °ßÂíÏß¼ì²âÓĞĞ§ĞĞÊı, ÓÃÓÚÆÁÄ»ÏÔÊ¾ */
-extern volatile int g_corner_black_max;        /* µ÷ÊÔ: ¹Õ½Ç´¦×î´óºÚ¿í¶È */
-extern volatile int g_bottom_black_width;      /* µ÷ÊÔ: W-Bµ×²¿ºÚ¿í¶È */
-extern volatile int g_ring_miss_cnt;           /* µ÷ÊÔ: Ô²»·¶ªÏß¼ÆÊı(Miss_Left/Miss_Right) */
-extern volatile uint8 g_left_jump_count;       /* µ÷ÊÔ: ×ó±ß½çÌø±ä¼ÆÊı */
-extern volatile uint8 g_right_jump_count;      /* µ÷ÊÔ: ÓÒ±ß½çÌø±ä¼ÆÊı */
-extern volatile int g_approach_valley_row;     /* µ÷ÊÔ: APPROACH½×¶Î¹Èµ×ĞĞ */
-extern volatile uint8 g_edge_squeezed_dbg;     /* µ÷ÊÔ: ¼·Ñ¹×´Ì¬ */
-extern volatile uint8 g_ring_phase_dbg;        /* µ÷ÊÔ: ¹Èµ×½×¶Î 0/1/2 */
+extern ImageFlagtypedef ImageFlag;             /* å›¾åƒæ ‡å¿—å…¨å±€å˜é‡ */
+extern int16_t g_ZebraSum;                     /* æ–‘é©¬çº¿æ£€æµ‹æœ‰æ•ˆè¡Œæ•°, ç”¨äºå±å¹•æ˜¾ç¤º */
+extern volatile int g_corner_black_max;        /* è°ƒè¯•: æ‹è§’å¤„æœ€å¤§é»‘å®½åº¦ */
+extern volatile int g_bottom_black_width;      /* è°ƒè¯•: W-Båº•éƒ¨é»‘å®½åº¦ */
+extern volatile int g_ring_miss_cnt;           /* è°ƒè¯•: åœ†ç¯ä¸¢çº¿è®¡æ•°(Miss_Left/Miss_Right) */
+extern volatile uint8 g_left_jump_count;       /* è°ƒè¯•: å·¦è¾¹ç•Œè·³å˜è®¡æ•° */
+extern volatile uint8 g_right_jump_count;      /* è°ƒè¯•: å³è¾¹ç•Œè·³å˜è®¡æ•° */
+extern volatile int g_approach_valley_row;     /* è°ƒè¯•: APPROACHé˜¶æ®µè°·åº•è¡Œ */
+extern volatile uint8 g_edge_squeezed_dbg;     /* è°ƒè¯•: æŒ¤å‹çŠ¶æ€ */
+extern volatile uint8 g_ring_phase_dbg;        /* è°ƒè¯•: è°·åº•é˜¶æ®µ 0/1/2 */
 
-/* ---- µÀÂ·°ë¿í²éÕÒ±í (TC264ÁĞ¿í94, °²²ÆÔ­°æx1.175Ó³Éä) ---- */
-extern const uint8 Half_Road_Wide[60];         /* °ëµÀÂ·¿í: ½ü´¦~Ô¶´¦ */
-extern const uint8 Half_Bend_Wide[60];         /* ÍäµÀ°ë¿í */
+/* ---- é“è·¯åŠå®½æŸ¥æ‰¾è¡¨ (TC264åˆ—å®½94, å®‰è´¢åŸç‰ˆx1.175æ˜ å°„) ---- */
+extern const uint8 Half_Road_Wide[60];         /* åŠé“è·¯å®½: è¿‘å¤„~è¿œå¤„ */
+extern const uint8 Half_Bend_Wide[60];         /* å¼¯é“åŠå®½ */
 
-/* ---- ÔªËØ´¦Àíº¯Êı ---- */
-float Straight_Judge(uint8 dir, uint8 start, uint8 end);     // Ö±µÀÅĞ¶¨(S<1ÎªÖ±µÀ)
-void  Straight_long_judge(void);                             // ³¤Ö±µÀÅĞ¶¨
-void  Straight_long_handle(void);                            // ³¤Ö±µÀ´¦Àí
-void  Straight_xie_judge(void);                              // Ğ±ÈëÖ±µÀÅĞ¶¨
-void  Element_Judgment_Bend(void);                           // ÍäµÀÅĞ¶Ï
-void  Element_Handle_Bend(void);                             // ÍäµÀ´¦Àí
-void  Element_Judgment_Left_Rings(void);                     // ×óÔ²»·Ê¶±ğ
-void  Element_Handle_Left_Rings(void);                       // ×óÔ²»·´¦Àí
-void  Element_Judgment_Right_Rings(void);                    // ÓÒÔ²»·Ê¶±ğ
-void  Element_Handle_Right_Rings(void);                      // ÓÒÔ²»·´¦Àí
-uint8 Ring_Should_Hold_Err(void);                            // EXIT2Ìø±äÖ¡±£³ÖÉÏÒ»Ö¡Err
-void  Element_Judgment_Zebra(void);                          // °ßÂíÏßÊ¶±ğ
-void  Element_Handle_Zebra(void);                            // °ßÂíÏß´¦Àí
-void  Element_Judgment_Ramp(void);                           // ÆÂµÀÊ¶±ğ
-void  Element_Handle_Ramp(void);                             // ÆÂµÀ´¦Àí
+/* ---- å…ƒç´ å¤„ç†å‡½æ•° ---- */
+float Straight_Judge(uint8 dir, uint8 start, uint8 end);     // ç›´é“åˆ¤å®š(S<1ä¸ºç›´é“)
+void  Straight_long_judge(void);                             // é•¿ç›´é“åˆ¤å®š
+void  Straight_long_handle(void);                            // é•¿ç›´é“å¤„ç†
+void  Straight_xie_judge(void);                              // æ–œå…¥ç›´é“åˆ¤å®š
+void  Element_Judgment_Bend(void);                           // å¼¯é“åˆ¤æ–­
+void  Element_Handle_Bend(void);                             // å¼¯é“å¤„ç†
+void  Element_Judgment_Left_Rings(void);                     // å·¦åœ†ç¯è¯†åˆ«
+void  Element_Handle_Left_Rings(void);                       // å·¦åœ†ç¯å¤„ç†
+void  Element_Judgment_Right_Rings(void);                    // å³åœ†ç¯è¯†åˆ«
+void  Element_Handle_Right_Rings(void);                      // å³åœ†ç¯å¤„ç†
+uint8 Ring_Should_Hold_Err(void);                            // EXIT2è·³å˜å¸§ä¿æŒä¸Šä¸€å¸§Err
+void  Element_Judgment_Zebra(void);                          // æ–‘é©¬çº¿è¯†åˆ«
+void  Element_Handle_Zebra(void);                            // æ–‘é©¬çº¿å¤„ç†
+void  Element_Judgment_Ramp(void);                           // å¡é“è¯†åˆ«
+void  Element_Handle_Ramp(void);                             // å¡é“å¤„ç†
 
 
-void  Get_ExtensionLine(void);                               // Ê®×Ö²¹Ïß
-void  Scan_Element(void);                                    // ÔªËØÉ¨ÃèÓëÅĞ¶¨
-void  Element_Handle(void);                                  // ÔªËØ´¦ÀíÓë²¹Ïß
-void  Flag_init(void);                                       // ±êÖ¾³õÊ¼»¯
+void  Get_ExtensionLine(void);                               // åå­—è¡¥çº¿
+void  Scan_Element(void);                                    // å…ƒç´ æ‰«æä¸åˆ¤å®š
+void  Element_Handle(void);                                  // å…ƒç´ å¤„ç†ä¸è¡¥çº¿
+void  Flag_init(void);                                       // æ ‡å¿—åˆå§‹åŒ–
 
-void  Camera_ShowElementStatus(void);                        // ÏÔÊ¾µ±Ç°ÔªËØ×´Ì¬(µ÷ÊÔÓÃ)
+void  Camera_ShowElementStatus(void);                        // æ˜¾ç¤ºå½“å‰å…ƒç´ çŠ¶æ€(è°ƒè¯•ç”¨)
 
 #endif

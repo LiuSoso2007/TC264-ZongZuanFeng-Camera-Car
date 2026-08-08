@@ -5,21 +5,21 @@
 #include "IfxCpu.h"
 
 /*
- * Shared.h --- CPU0 <> CPU1 ¿çºË¹²ÏíÊı¾İ½á¹¹
+ * Shared.h --- CPU0 <> CPU1 è·¨æ ¸å…±äº«æ•°æ®ç»“æ„
  *
- * ¿çºË¹²Ïí±äÁ¿Ê¹ÓÃvolatile·ÀÖ¹±àÒëÆ÷»º´æ£»¶à±äÁ¿Ò»ÖÂĞÔÓÉÔ­×ÓËøĞ­Òé±£Ö¤¡£
- * ±¾ÎÄ¼ş¶¨Òå CPU0(Í¼Ïñ´¦Àí) ºÍ CPU1(ÔË¶¯¿ØÖÆ) Ö®¼äµÄÊı¾İ½Ó¿Ú¡£
+ * è·¨æ ¸å…±äº«å˜é‡ä½¿ç”¨volatileé˜²æ­¢ç¼–è¯‘å™¨ç¼“å­˜ï¼›å¤šå˜é‡ä¸€è‡´æ€§ç”±åŸå­é”åè®®ä¿è¯ã€‚
+ * æœ¬æ–‡ä»¶å®šä¹‰ CPU0(å›¾åƒå¤„ç†) å’Œ CPU1(è¿åŠ¨æ§åˆ¶) ä¹‹é—´çš„æ•°æ®æ¥å£ã€‚
  *
- * µ±Ç°¹²Ïí±äÁ¿:
- *   Err:         CPU0 Í¼ÏñÆ«²î ¡ú CPU1 ÓÃÓÚ PD ¶æ»ú¿ØÖÆ / µç»ú²îËÙ
- *   StopRequest: CPU0 °ßÂíÏßËø´æ ¡ú CPU1 Ë«µç»úÍ£³µ
- *   RingEntrySlowdown: CPU0 Ô²»·½ø»·½×¶Î ¡ú CPU1 ½µµÍµç»úËÙ¶È
- *   EncLeft/Right: CPU1 ±àÂëÆ÷²ÉÑù ¡ú CPU0 ÆÁÄ»ÏÔÊ¾
+ * å½“å‰å…±äº«å˜é‡:
+ *   Err:         CPU0 å›¾åƒåå·® â†’ CPU1 ç”¨äº PD èˆµæœºæ§åˆ¶ / ç”µæœºå·®é€Ÿ
+ *   StopRequest: CPU0 æ–‘é©¬çº¿é”å­˜ â†’ CPU1 åŒç”µæœºåœè½¦
+ *   RingEntrySlowdown: CPU0 åœ†ç¯è¿›ç¯é˜¶æ®µ â†’ CPU1 é™ä½ç”µæœºé€Ÿåº¦
+ *   EncLeft/Right: CPU1 ç¼–ç å™¨é‡‡æ · â†’ CPU0 å±å¹•æ˜¾ç¤º
  *
- * ºóĞøÀ©Õ¹ (CAMERA.h ÖĞµÄ Image_Process ÍêÉÆºó):
- *   ImageStatus: Í¼Ïñ×´Ì¬ (Det_True Îó²î, OFFLine ¶ªÏß, µÈ)
- *   ImageFlag:   Í¼Ïñ±êÖ¾ (Bend_Road ÍäµÀ, Ramp ÆÂµÀ,
- *                Zebra_Flag °ßÂíÏß, Rings Ô²»·, RoadBlock Â·ÕÏ, Out_Road ¶ÏÂ·)
+ * åç»­æ‰©å±• (CAMERA.h ä¸­çš„ Image_Process å®Œå–„å):
+ *   ImageStatus: å›¾åƒçŠ¶æ€ (Det_True è¯¯å·®, OFFLine ä¸¢çº¿, ç­‰)
+ *   ImageFlag:   å›¾åƒæ ‡å¿— (Bend_Road å¼¯é“, Ramp å¡é“,
+ *                Zebra_Flag æ–‘é©¬çº¿, Rings åœ†ç¯, RoadBlock è·¯éšœ, Out_Road æ–­è·¯)
  */
 
 extern volatile float Err;
@@ -30,12 +30,12 @@ extern volatile uint8_t RingEntrySlowdown;
 extern volatile int16_t EncLeft;
 extern volatile int16_t EncRight;
 
-/* CPU0¸²¸Ç×îĞÂÖ¡¿ØÖÆÁ¿£»ErrºÍ¼õËÙ±êÖ¾±ØĞëÍ¬Ëø·¢²¼£¬±ÜÃâCPU1¶Áµ½¿çÖ¡¾É×´Ì¬¡£ */
+/* CPU0è¦†ç›–æœ€æ–°å¸§æ§åˆ¶é‡ï¼›Errå’Œå‡é€Ÿæ ‡å¿—å¿…é¡»åŒé”å‘å¸ƒï¼Œé¿å…CPU1è¯»åˆ°è·¨å¸§æ—§çŠ¶æ€ã€‚ */
 static inline void Shared_PublishErr(float err, uint8_t ring_entry_slowdown)
 {
     while (IfxCpu_acquireMutex(&ErrMailboxLock) == FALSE)
     {
-        /* CPU1ÁÙ½çÇø¼«¶Ì£¬µÈ´ıÆäÍê³ÉÒ»´ÎÔ­×Ó¿ìÕÕ¡£ */
+        /* CPU1ä¸´ç•ŒåŒºæçŸ­ï¼Œç­‰å¾…å…¶å®Œæˆä¸€æ¬¡åŸå­å¿«ç…§ã€‚ */
     }
     Err = err;
     RingEntrySlowdown = ring_entry_slowdown;
@@ -43,7 +43,7 @@ static inline void Shared_PublishErr(float err, uint8_t ring_entry_slowdown)
     IfxCpu_releaseMutex(&ErrMailboxLock);
 }
 
-/* CPU1·Ç×èÈû»ñÈ¡×îĞÂÖ¡¿ìÕÕ£»ËøÃ¦Ê±±£ÁôÉÏÒ»Ö¡¿ØÖÆÁ¿£¬ÏÂ¸ö10msÖÜÆÚÖØÊÔ¡£ */
+/* CPU1éé˜»å¡è·å–æœ€æ–°å¸§å¿«ç…§ï¼›é”å¿™æ—¶ä¿ç•™ä¸Šä¸€å¸§æ§åˆ¶é‡ï¼Œä¸‹ä¸ª10mså‘¨æœŸé‡è¯•ã€‚ */
 static inline uint8_t Shared_TakeErr(float *err, uint8_t *ring_entry_slowdown)
 {
     uint8_t has_new_err = 0U;
@@ -65,17 +65,17 @@ static inline uint8_t Shared_TakeErr(float *err, uint8_t *ring_entry_slowdown)
 
 
 /*
- * Í¼Ïñ×´Ì¬ / Í¼Ïñ±êÖ¾ (´ıCAMERA.hÖĞImage_ProcessÊµÏÖºóÆôÓÃ):
+ * å›¾åƒçŠ¶æ€ / å›¾åƒæ ‡å¿— (å¾…CAMERA.hä¸­Image_Processå®ç°åå¯ç”¨):
  *
- *   ImageStatus.Det_True        - µ±Ç°Îó²î (int)
- *   ImageStatus.OFFLine         - ¶ªÏßĞĞÊı (int16)
+ *   ImageStatus.Det_True        - å½“å‰è¯¯å·® (int)
+ *   ImageStatus.OFFLine         - ä¸¢çº¿è¡Œæ•° (int16)
  *
- *   ImageFlag.Bend_Road          - ÍäµÀÀàĞÍ 0=Ö±µÀ, 1=×óÍä, 2=ÓÒÍä
- *   ImageFlag.Ramp               - ÆÂµÀ±êÖ¾
- *   ImageFlag.Zebra_Flag         - °ßÂíÏß±êÖ¾
- *   ImageFlag.RoadBlock_Flag     - Â·ÕÏ±êÖ¾
- *   ImageFlag.Out_Road           - ¶ÏÂ·±êÖ¾
- *   ImageFlag.image_element_rings - Ô²»·±êÖ¾
+ *   ImageFlag.Bend_Road          - å¼¯é“ç±»å‹ 0=ç›´é“, 1=å·¦å¼¯, 2=å³å¼¯
+ *   ImageFlag.Ramp               - å¡é“æ ‡å¿—
+ *   ImageFlag.Zebra_Flag         - æ–‘é©¬çº¿æ ‡å¿—
+ *   ImageFlag.RoadBlock_Flag     - è·¯éšœæ ‡å¿—
+ *   ImageFlag.Out_Road           - æ–­è·¯æ ‡å¿—
+ *   ImageFlag.image_element_rings - åœ†ç¯æ ‡å¿—
  */
 
 #endif

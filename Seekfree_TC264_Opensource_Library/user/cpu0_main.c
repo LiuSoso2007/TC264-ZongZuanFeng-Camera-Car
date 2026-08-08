@@ -38,6 +38,19 @@ volatile uint8_t RingEntrySlowdown = 0U;
 #define ZEBRA_STOP_DELAY_FRAMES  10
 /* 斑马线检测到第3次确认后延迟帧数 */
 
+/* 图像最底行全部为黑色时，判定车辆已经驶出白色赛道。 */
+static uint8_t Bottom_Row_All_Black(void)
+{
+    uint16_t col;
+
+    for (col = 0U; col < LCDW; col++)
+    {
+        if (Pixle[SCAN_BASE_START_ROW][col] != 0U)
+            return 0U;
+    }
+    return 1U;
+}
+
 #pragma section all "cpu0_dsram"
 
 int core0_main(void)
@@ -80,6 +93,10 @@ int core0_main(void)
         if (Camera_IsFrameReady())
         {
             Camera_GetBinaryImage();
+
+            /* 元素补线前检查原始二值图，底部全黑立即锁存停车请求。 */
+            if (Bottom_Row_All_Black())
+                StopRequest = 1U;
 
             /* ---- 图像处理流水线: 二值图 -> 元素识别 ---- */
             Flag_init();

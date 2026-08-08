@@ -2339,12 +2339,17 @@ void Element_Handle_Ramp(void)
 #define CROSS_JUMP_MIN_COLS          3     //跳变确认列数
 #define CROSS_UPPER_CONFIRM_ROWS     2     //向上确认行数
 #define CROSS_CORNER_MAX_ROW_DIFF    10    //左右相隔行数
+#define CROSS_EXIT_DELAY_FRAMES      20U   //十字最后一次识别后继续屏蔽圆环初判的帧数
 
 #if (CROSS_SCAN_TOP_ROW < 0) || (CROSS_SCAN_BOTTOM_ROW >= LCDH) || (CROSS_SCAN_TOP_ROW >= CROSS_SCAN_BOTTOM_ROW)
 #error "CROSS_SCAN_ROW range is invalid"
 #endif
+#if (CROSS_EXIT_DELAY_FRAMES > 65535U)
+#error "CROSS_EXIT_DELAY_FRAMES is too large"
+#endif
 
 static uint8 s_cross_detected = 0U;  /* 当前帧左右拐点有效并已完成补线 */
+static uint16 s_cross_exit_delay_frames = 0U; /* 十字消失后剩余的圆环屏蔽帧数 */
 
 /* 候选点上方连续两行均无跳变，才确认候选点为十字拐点。 */
 static uint8 Cross_Upper_Rows_Have_No_Jump(int row, uint8 check_left)
@@ -2563,8 +2568,16 @@ void Scan_Element(void)
         Get_ExtensionLine();
         if (s_cross_detected)
         {
+            s_cross_exit_delay_frames = CROSS_EXIT_DELAY_FRAMES;
             if (ImageFlag.image_element_rings != 0)
                 Ring_Clear_State();
+            return;
+        }
+
+        /* 十字拐点离开视野后继续等待N帧，避免车体仍在十字时提前触发圆环减速。 */
+        if (s_cross_exit_delay_frames > 0U)
+        {
+            s_cross_exit_delay_frames--;
             return;
         }
 

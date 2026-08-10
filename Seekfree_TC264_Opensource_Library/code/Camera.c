@@ -1345,7 +1345,7 @@ static uint8 Ring_Find_Exit1_Corners(uint8 direction,
 
     prev_col = -1;
     increasing_seen = 0;
-    for (row = 55; row >= 30; row--)
+    for (row = 55; row >= 27; row--)
     {
         if (direction == 2U) col = ImageDeal[row].LeftBorder;
         else                 col = ImageDeal[row].RightBorder;

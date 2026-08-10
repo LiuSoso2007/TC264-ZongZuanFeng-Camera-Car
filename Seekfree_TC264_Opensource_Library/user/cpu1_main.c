@@ -2,7 +2,7 @@
  * CPU1: 运动控制
  *
  * CPU0: 图像采集与处理，输出赛道偏差Err与元素标志
- * CPU1: 10ms调度舵机PD，电机PI按80ms编码器新样本更新
+ * CPU1: 10ms调度舵机PD，电机PI按40ms编码器新样本更新
  * 控制定时器: CCU61_CH0 PIT 10ms（中断在isr.c中）
  */
 
@@ -25,9 +25,15 @@ volatile int16_t EncRight = 0;
 
 #pragma section all "cpu1_dsram"   /* CPU1私有变量放入DSRAM段 */
 
-/* 直道目标速度：编码器80ms累计脉冲数，不是PWM百分比。 */
-static int16_t  StraightSpeed = 40;
-static int16_t  EncCount        = 0;
+/* 电机PI每4个10ms调度周期更新；目标速度统一使用编码器脉冲/秒。 */
+#define MOTOR_CONTROL_PERIOD_MS   10U
+#define MOTOR_PI_SAMPLE_TICKS      4U
+#define MOTOR_PI_SAMPLE_PERIOD_MS (MOTOR_CONTROL_PERIOD_MS * MOTOR_PI_SAMPLE_TICKS)
+#if (MOTOR_PI_SAMPLE_TICKS == 0U) || (MOTOR_PI_SAMPLE_PERIOD_MS > 1000U)
+#error "Motor PI sample period is invalid"
+#endif
+static int16_t StraightSpeedPps = 500;
+static uint8_t EncCount = 0U;
 
 /* 进环保留速度百分比：60表示保留原速度60%，数值越大越快，越小越慢。 */
 #define RING_ENTRY_SPEED_PERCENT 60
@@ -36,7 +42,7 @@ static int16_t  EncCount        = 0;
 #endif
 
 /* PI参数 */
-#define PI_KP          0.4f
+#define PI_KP          0.8f
 #define PI_KI          0.02f
 #define CURVE_SPEED    0
 
@@ -78,7 +84,7 @@ int core1_main(void)
     pit_ms_init(CCU60_CH1, 5);
 
     /* 控制周期定时器：10ms，中断由CPU1处理 */
-    pit_ms_init(CCU61_CH0, 10);
+    pit_ms_init(CCU61_CH0, MOTOR_CONTROL_PERIOD_MS);
 
     /* 等待CPU0就绪 */
     cpu_wait_event_ready();
@@ -98,10 +104,10 @@ int core1_main(void)
         }
         PID_Flag = 0;
 
-        /* 编码器每80ms产生一个新样本，PI也只在此时更新一次。 */
+        /* 编码器每40ms产生一个新样本，PI也只在此时更新一次。 */
         encoder_sample_ready = 0U;
         EncCount ++;
-        if(EncCount >= 8)
+        if(EncCount >= MOTOR_PI_SAMPLE_TICKS)
         {
              EncCount = 0;
              enc_left  = Encoder_Get_Left();
@@ -137,7 +143,8 @@ int core1_main(void)
         /* 新编码器样本到达时更新左右独立PI，其余周期保持上次PWM。 */
         if (encoder_sample_ready != 0U)
         {
-            int16_t target_speed = StraightSpeed;
+            int16_t target_speed = (int16_t)((int32_t)StraightSpeedPps
+                                   * (int32_t)MOTOR_PI_SAMPLE_PERIOD_MS / 1000);
 
             /* 进环减速作用于目标速度，避免闭环把减速量重新补回来。 */
             if (ring_entry_slowdown != 0U)

@@ -3,8 +3,12 @@
 
 #include <stdint.h>
 
-#define PI_OUT_MIN    -100
-#define PI_OUT_MAX     100
+/* 首次闭环验证保持原40%开环幅度，并预留正反向制动范围。 */
+#define PI_OUT_MIN    (-40)
+#define PI_OUT_MAX      40
+#if (PI_OUT_MIN < -100) || (PI_OUT_MAX > 100) || (PI_OUT_MIN >= PI_OUT_MAX)
+#error "PI output limits must stay within motor PWM range"
+#endif
 
 /* PD位置式 -- 舵机 */
 void PD_Update(float Kp, float Kd, float err);

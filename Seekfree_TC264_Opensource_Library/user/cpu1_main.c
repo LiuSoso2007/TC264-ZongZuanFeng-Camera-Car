@@ -2,7 +2,7 @@
  * CPU1: 运动控制
  *
  * CPU0: 图像采集与处理，输出赛道偏差Err与元素标志
- * CPU1: 编码器、舵机PD、电机PI速度环，控制周期10ms
+ * CPU1: 10ms调度舵机PD，电机PI按80ms编码器新样本更新
  * 控制定时器: CCU61_CH0 PIT 10ms（中断在isr.c中）
  */
 
@@ -25,8 +25,8 @@ volatile int16_t EncRight = 0;
 
 #pragma section all "cpu1_dsram"   /* CPU1私有变量放入DSRAM段 */
 
-/* CPU1本地参数（后续可用按键/IMU调整） */
-static int8_t   StraightSpeed = 40;
+/* 直道目标速度：编码器80ms累计脉冲数，不是PWM百分比。 */
+static int16_t  StraightSpeed = 40;
 static int16_t  EncCount        = 0;
 
 /* 进环保留速度百分比：60表示保留原速度60%，数值越大越快，越小越慢。 */
@@ -55,12 +55,12 @@ int core1_main(void)
     interrupt_global_enable(0);
 
     int16_t  enc_left = 0, enc_right = 0;
-    int8_t   pwm_left,  pwm_right;
-    int16_t  motor_speed;
+    int8_t   pwm_left, pwm_right;
     float    position_err = 0.0f;
     float    new_position_err;
     uint8_t  ring_entry_slowdown = 0U;
     uint8_t  new_ring_entry_slowdown;
+    uint8_t  encoder_sample_ready = 0U;
 
     /* CPU1外设初始化 */
     Key_Init();                          /* 四键按键（功能预留） */
@@ -98,13 +98,15 @@ int core1_main(void)
         }
         PID_Flag = 0;
 
-        /* 编码器读取：每8个控制周期采样一次 */
+        /* 编码器每80ms产生一个新样本，PI也只在此时更新一次。 */
+        encoder_sample_ready = 0U;
         EncCount ++;
         if(EncCount >= 8)
         {
              EncCount = 0;
              enc_left  = Encoder_Get_Left();
              enc_right = Encoder_Get_Right();
+             encoder_sample_ready = 1U;
         }
 
         EncLeft  = enc_left;
@@ -112,15 +114,12 @@ int core1_main(void)
 
         /* 赛道误差：CPU0图像输出，无新帧时保持上一份快照 */
         uint8_t has_new_err = 0U;
-        uint8_t Err_abs = 0U;
         if (Shared_TakeErr(&new_position_err, &new_ring_entry_slowdown))
         {
             position_err = new_position_err;
             ring_entry_slowdown = new_ring_entry_slowdown;
             has_new_err = 1U;
         }
-        if(position_err>0)Err_abs=position_err;
-        if(position_err<0)Err_abs=-position_err;
 
         /* CPU0识别到斑马线并锁定后，依次置零PWM和PI偏置，然后设置舵机中位停车。 */
         if (StopRequest != 0U)
@@ -135,22 +134,22 @@ int core1_main(void)
             continue;
         }
 
-        /* 速度PI闭环 */
-        pwm_left  = PI_Update(&s_PI_Left,  position_err, enc_left,  StraightSpeed);
-        pwm_right = PI_Update(&s_PI_Right, position_err, enc_right, StraightSpeed);
-
-        motor_speed = (int16_t)((float)StraightSpeed - 0.3f * (float)Err_abs);
-        /* 进入圆环时按保留比例降速 */
-        if (ring_entry_slowdown != 0U)
+        /* 新编码器样本到达时更新左右独立PI，其余周期保持上次PWM。 */
+        if (encoder_sample_ready != 0U)
         {
-            motor_speed = (int16_t)(motor_speed * RING_ENTRY_SPEED_PERCENT / 100);
-        }
+            int16_t target_speed = StraightSpeed;
 
-        /* 双向输出统一限制在-100~100，防止调参后越过电机PWM边界。 */
-        if (motor_speed > 100)  motor_speed = 100;
-        if (motor_speed < -100) motor_speed = -100;
-        Motor_SetLeftPWM((int8_t)motor_speed);
-        Motor_SetRightPWM((int8_t)motor_speed);
+            /* 进环减速作用于目标速度，避免闭环把减速量重新补回来。 */
+            if (ring_entry_slowdown != 0U)
+            {
+                target_speed = (int16_t)(target_speed * RING_ENTRY_SPEED_PERCENT / 100);
+            }
+
+            pwm_left  = PI_Update(&s_PI_Left,  position_err, enc_left,  target_speed);
+            pwm_right = PI_Update(&s_PI_Right, position_err, enc_right, target_speed);
+            Motor_SetLeftPWM(pwm_left);
+            Motor_SetRightPWM(pwm_right);
+        }
 
         /* 每个图像Err只执行一次PD，避免10ms控制周期重复覆盖微分输出。 */
         if (has_new_err != 0U)

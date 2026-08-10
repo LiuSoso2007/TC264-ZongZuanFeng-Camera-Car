@@ -1916,19 +1916,34 @@ static void Ring_State_Update(void)
         valley_row = -1;
         valley_col = -1;
         /* 复用ENTRY横向扫描，并要求出环拐点上方两行连续。 */
-        if (!Ring_Find_Entry_Corner(direction, 1U, &valley_row, &valley_col)
-            || valley_row > 50
-            || (s_ring_prev_recovery_valley_row >= 0
-                && (valley_row - s_ring_prev_recovery_valley_row > 15
-                    || s_ring_prev_recovery_valley_row - valley_row > 15)))
+        if (Ring_Find_Entry_Corner(direction, 1U, &valley_row, &valley_col)
+            && valley_row <= 50
+            && (s_ring_prev_recovery_valley_row < 0
+                || (valley_row - s_ring_prev_recovery_valley_row <= 15
+                    && s_ring_prev_recovery_valley_row - valley_row <= 15)))
         {
+            s_ring_feature_count = 0U;
+            s_ring_recovery_valley_row = valley_row;
+            s_ring_recovery_valley_col = valley_col;
+            s_ring_prev_recovery_valley_row = valley_row;
+        }
+        else if (s_ring_prev_recovery_valley_row >= 0)
+        {
+            /* 已锁定的恢复拐点消失或突变，说明车辆已经离开恢复段。 */
             Ring_Clear_State();
             break;
         }
-
-        s_ring_recovery_valley_row = valley_row;
-        s_ring_recovery_valley_col = valley_col;
-        s_ring_prev_recovery_valley_row = valley_row;
+        else
+        {
+            /* 首次尚未锁定拐点时有限等待，避免出环补线被单帧漏检提前撤销。 */
+            if (s_ring_feature_count < RING_RECOVERY_ACQUIRE_MAX_FRAMES)
+                s_ring_feature_count++;
+            if (s_ring_feature_count >= RING_RECOVERY_ACQUIRE_MAX_FRAMES)
+            {
+                Ring_Clear_State();
+                break;
+            }
+        }
         break;
 
     default:
@@ -1937,12 +1952,13 @@ static void Ring_State_Update(void)
     }
 }
 
-/* EXIT2拐点2跳变帧沿用上一帧Err，避免状态切换瞬间舵机突变。 */
+/* EXIT2切换帧及RECOVERY首次找点等待期沿用上一帧Err，避免舵机突变。 */
 /* 返回是否沿用上一帧Err */
 uint8 Ring_Should_Hold_Err(void)
 {
     return (uint8)(ImageFlag.image_element_rings_flag == RING_STATE_RECOVERY
-        && s_ring_state_frames == 0U);
+        && (s_ring_state_frames == 0U
+            || s_ring_prev_recovery_valley_row < 0));
 }
 
 /* ---- 对侧贴边行数检查 ----
@@ -2040,7 +2056,7 @@ void Element_Judgment_Zebra(void)
     int valid_rows = 0;
     static int confirm_cnt = 0;
 
-    /* 斑马线优先于十字和圆环，允许在圆环状态中继续判定。 */
+    /* 活动圆环已由Scan_Element提前返回，不会进入本判定。 */
     if (ImageFlag.Zebra_Flag != 0)
         return;
 
@@ -2342,6 +2358,11 @@ void Get_ExtensionLine(void)
 
     s_cross_detected = 0U;
 
+    /* 圆环已锁定后必须完成出环，禁止交汇处的十字补线覆盖圆环中线。 */
+    if (ImageFlag.image_element_rings != 0
+        || ImageFlag.image_element_rings_flag != RING_STATE_IDLE)
+        return;
+
     if (!Cross_Find_Corners(&left_row, &left_col, &right_row, &right_col))
         return;
 
@@ -2385,14 +2406,17 @@ void Scan_Element(void)
     g_right_jump_count = (uint8)Ring_Check_Border_Jump(2U, RING_JUMP_THRESHOLD, RING_JUMP_SCAN_MIN_ROW, RING_JUMP_SCAN_MAX_ROW,
                                                        &s_right_jump_other_lost_count);
 
-    /* 元素优先级：斑马线 > 十字 > 圆环。 */
+    /* 圆环锁定后只推进圆环状态，不再识别斑马线、十字或其他新元素。 */
+    if (ImageFlag.image_element_rings != 0
+        || ImageFlag.image_element_rings_flag != RING_STATE_IDLE)
+        return;
+
+    /* 无圆环时按斑马线、十字、圆环初判的顺序识别。 */
     if (ImageFlag.Ramp == 0)
     {
         Element_Judgment_Zebra();
         if (ImageFlag.Zebra_Flag != 0)
         {
-            if (ImageFlag.image_element_rings != 0)
-                Ring_Clear_State();
             return;
         }
 
@@ -2400,8 +2424,6 @@ void Scan_Element(void)
         if (s_cross_detected)
         {
             s_cross_exit_delay_frames = CROSS_EXIT_DELAY_FRAMES;
-            if (ImageFlag.image_element_rings != 0)
-                Ring_Clear_State();
             return;
         }
 

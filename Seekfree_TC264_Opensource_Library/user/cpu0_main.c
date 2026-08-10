@@ -18,8 +18,8 @@ IfxCpu_mutexLock ErrMailboxLock   = 0U;
 volatile uint8_t StopRequest = 0U;
 volatile uint8_t RingEntrySlowdown = 0U;
 
-/* 压缩图中行号越小前瞻越远，40比42中间稍近但更稳定。 */
-#define STEERING_LOOKAHEAD_ROW 40
+/* 压缩图中行号越小前瞻越远，41比42中间稍近但更稳定。 */
+#define STEERING_LOOKAHEAD_ROW 41
 
 /* 文字仪表盘开关(轻量)，1=开 0=关。关闭后屏幕全黑，但会失去DMA同步延迟。 */
 #define IPS200_TEXT_DISPLAY_ENABLE 0

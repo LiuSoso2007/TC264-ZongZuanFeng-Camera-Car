@@ -42,7 +42,7 @@ static int16_t  EncCount        = 0;
 
 /* PD参数 */
 #define PD_KP          0.85f
-#define PD_KD          10.0f
+#define PD_KD          10.8f
 
 /* 左右电机PI控制器 */
 static PI_t s_PI_Left, s_PI_Right;

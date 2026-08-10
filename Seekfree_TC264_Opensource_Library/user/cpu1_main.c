@@ -32,6 +32,7 @@ volatile int16_t EncRight = 0;
 #if (MOTOR_PI_SAMPLE_TICKS == 0U) || (MOTOR_PI_SAMPLE_PERIOD_MS > 1000U)
 #error "Motor PI sample period is invalid"
 #endif
+/* 直道目标速度（编码器脉冲/秒）：增大更快，减小更慢；500对应每40ms目标20脉冲，不能按PWM百分比填写。 */
 static int16_t StraightSpeedPps = 500;
 static uint8_t EncCount = 0U;
 

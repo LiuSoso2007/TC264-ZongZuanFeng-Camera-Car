@@ -1962,14 +1962,19 @@ uint8 Ring_Should_Hold_Err(void)
 }
 
 /* ---- 对侧贴边行数检查 ----
- * 检查10~42行范围，边缘margin=8像素，贴边行>3则返回1
- * direction=1: 检查右边线是否太多行挤到右边缘
- * direction=2: 检查左边线是否太多行挤到左边缘
+ * 检查10~42行的贴边/丢线，并在30~19行向上统计对侧边线列数变大的行。
+ * 两类异常共用计数，超过允许行数后否决圆环初判。
+ * direction=1: 检查右边线；direction=2: 检查左边线。
  */
+#define RING_TOO_MUCH_EDGE_GROW_BOTTOM_ROW 30
+#define RING_TOO_MUCH_EDGE_GROW_TOP_ROW    19
+#define RING_TOO_MUCH_EDGE_MAX_ROWS         3
 static uint8 Ring_OtherSide_Too_Much_Edge(uint8 direction)
 {
     int row;
     int edge_rows = 0;
+    int prev_col = 0;
+    uint8 prev_found = 0U;
     const int margin = 8;
 
     for (row = 42; row >= 10; row--)
@@ -1987,7 +1992,34 @@ static uint8 Ring_OtherSide_Too_Much_Edge(uint8 direction)
                 edge_rows++;
         }
     }
-    return (uint8)(edge_rows > 3);
+
+    for (row = RING_TOO_MUCH_EDGE_GROW_BOTTOM_ROW;
+         row >= RING_TOO_MUCH_EDGE_GROW_TOP_ROW;
+         row--)
+    {
+        int curr_col;
+        uint8 curr_found;
+
+        if (direction == 1U)
+        {
+            curr_found = (uint8)(ImageDeal[row].IsRightFind == 'T');
+            curr_col = ImageDeal[row].RightBorder;
+        }
+        else
+        {
+            curr_found = (uint8)(ImageDeal[row].IsLeftFind == 'T');
+            curr_col = ImageDeal[row].LeftBorder;
+        }
+
+        /* 仅比较相邻且都有效的边线，避免跨越丢线行产生假增长。 */
+        if (curr_found != 0U && prev_found != 0U && curr_col > prev_col)
+            edge_rows++;
+
+        prev_col = curr_col;
+        prev_found = curr_found;
+    }
+
+    return (uint8)(edge_rows > RING_TOO_MUCH_EDGE_MAX_ROWS);
 }
 
 /* 左圆环初判 */

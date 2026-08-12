@@ -1962,9 +1962,9 @@ uint8 Ring_Should_Hold_Err(void)
 }
 
 /* ---- 对侧贴边行数检查 ----
- * 检查10~42行的贴边/丢线，并在30~19行向上统计对侧边线列数变大的行。
+ * 检查10~42行的贴边/丢线，并在30~19行向上统计对侧边线异常变化的行。
  * 两类异常共用计数，超过允许行数后否决圆环初判。
- * direction=1: 检查右边线；direction=2: 检查左边线。
+ * direction=1: 右边线列数变大；direction=2: 左边线列数变小。
  */
 #define RING_TOO_MUCH_EDGE_GROW_BOTTOM_ROW 30
 #define RING_TOO_MUCH_EDGE_GROW_TOP_ROW    19
@@ -2011,8 +2011,10 @@ static uint8 Ring_OtherSide_Too_Much_Edge(uint8 direction)
             curr_col = ImageDeal[row].LeftBorder;
         }
 
-        /* 仅比较相邻且都有效的边线，避免跨越丢线行产生假增长。 */
-        if (curr_found != 0U && prev_found != 0U && curr_col > prev_col)
+        /* 仅比较相邻且都有效的边线，避免跨越丢线行产生假变化。 */
+        if (curr_found != 0U && prev_found != 0U
+            && ((direction == 1U && curr_col > prev_col)
+                || (direction == 2U && curr_col < prev_col)))
             edge_rows++;
 
         prev_col = curr_col;

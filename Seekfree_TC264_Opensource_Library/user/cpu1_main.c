@@ -32,8 +32,17 @@ volatile int16_t EncRight = 0;
 #if (MOTOR_PI_SAMPLE_TICKS == 0U) || (MOTOR_PI_SAMPLE_PERIOD_MS > 1000U)
 #error "Motor PI sample period is invalid"
 #endif
-/* 直道目标速度（编码器脉冲/秒）：增大更快，减小更慢；500对应每40ms目标20脉冲，不能按PWM百分比填写。 */
-static int16_t StraightSpeedPps = 500;
+/*
+ * 直道理论车速（米/秒）：日常只调此参数，增大更快，减小更慢。
+ * 编码器装在电机轴，程序有效1倍频：车轮每圈脉冲 = 11PPR * 10减速比 = 110。
+ * 轮胎理论周长 = PI * 0.066m；40ms目标脉冲 = 车速 * 110 / 轮胎周长 * 0.04s。
+ * 1.70m/s约等于900pps，即每40ms目标36脉冲；实际车速会受轮胎形变和打滑影响。
+ */
+#define ENCODER_BASE_PPR       11.0f
+#define MOTOR_GEAR_RATIO       10.0f
+#define WHEEL_DIAMETER_M        0.066f
+#define WHEEL_PI_VALUE          3.1415926f
+static float StraightSpeedMps = 1.70f;
 static uint8_t EncCount = 0U;
 
 /* 进环保留速度百分比：60表示保留原速度60%，数值越大越快，越小越慢。 */
@@ -144,8 +153,13 @@ int core1_main(void)
         /* 新编码器样本到达时更新左右独立PI，其余周期保持上次PWM。 */
         if (encoder_sample_ready != 0U)
         {
-            int16_t target_speed = (int16_t)((int32_t)StraightSpeedPps
-                                   * (int32_t)MOTOR_PI_SAMPLE_PERIOD_MS / 1000);
+            float target_pulses = StraightSpeedMps * ENCODER_BASE_PPR * MOTOR_GEAR_RATIO
+                                * (float)MOTOR_PI_SAMPLE_PERIOD_MS
+                                / (WHEEL_PI_VALUE * WHEEL_DIAMETER_M * 1000.0f);
+            int16_t target_speed;
+            if (target_pulses >= 32767.0f)       target_speed = 32767;
+            else if (target_pulses <= -32768.0f) target_speed = -32768;
+            else target_speed = (int16_t)(target_pulses + (target_pulses >= 0.0f ? 0.5f : -0.5f));
 
             /* 进环减速作用于目标速度，避免闭环把减速量重新补回来。 */
             if (ring_entry_slowdown != 0U)

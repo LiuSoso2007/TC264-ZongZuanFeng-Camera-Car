@@ -111,7 +111,23 @@ int core1_main(void)
             (void)KeyNum;
         }
 
-        /* 等待控制周期 */
+        /* 新Err到达后立即更新舵机，避免额外等待最长10ms控制周期。 */
+        if (ErrReady != 0U && StopRequest == 0U)
+        {
+            uint8_t has_new_err = 0U;
+            if (Shared_TakeErr(&new_position_err, &new_ring_entry_slowdown))
+            {
+                position_err = new_position_err;
+                ring_entry_slowdown = new_ring_entry_slowdown;
+                has_new_err = 1U;
+            }
+            if (has_new_err != 0U && StopRequest == 0U)
+            {
+                PD_Update(PD_KP, PD_KD, position_err);
+            }
+        }
+
+        /* 电机与编码器仍保持10ms控制周期。 */
         if (!PID_Flag)
         {
             continue;
@@ -132,14 +148,7 @@ int core1_main(void)
         EncLeft  = enc_left;
         EncRight = enc_right;
 
-        /* 赛道误差：CPU0图像输出，无新帧时保持上一份快照 */
-        uint8_t has_new_err = 0U;
-        if (Shared_TakeErr(&new_position_err, &new_ring_entry_slowdown))
-        {
-            position_err = new_position_err;
-            ring_entry_slowdown = new_ring_entry_slowdown;
-            has_new_err = 1U;
-        }
+        /* 赛道误差已在主循环入口即时获取，无新帧时保持上一份快照。 */
 
         /* CPU0识别到斑马线并锁定后，依次置零PWM和PI偏置，然后设置舵机中位停车。 */
         if (StopRequest != 0U)
@@ -171,12 +180,6 @@ int core1_main(void)
             pwm_right = PI_Update(&s_PI_Right, position_err, enc_right, target_pulses);
             Motor_SetLeftPWM(pwm_left);
             Motor_SetRightPWM(pwm_right);
-        }
-
-        /* 每个图像Err只执行一次PD，避免10ms控制周期重复覆盖微分输出。 */
-        if (has_new_err != 0U)
-        {
-            PD_Update(PD_KP, PD_KD, position_err);
         }
 
     }

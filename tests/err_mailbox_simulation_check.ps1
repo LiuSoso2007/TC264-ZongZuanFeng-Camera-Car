@@ -49,9 +49,9 @@ Assert-Contains $Cpu1 'if (Shared_TakeErr(&new_position_err, &new_ring_entry_slo
 Assert-Contains $Cpu1 'ring_entry_slowdown = new_ring_entry_slowdown;' 'CPU1 does not update the local slowdown snapshot from the mailbox'
 Assert-Contains $Cpu1 'PD_Update(PD_KP, PD_KD, position_err);' 'CPU1 does not run PD from one stable Err snapshot'
 
-$Cpu1PdPattern = 'if\s*\(has_new_err\s*!=\s*0U\)\s*\{\s*PD_Update\(PD_KP, PD_KD, position_err\);\s*\}'
+$Cpu1PdPattern = 'if\s*\(has_new_err\s*!=\s*0U\s*&&\s*StopRequest\s*==\s*0U\)\s*\{\s*PD_Update\(PD_KP, PD_KD, position_err\);\s*\}'
 if (-not [regex]::IsMatch($Cpu1, $Cpu1PdPattern)) {
-    throw 'CPU1 PD call is not guarded by the new-Err result'
+    throw 'CPU1 PD call is not guarded by new Err and the stop request'
 }
 
 function New-MailboxState {

@@ -21,15 +21,6 @@ volatile uint8_t RingEntrySlowdown = 0U;
 /* 压缩图中行号越小前瞻越远，41比42中间稍近但更稳定。 */
 #define STEERING_LOOKAHEAD_ROW 41
 
-/* Err一阶低通：本帧占70%，上次滤波结果占30%。 */
-#define ERR_FILTER_NEW_PERCENT 70U
-#define ERR_FILTER_OLD_PERCENT 30U
-#if (ERR_FILTER_NEW_PERCENT + ERR_FILTER_OLD_PERCENT) != 100U
-#error "Err filter percentages must add up to 100"
-#endif
-static float s_filtered_err = 0.0f;
-static uint8_t s_err_filter_initialized = 0U;
-
 /* 文字仪表盘开关(轻量)，1=开 0=关。关闭后屏幕全黑，但会失去DMA同步延迟。 */
 #define IPS200_TEXT_DISPLAY_ENABLE 0
 #define IPS200_DISPLAY_IMAGE_ENABLE 0
@@ -167,20 +158,8 @@ int core0_main(void)
                     frame_err = 0.0f;
                 }
 
-                /* 首帧直接初始化，后续按新值70%、旧值30%滤波，避免启动时被默认0压低。 */
-                if (s_err_filter_initialized == 0U)
-                {
-                    s_filtered_err = frame_err;
-                    s_err_filter_initialized = 1U;
-                }
-                else
-                {
-                    s_filtered_err = ((float)ERR_FILTER_NEW_PERCENT * frame_err
-                                    + (float)ERR_FILTER_OLD_PERCENT * s_filtered_err) / 100.0f;
-                }
-
-                /* 一帧处理完成后原子覆盖邮箱，CPU1只消费一次最新滤波Err。 */
-                Shared_PublishErr(s_filtered_err, ring_entry_slowdown);
+                /* 一帧处理完成后原子覆盖邮箱，CPU1只消费一次最新Err。 */
+                Shared_PublishErr(frame_err, ring_entry_slowdown);
             }
 #if IPS200_DISPLAY_IMAGE_ENABLE
             /* 每帧只写QSPI2到达，避免直接刷新防止闪烁，节约带宽以显示路径线 */

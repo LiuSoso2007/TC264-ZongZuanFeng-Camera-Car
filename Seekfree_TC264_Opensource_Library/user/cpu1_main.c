@@ -37,7 +37,7 @@ volatile int16_t EncRight = 0;
  * 编码器装在电机轴，程序有效1倍频：车轮每圈脉冲 = 11PPR * 10减速比 = 110。
  * 轮胎理论周长 = PI * 0.066m；40ms目标脉冲 = 车速 * 110 / 轮胎周长 * 0.04s。
  * 40ms内1个脉冲对应约0.047m/s，故理论车速分辨率约0.047m/s，四舍五入误差最大约±0.024m/s。
- * 1.70m/s约等于900pps，即每40ms目标36脉冲；实际车速会受轮胎形变和打滑影响。
+ * 2.00m/s约等于1061pps，即每40ms理论42.44脉冲、程序取整为42脉冲；实际车速会受轮胎形变和打滑影响。
  */
 #define ENCODER_BASE_PPR       11U
 #define MOTOR_GEAR_RATIO       10U
@@ -46,7 +46,7 @@ volatile int16_t EncRight = 0;
 #if (ENCODER_BASE_PPR == 0U) || (MOTOR_GEAR_RATIO == 0U) || (WHEEL_DIAMETER_MM == 0U)
 #error "Motor speed mapping constants must be greater than zero"
 #endif
-static float StraightSpeedMps = 1.70f;
+static float StraightSpeedMps = 2.00f;
 static uint8_t EncCount = 0U;
 
 /* 进环保留速度百分比：60表示保留原速度60%，数值越大越快，越小越慢。 */

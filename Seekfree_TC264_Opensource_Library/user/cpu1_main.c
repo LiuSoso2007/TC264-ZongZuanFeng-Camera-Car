@@ -1,9 +1,9 @@
 /**
- * CPU1: 运动控制
+ * CPU1: 杩愬姩鎺у埗
  *
- * CPU0: 图像采集与处理，输出赛道偏差Err与元素标志
- * CPU1: 10ms调度舵机PD，电机PI按40ms编码器新样本更新
- * 控制定时器: CCU61_CH0 PIT 10ms（中断在isr.c中）
+ * CPU0: 鍥惧儚閲囬泦涓庡鐞嗭紝杈撳嚭璧涢亾鍋忓樊Err涓庡厓绱犳爣蹇?
+ * CPU1: 缂栫爜鍣ㄣ€佽埖鏈篜D銆佺數鏈篜I閫熷害鐜紝鎺у埗鍛ㄦ湡10ms
+ * 鎺у埗瀹氭椂鍣? CCU61_CH0 PIT 10ms锛堜腑鏂湪isr.c涓級
  */
 
 #include "zf_common_headfile.h"
@@ -16,77 +16,57 @@
 #include "Shared.h"
 #include "isr.h"
 
-/* PID_Flag：由isr.c中cc61_pit_ch0中断置1，本函数处理后清零 */
+/* PID_Flag锛氱敱isr.c涓璫c61_pit_ch0涓柇缃?锛屾湰鍑芥暟澶勭悊鍚庢竻闆?*/
 volatile uint8_t PID_Flag = 0;
 
-/* CPU1本地变量：CPU0只读用于显示，无需互斥锁 */
+/* CPU1鏈湴鍙橀噺锛欳PU0鍙鐢ㄤ簬鏄剧ず锛屾棤闇€浜掓枼閿?*/
 volatile int16_t EncLeft  = 0;
 volatile int16_t EncRight = 0;
 
-#pragma section all "cpu1_dsram"   /* CPU1私有变量放入DSRAM段 */
+#pragma section all "cpu1_dsram"   /* CPU1绉佹湁鍙橀噺鏀惧叆DSRAM娈?*/
 
-/* 电机PI每4个10ms调度周期更新；理论车速换算为每40ms编码器目标脉冲数。 */
-#define MOTOR_CONTROL_PERIOD_MS   10U
-#define MOTOR_PI_SAMPLE_TICKS      4U
-#define MOTOR_PI_SAMPLE_PERIOD_MS (MOTOR_CONTROL_PERIOD_MS * MOTOR_PI_SAMPLE_TICKS)
-#if (MOTOR_PI_SAMPLE_TICKS == 0U) || (MOTOR_PI_SAMPLE_PERIOD_MS > 1000U)
-#error "Motor PI sample period is invalid"
-#endif
-/*
- * 直道理论车速（米/秒）：日常只调此参数，增大更快，减小更慢。
- * 编码器装在电机轴，程序有效1倍频：车轮每圈脉冲 = 11PPR * 10减速比 = 110。
- * 轮胎理论周长 = PI * 0.066m；40ms目标脉冲 = 车速 * 110 / 轮胎周长 * 0.04s。
- * 40ms内1个脉冲对应约0.047m/s，故理论车速分辨率约0.047m/s，四舍五入误差最大约±0.024m/s。
- * 2.00m/s约等于1061pps，即每40ms理论42.44脉冲、程序取整为42脉冲；实际车速会受轮胎形变和打滑影响。
- */
-#define ENCODER_BASE_PPR       11U
-#define MOTOR_GEAR_RATIO       10U
-#define WHEEL_DIAMETER_MM      66U
-#define WHEEL_PI_VALUE          3.1415926f
-#if (ENCODER_BASE_PPR == 0U) || (MOTOR_GEAR_RATIO == 0U) || (WHEEL_DIAMETER_MM == 0U)
-#error "Motor speed mapping constants must be greater than zero"
-#endif
-static float StraightSpeedMps = 2.00f;
-static uint8_t EncCount = 0U;
+/* CPU1鏈湴鍙傛暟锛堝悗缁彲鐢ㄦ寜閿?IMU璋冩暣锛?*/
+static int8_t   StraightSpeed = 50;
+static int16_t  EncCount        = 0;
 
-/* 进环保留速度百分比：60表示保留原速度60%，数值越大越快，越小越慢。 */
+/* 杩涚幆淇濈暀閫熷害鐧惧垎姣旓細60琛ㄧず淇濈暀鍘熼€熷害60%锛屾暟鍊艰秺澶ц秺蹇紝瓒婂皬瓒婃參銆?*/
 #define RING_ENTRY_SPEED_PERCENT 60
 #if RING_ENTRY_SPEED_PERCENT < 0 || RING_ENTRY_SPEED_PERCENT > 100
 #error "RING_ENTRY_SPEED_PERCENT must be between 0 and 100"
 #endif
 
-/* PI参数 */
-#define PI_KP          0.8f
+/* PI鍙傛暟 */
+#define PI_KP          0.4f
 #define PI_KI          0.02f
 #define CURVE_SPEED    0
 
-/* PD参数 */
-#define PD_KP          0.85f
+/* PD鍙傛暟 */
+#define PD_KP          0.78f
 #define PD_KD          10.8f
 
-/* 左右电机PI控制器 */
+/* 宸﹀彸鐢垫満PI鎺у埗鍣?*/
 static PI_t s_PI_Left, s_PI_Right;
 
-/* CPU1入口函数 */
+/* CPU1鍏ュ彛鍑芥暟 */
 int core1_main(void)
 {
-    /* CPU1初始化：关闭看门狗并开总中断 */
+    /* CPU1鍒濆鍖栵細鍏抽棴鐪嬮棬鐙楀苟寮€鎬讳腑鏂?*/
     disable_Watchdog();
     interrupt_global_enable(0);
 
     int16_t  enc_left = 0, enc_right = 0;
-    int8_t   pwm_left, pwm_right;
+    int8_t   pwm_left,  pwm_right;
+    int16_t  motor_speed;
     float    position_err = 0.0f;
     float    new_position_err;
     uint8_t  ring_entry_slowdown = 0U;
     uint8_t  new_ring_entry_slowdown;
-    uint8_t  encoder_sample_ready = 0U;
 
-    /* CPU1外设初始化 */
-    Key_Init();                          /* 四键按键（功能预留） */
-    Encoder_Init();                      /* 编码器：左TIM6/右TIM4 */
-    Motor_Init();                        /* 电机双极性PWM(ATOM0) */
-    Servo_Init();                        /* 舵机50Hz PWM(ATOM0) */
+    /* CPU1澶栬鍒濆鍖?*/
+    Key_Init();                          /* 鍥涢敭鎸夐敭锛堝姛鑳介鐣欙級 */
+    Encoder_Init();                      /* 缂栫爜鍣細宸IM6/鍙砊IM4 */
+    Motor_Init();                        /* 鐢垫満鍙屾瀬鎬WM(ATOM0) */
+    Servo_Init();                        /* 鑸垫満50Hz PWM(ATOM0) */
 
     PI_Init(&s_PI_Left,  PI_KP, PI_KI, CURVE_SPEED);
     PI_Init(&s_PI_Right, PI_KP, PI_KI, CURVE_SPEED);
@@ -94,24 +74,24 @@ int core1_main(void)
     Motor_SetLeftPWM(0);
     Motor_SetRightPWM(0);
 
-    /* 按键扫描定时器：5ms（CPU1 PIT） */
+    /* 鎸夐敭鎵弿瀹氭椂鍣細5ms锛圕PU1 PIT锛?*/
     pit_ms_init(CCU60_CH1, 5);
 
-    /* 控制周期定时器：10ms，中断由CPU1处理 */
-    pit_ms_init(CCU61_CH0, MOTOR_CONTROL_PERIOD_MS);
+    /* 鎺у埗鍛ㄦ湡瀹氭椂鍣細10ms锛屼腑鏂敱CPU1澶勭悊 */
+    pit_ms_init(CCU61_CH0, 10);
 
-    /* 等待CPU0就绪 */
+    /* 绛夊緟CPU0灏辩华 */
     cpu_wait_event_ready();
 
     while (TRUE)
     {
         {
-            /* 按键扫描（暂未绑定功能） */
+            /* 鎸夐敭鎵弿锛堟殏鏈粦瀹氬姛鑳斤級 */
             uint8_t KeyNum = Key_GetNum();
             (void)KeyNum;
         }
 
-        /* 新Err到达后立即更新舵机，避免额外等待最长10ms控制周期。 */
+        /* 鏂癊rr鍒拌揪鍚庣珛鍗虫洿鏂拌埖鏈猴紝閬垮厤棰濆绛夊緟鏈€闀?0ms鎺у埗鍛ㄦ湡銆?*/
         if (ErrReady != 0U && StopRequest == 0U)
         {
             uint8_t has_new_err = 0U;
@@ -127,30 +107,31 @@ int core1_main(void)
             }
         }
 
-        /* 电机与编码器仍保持10ms控制周期。 */
+        /* 鐢垫満涓庣紪鐮佸櫒浠嶄繚鎸?0ms鎺у埗鍛ㄦ湡銆?*/
         if (!PID_Flag)
         {
             continue;
         }
         PID_Flag = 0;
 
-        /* 编码器每40ms产生一个新样本，PI也只在此时更新一次。 */
-        encoder_sample_ready = 0U;
+        /* 缂栫爜鍣ㄨ鍙栵細姣?涓帶鍒跺懆鏈熼噰鏍蜂竴娆?*/
         EncCount ++;
-        if(EncCount >= MOTOR_PI_SAMPLE_TICKS)
+        if(EncCount >= 8)
         {
              EncCount = 0;
              enc_left  = Encoder_Get_Left();
              enc_right = Encoder_Get_Right();
-             encoder_sample_ready = 1U;
         }
 
         EncLeft  = enc_left;
         EncRight = enc_right;
 
-        /* 赛道误差已在主循环入口即时获取，无新帧时保持上一份快照。 */
+        /* 璧涢亾璇樊宸插湪涓诲惊鐜叆鍙ｅ嵆鏃惰幏鍙栵紝鏃犳柊甯ф椂淇濇寔涓婁竴浠藉揩鐓с€?*/
+        uint8_t Err_abs = 0U;
+        if(position_err>0)Err_abs=position_err;
+        if(position_err<0)Err_abs=-position_err;
 
-        /* CPU0识别到斑马线并锁定后，依次置零PWM和PI偏置，然后设置舵机中位停车。 */
+        /* CPU0璇嗗埆鍒版枒椹嚎骞堕攣瀹氬悗锛屼緷娆＄疆闆禤WM鍜孭I鍋忕疆锛岀劧鍚庤缃埖鏈轰腑浣嶅仠杞︺€?*/
         if (StopRequest != 0U)
         {
             pwm_left = 0;
@@ -163,24 +144,22 @@ int core1_main(void)
             continue;
         }
 
-        /* 新编码器样本到达时更新左右独立PI，其余周期保持上次PWM。 */
-        if (encoder_sample_ready != 0U)
+        /* 閫熷害PI闂幆 */
+        pwm_left  = PI_Update(&s_PI_Left,  position_err, enc_left,  StraightSpeed);
+        pwm_right = PI_Update(&s_PI_Right, position_err, enc_right, StraightSpeed);
+
+        motor_speed = (int16_t)((float)StraightSpeed - 0.4f * (float)Err_abs);
+        /* 杩涘叆鍦嗙幆鏃舵寜淇濈暀姣斾緥闄嶉€?*/
+        if (ring_entry_slowdown != 0U)
         {
-            float target_pulses = StraightSpeedMps * ENCODER_BASE_PPR * MOTOR_GEAR_RATIO
-                                * (float)MOTOR_PI_SAMPLE_PERIOD_MS
-                                / (WHEEL_PI_VALUE * WHEEL_DIAMETER_MM);
-
-            /* 进环比例保持浮点计算，由PI完成最终一次取整，避免多次整数截断损失精度。 */
-            if (ring_entry_slowdown != 0U)
-            {
-                target_pulses *= (float)RING_ENTRY_SPEED_PERCENT / 100.0f;
-            }
-
-            pwm_left  = PI_Update(&s_PI_Left,  position_err, enc_left,  target_pulses);
-            pwm_right = PI_Update(&s_PI_Right, position_err, enc_right, target_pulses);
-            Motor_SetLeftPWM(pwm_left);
-            Motor_SetRightPWM(pwm_right);
+            motor_speed = (int16_t)(motor_speed * RING_ENTRY_SPEED_PERCENT / 100);
         }
+
+        /* 鍙屽悜杈撳嚭缁熶竴闄愬埗鍦?100~100锛岄槻姝㈣皟鍙傚悗瓒婅繃鐢垫満PWM杈圭晫銆?*/
+        if (motor_speed > 100)  motor_speed = 100;
+        if (motor_speed < -100) motor_speed = -100;
+        Motor_SetLeftPWM((int8_t)motor_speed);
+        Motor_SetRightPWM((int8_t)motor_speed);
 
     }
 }

@@ -10,8 +10,8 @@
 #if SERVO_MIN_ANGLE > SERVO_CENTER_ANGLE || SERVO_CENTER_ANGLE > SERVO_MAX_ANGLE
 #error "SERVO_CENTER_ANGLE must be between SERVO_MIN_ANGLE and SERVO_MAX_ANGLE"
 #endif
-#if SERVO_MAX_ANGLE > 180U
-#error "SERVO_MAX_ANGLE must not exceed 180"
+#if SERVO_MAX_ANGLE > 190U
+#error "SERVO_MAX_ANGLE must not exceed 190"
 #endif
 
 /*

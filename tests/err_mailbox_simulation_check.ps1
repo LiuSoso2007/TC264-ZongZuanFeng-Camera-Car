@@ -44,7 +44,7 @@ if (Test-LockProtocol -Text $Shared.Replace('IfxCpu_releaseMutex(&ErrMailboxLock
 Assert-Contains $PidHeader 'void PD_Update(float Kp, float Kd, float err);' 'PD API does not accept a local Err snapshot'
 Assert-Contains $PidSource 'void PD_Update(float Kp, float Kd, float err)' 'PD implementation does not accept a local Err snapshot'
 Assert-Contains $PidSource 's_pd_err0 = err;' 'PD does not use the stable local Err snapshot'
-Assert-Contains $Cpu0 'Shared_PublishErr(frame_err, ring_entry_slowdown);' 'CPU0 does not publish Err and ring slowdown together after a completed frame'
+Assert-Contains $Cpu0 'Shared_PublishErr(s_filtered_err, ring_entry_slowdown);' 'CPU0 does not publish filtered Err and ring slowdown together after a completed frame'
 Assert-Contains $Cpu1 'if (Shared_TakeErr(&new_position_err, &new_ring_entry_slowdown))' 'CPU1 does not consume Err and ring slowdown with the same new-data guard'
 Assert-Contains $Cpu1 'ring_entry_slowdown = new_ring_entry_slowdown;' 'CPU1 does not update the local slowdown snapshot from the mailbox'
 Assert-Contains $Cpu1 'PD_Update(PD_KP, PD_KD, position_err);' 'CPU1 does not run PD from one stable Err snapshot'

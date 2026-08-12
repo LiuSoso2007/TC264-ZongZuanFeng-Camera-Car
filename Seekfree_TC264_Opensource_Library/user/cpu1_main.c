@@ -25,7 +25,7 @@ volatile int16_t EncRight = 0;
 
 #pragma section all "cpu1_dsram"   /* CPU1私有变量放入DSRAM段 */
 
-/* 电机PI每4个10ms调度周期更新；目标速度统一使用编码器脉冲/秒。 */
+/* 电机PI每4个10ms调度周期更新；理论车速换算为每40ms编码器目标脉冲数。 */
 #define MOTOR_CONTROL_PERIOD_MS   10U
 #define MOTOR_PI_SAMPLE_TICKS      4U
 #define MOTOR_PI_SAMPLE_PERIOD_MS (MOTOR_CONTROL_PERIOD_MS * MOTOR_PI_SAMPLE_TICKS)
@@ -39,10 +39,13 @@ volatile int16_t EncRight = 0;
  * 40ms内1个脉冲对应约0.047m/s，故理论车速分辨率约0.047m/s，四舍五入误差最大约±0.024m/s。
  * 1.70m/s约等于900pps，即每40ms目标36脉冲；实际车速会受轮胎形变和打滑影响。
  */
-#define ENCODER_BASE_PPR       11.0f
-#define MOTOR_GEAR_RATIO       10.0f
-#define WHEEL_DIAMETER_M        0.066f
+#define ENCODER_BASE_PPR       11U
+#define MOTOR_GEAR_RATIO       10U
+#define WHEEL_DIAMETER_MM      66U
 #define WHEEL_PI_VALUE          3.1415926f
+#if (ENCODER_BASE_PPR == 0U) || (MOTOR_GEAR_RATIO == 0U) || (WHEEL_DIAMETER_MM == 0U)
+#error "Motor speed mapping constants must be greater than zero"
+#endif
 static float StraightSpeedMps = 1.70f;
 static uint8_t EncCount = 0U;
 
@@ -156,20 +159,16 @@ int core1_main(void)
         {
             float target_pulses = StraightSpeedMps * ENCODER_BASE_PPR * MOTOR_GEAR_RATIO
                                 * (float)MOTOR_PI_SAMPLE_PERIOD_MS
-                                / (WHEEL_PI_VALUE * WHEEL_DIAMETER_M * 1000.0f);
-            int16_t target_speed;
-            if (target_pulses >= 32767.0f)       target_speed = 32767;
-            else if (target_pulses <= -32768.0f) target_speed = -32768;
-            else target_speed = (int16_t)(target_pulses + (target_pulses >= 0.0f ? 0.5f : -0.5f));
+                                / (WHEEL_PI_VALUE * WHEEL_DIAMETER_MM);
 
-            /* 进环减速作用于目标速度，避免闭环把减速量重新补回来。 */
+            /* 进环比例保持浮点计算，由PI完成最终一次取整，避免多次整数截断损失精度。 */
             if (ring_entry_slowdown != 0U)
             {
-                target_speed = (int16_t)(target_speed * RING_ENTRY_SPEED_PERCENT / 100);
+                target_pulses *= (float)RING_ENTRY_SPEED_PERCENT / 100.0f;
             }
 
-            pwm_left  = PI_Update(&s_PI_Left,  position_err, enc_left,  target_speed);
-            pwm_right = PI_Update(&s_PI_Right, position_err, enc_right, target_speed);
+            pwm_left  = PI_Update(&s_PI_Left,  position_err, enc_left,  target_pulses);
+            pwm_right = PI_Update(&s_PI_Right, position_err, enc_right, target_pulses);
             Motor_SetLeftPWM(pwm_left);
             Motor_SetRightPWM(pwm_right);
         }

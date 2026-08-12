@@ -52,31 +52,42 @@ void PI_Init(PI_t *pi, float kp, float ki, int16_t min_speed)
     pi->TargetBias  = 0;
 }
 
-int8_t PI_Update(PI_t *pi, float pos_err, int16_t act_spd, int16_t str_spd)
+int8_t PI_Update(PI_t *pi, float pos_err, int16_t act_spd, float base_target_pulses)
 {
     int16_t abs_err;
-    if (pos_err < 0)
+    if (pos_err != pos_err)
+        abs_err = 100;
+    else if (pos_err <= -100.0f || pos_err >= 100.0f)
+        abs_err = 100;
+    else if (pos_err < 0.0f)
         abs_err = (int16_t)(-pos_err);
     else
         abs_err = (int16_t)pos_err;
-    if (abs_err > 100) abs_err = 100;
 
-    int16_t target;
+    float target_float;
     if (abs_err <= 2)
-        target = str_spd;
+        target_float = base_target_pulses;
     else
-        target = pi->MinSpeed + (int16_t)((int32_t)(str_spd - pi->MinSpeed)
-                                          * (100 - abs_err) / 100);
-    target += pi->TargetBias;
+        target_float = (float)pi->MinSpeed + (base_target_pulses - (float)pi->MinSpeed)
+                     * (float)(100 - abs_err) / 100.0f;
+    target_float += (float)pi->TargetBias;
+
+    /* 所有速度比例完成后只量化一次，并防止异常浮点值或越界转换进入PI。 */
+    int16_t target;
+    if (target_float != target_float)       target = 0;
+    else if (target_float >= 32767.0f)      target = 32767;
+    else if (target_float <= -32768.0f)     target = -32768;
+    else target = (int16_t)(target_float + (target_float >= 0.0f ? 0.5f : -0.5f));
     pi->TargetSpeed = target;
 
-    int16_t err = target - act_spd;
+    int32_t err = (int32_t)target - (int32_t)act_spd;
     float   inc = pi->Kp * (float)(err - pi->LastSpdErr)
                 + pi->Ki * (float)err;
     pi->Output += inc;
     pi->LastSpdErr = err;
 
-    if (pi->Output > PI_OUT_MAX) pi->Output = PI_OUT_MAX;
-    if (pi->Output < PI_OUT_MIN) pi->Output = PI_OUT_MIN;
+    if (pi->Output != pi->Output)   pi->Output = 0.0f;
+    if (pi->Output > PI_OUT_MAX)    pi->Output = PI_OUT_MAX;
+    if (pi->Output < PI_OUT_MIN)    pi->Output = PI_OUT_MIN;
     return (int8_t)pi->Output;
 }

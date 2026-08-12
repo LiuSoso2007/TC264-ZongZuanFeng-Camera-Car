@@ -8,28 +8,51 @@
 #define PD_ERR_DEAD_ZONE 0.0f  /* Err死区边界，范围内舵机回中。 */
 #define SERVO_MIN_SIDE_WEIGHT  0.85f  /* 100方向基础权重，负向误差越大时再按比例增强。 */
 #define SERVO_MAX_SIDE_WEIGHT  0.85f  /* 175方向固定权重，以1为归一化基准。 */
+#define PD_DELTA_ERR_DEAD_ZONE  1.0f  /* 忽略中心线整数化造成的单像素差分抖动。 */
+#define PD_D_OFFSET_LIMIT       4.0f  /* D仅作瞬态修正，单次最多贡献正负4度。 */
 static float   s_pd_out = 0.0f, s_pd_offset = 0.0f;
+static float   s_pd_p_offset = 0.0f, s_pd_d_offset = 0.0f;
 static float   s_pd_err0 = 0.0f, s_pd_err1 = 0.0f;
 
 void PD_Update(float Kp, float Kd, float err)
 {
+    float delta_err;
+    float d_gain;
+
     s_pd_err1 = s_pd_err0;
     s_pd_err0 = err;
 
-    //以下是计算pd
-    if(s_pd_err0 > 0 && s_pd_err0 < 50 )
-        s_pd_offset = Kp * s_pd_err0 + (Kd  * (50-  s_pd_err0 )/50) * (s_pd_err0 - s_pd_err1);
-    else if(s_pd_err0 < 0 && s_pd_err0 > -50 )
-        s_pd_offset = Kp * s_pd_err0 + (Kd  * (50-(-s_pd_err0))/50) * (s_pd_err0 - s_pd_err1);
-    else  s_pd_offset = Kp * s_pd_err0;
-
-    //以下是计算偏移
-    if (s_pd_offset < -8.0f)
-        s_pd_offset *= SERVO_MIN_SIDE_WEIGHT * (1+1.0*(-8-s_pd_offset)/33);  //左偏增大
-    else if(s_pd_offset > 8.0f)
-        s_pd_offset *= SERVO_MAX_SIDE_WEIGHT * (1+1.0*(-8+s_pd_offset)/30);   //右偏增大
+    /* P使用原始Err，保持稳态转向响应；D只处理帧间变化，避免一并进入物理补偿曲线。 */
+    s_pd_p_offset = Kp * s_pd_err0;
+    delta_err = s_pd_err0 - s_pd_err1;
+    if (delta_err > PD_DELTA_ERR_DEAD_ZONE)
+        delta_err -= PD_DELTA_ERR_DEAD_ZONE;
+    else if (delta_err < -PD_DELTA_ERR_DEAD_ZONE)
+        delta_err += PD_DELTA_ERR_DEAD_ZONE;
     else
-        s_pd_offset *= SERVO_MAX_SIDE_WEIGHT;
+        delta_err = 0.0f;
+
+    /* 保留原有随Err增大而衰减的Kd规律，但D输出独立限幅，不再触发非线性放大。 */
+    if (s_pd_err0 > 0.0f && s_pd_err0 < 50.0f)
+        d_gain = Kd * (50.0f - s_pd_err0) / 50.0f;
+    else if (s_pd_err0 < 0.0f && s_pd_err0 > -50.0f)
+        d_gain = Kd * (50.0f + s_pd_err0) / 50.0f;
+    else
+        d_gain = 0.0f;
+
+    s_pd_d_offset = d_gain * delta_err;
+    if (s_pd_d_offset > PD_D_OFFSET_LIMIT)  s_pd_d_offset = PD_D_OFFSET_LIMIT;
+    if (s_pd_d_offset < -PD_D_OFFSET_LIMIT) s_pd_d_offset = -PD_D_OFFSET_LIMIT;
+
+    /* 非线性曲线用于补偿舵机左右物理不对称，只作用于稳态P偏移。 */
+    if (s_pd_p_offset < -8.0f)
+        s_pd_p_offset *= SERVO_MIN_SIDE_WEIGHT * (1.0f + (-8.0f - s_pd_p_offset) / 33.0f);
+    else if (s_pd_p_offset > 8.0f)
+        s_pd_p_offset *= SERVO_MAX_SIDE_WEIGHT * (1.0f + (-8.0f + s_pd_p_offset) / 30.0f);
+    else
+        s_pd_p_offset *= SERVO_MAX_SIDE_WEIGHT;
+
+    s_pd_offset = s_pd_p_offset + s_pd_d_offset;
 
     s_pd_out = (float)SERVO_CENTER_ANGLE + s_pd_offset;
     if (s_pd_out > (float)SERVO_MAX_ANGLE) s_pd_out = (float)SERVO_MAX_ANGLE;

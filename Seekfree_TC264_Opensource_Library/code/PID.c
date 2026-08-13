@@ -6,8 +6,8 @@
 
 /* ---- PD ---- */
 #define PD_ERR_DEAD_ZONE 0.0f  /* Err死区边界，范围内舵机回中。 */
-#define SERVO_MIN_SIDE_WEIGHT  0.85f  /* 100方向基础权重，负向误差越大时再按比例增强。 */
-#define SERVO_MAX_SIDE_WEIGHT  0.85f  /* 175方向固定权重，以1为归一化基准。 */
+#define SERVO_MIN_SIDE_WEIGHT  2.0f  /* 100方向按实车机械差异使用两倍基础权重。 */
+#define SERVO_MAX_SIDE_WEIGHT  1.0f  /* 175方向以一倍权重作为补偿基准。 */
 #define PD_DELTA_ERR_DEAD_ZONE  1.0f  /* 忽略中心线整数化造成的单像素差分抖动。 */
 #define PD_D_OFFSET_LIMIT       4.0f  /* D仅作瞬态修正，单次最多贡献正负4度。 */
 static float   s_pd_out = 0.0f, s_pd_offset = 0.0f;
@@ -51,6 +51,8 @@ void PD_Update(float Kp, float Kd, float err)
         s_pd_p_offset *= SERVO_MIN_SIDE_WEIGHT * (1.0f + (-8.0f - s_pd_p_offset) / 33.0f);
     else if (s_pd_p_offset > 8.0f)
         s_pd_p_offset *= SERVO_MAX_SIDE_WEIGHT * (1.0f + (-8.0f + s_pd_p_offset) / 30.0f);
+    else if (s_pd_p_offset < 0.0f)
+        s_pd_p_offset *= SERVO_MIN_SIDE_WEIGHT;
     else
         s_pd_p_offset *= SERVO_MAX_SIDE_WEIGHT;
 

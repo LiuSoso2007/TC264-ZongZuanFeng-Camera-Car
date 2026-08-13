@@ -148,7 +148,9 @@ int core1_main(void)
         pwm_left  = PI_Update(&s_PI_Left,  position_err, enc_left,  StraightSpeed);
         pwm_right = PI_Update(&s_PI_Right, position_err, enc_right, StraightSpeed);
 
-        motor_speed = (int16_t)((float)StraightSpeed - 0.4f * (float)Err_abs);
+        /* 50FPS下按每像素1点主动降速，为连续弯和换向弯保留足够修正帧。 */
+        motor_speed = (int16_t)((float)StraightSpeed - 1.0f * (float)Err_abs);
+        if (motor_speed < CURVE_SPEED) motor_speed = CURVE_SPEED;
         /* 杩涘叆鍦嗙幆鏃舵寜淇濈暀姣斾緥闄嶉€?*/
         if (ring_entry_slowdown != 0U)
         {

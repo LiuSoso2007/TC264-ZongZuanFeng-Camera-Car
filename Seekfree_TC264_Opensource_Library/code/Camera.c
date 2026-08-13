@@ -2230,20 +2230,6 @@ void Element_Handle_Ramp(void)
 static uint8 s_cross_detected = 0U;  /* 当前帧左右拐点有效并已完成补线 */
 static uint16 s_cross_exit_delay_frames = 0U; /* 十字消失后剩余的圆环屏蔽帧数 */
 
-/* S弯直穿参数：证据不足时始终沿用基础中线，避免普通弯道不打角。 */
-#define S_BEND_FAR_ROW                 20
-#define S_BEND_NEAR_ROW                52
-#define S_BEND_END_CENTER_TOLERANCE     5
-#define S_BEND_END_DIFF_MAX             6
-#define S_BEND_MIN_SIDE_DEVIATION       5
-#define S_BEND_MIN_SIDE_ROWS            4
-#define S_BEND_MIN_PEAK_ROW_GAP         8
-#define S_BEND_SAFE_WIDTH_DIVISOR       3
-#define S_BEND_SAFE_MIN_RADIUS          3
-#define S_BEND_CONFIRM_FRAMES           5U
-
-static uint8 s_s_bend_confirm_frames = 0U;
-
 /* 候选点上方连续两行均无跳变，才确认候选点为十字拐点。 */
 static uint8 Cross_Upper_Rows_Have_No_Jump(int row, uint8 check_left)
 {
@@ -2439,131 +2425,6 @@ void Get_ExtensionLine(void)
     s_cross_detected = 1U;
 }
 
-/* 判断完整中线是否同时出现左右两侧峰值，排除只向一侧转向的普通弯道。 */
-static uint8 S_Bend_Is_Geometry_Candidate(void)
-{
-    int row;
-    int near_center = 0;
-    int far_center = 0;
-    int left_rows = 0;
-    int right_rows = 0;
-    int left_peak_row = -1;
-    int right_peak_row = -1;
-    int left_peak = ImageSensorMid;
-    int right_peak = ImageSensorMid;
-
-    if (ImageStatus.OFFLine >= S_BEND_FAR_ROW)
-        return 0U;
-
-    for (row = S_BEND_NEAR_ROW; row <= S_BEND_NEAR_ROW + 2; row++)
-        near_center += ImageDeal[row].Center;
-    for (row = S_BEND_FAR_ROW; row <= S_BEND_FAR_ROW + 2; row++)
-        far_center += ImageDeal[row].Center;
-    near_center /= 3;
-    far_center /= 3;
-
-    if (near_center < ImageSensorMid - S_BEND_END_CENTER_TOLERANCE
-        || near_center > ImageSensorMid + S_BEND_END_CENTER_TOLERANCE
-        || far_center < ImageSensorMid - S_BEND_END_CENTER_TOLERANCE
-        || far_center > ImageSensorMid + S_BEND_END_CENTER_TOLERANCE
-        || near_center - far_center > S_BEND_END_DIFF_MAX
-        || far_center - near_center > S_BEND_END_DIFF_MAX)
-        return 0U;
-
-    for (row = S_BEND_FAR_ROW; row <= S_BEND_NEAR_ROW; row++)
-    {
-        if (ImageDeal[row].IsLeftFind != 'T'
-            || ImageDeal[row].IsRightFind != 'T')
-            return 0U;
-
-        if (ImageDeal[row].Center <= ImageSensorMid - S_BEND_MIN_SIDE_DEVIATION)
-        {
-            left_rows++;
-            if (ImageDeal[row].Center < left_peak)
-            {
-                left_peak = ImageDeal[row].Center;
-                left_peak_row = row;
-            }
-        }
-        else if (ImageDeal[row].Center >= ImageSensorMid + S_BEND_MIN_SIDE_DEVIATION)
-        {
-            right_rows++;
-            if (ImageDeal[row].Center > right_peak)
-            {
-                right_peak = ImageDeal[row].Center;
-                right_peak_row = row;
-            }
-        }
-    }
-
-    if (left_rows < S_BEND_MIN_SIDE_ROWS
-        || right_rows < S_BEND_MIN_SIDE_ROWS
-        || left_peak_row < 0 || right_peak_row < 0)
-        return 0U;
-
-    row = left_peak_row - right_peak_row;
-    if (row < 0) row = -row;
-    return (uint8)(row >= S_BEND_MIN_PEAK_ROW_GAP);
-}
-
-/* 逐行检查图像正中及车辆宽度余量都位于白色赛道，防止直线切入弯道内岛。 */
-static uint8 S_Bend_Path_Is_Safe(void)
-{
-    int row;
-    int col;
-
-    for (row = S_BEND_FAR_ROW; row <= S_BEND_NEAR_ROW; row++)
-    {
-        int safe_radius = Half_Road_Wide[row] / S_BEND_SAFE_WIDTH_DIVISOR;
-        int left_limit;
-        int right_limit;
-
-        if (safe_radius < S_BEND_SAFE_MIN_RADIUS)
-            safe_radius = S_BEND_SAFE_MIN_RADIUS;
-        left_limit = ImageSensorMid - safe_radius;
-        right_limit = ImageSensorMid + safe_radius;
-
-        if (ImageDeal[row].IsLeftFind != 'T'
-            || ImageDeal[row].IsRightFind != 'T'
-            || left_limit <= ImageDeal[row].LeftBorder
-            || right_limit >= ImageDeal[row].RightBorder)
-            return 0U;
-
-        for (col = left_limit; col <= right_limit; col++)
-        {
-            if (Pixle[row][col] != IMG_WHITE)
-                return 0U;
-        }
-    }
-    return 1U;
-}
-
-/* 连续多帧同时满足形状和安全走廊后才直穿；任一条件失败立即恢复基础中线。 */
-static void S_Bend_Straight_Handle(void)
-{
-    int row;
-
-    if (ImageFlag.Zebra_Flag != 0 || s_cross_detected != 0U
-        || s_cross_exit_delay_frames > 0U
-        || ImageFlag.image_element_rings != 0
-        || ImageFlag.image_element_rings_flag != RING_STATE_IDLE
-        || s_ring_exit_cooldown > 0U
-        || !S_Bend_Is_Geometry_Candidate()
-        || !S_Bend_Path_Is_Safe())
-    {
-        s_s_bend_confirm_frames = 0U;
-        return;
-    }
-
-    if (s_s_bend_confirm_frames < S_BEND_CONFIRM_FRAMES)
-        s_s_bend_confirm_frames++;
-    if (s_s_bend_confirm_frames < S_BEND_CONFIRM_FRAMES)
-        return;
-
-    for (row = S_BEND_FAR_ROW; row <= S_BEND_NEAR_ROW; row++)
-        ImageDeal[row].Center = ImageSensorMid;
-}
-
 /* 元素扫描：判定斑马线、十字、圆环等 */
 void Scan_Element(void)
 {
@@ -2631,9 +2492,6 @@ void Scan_Element(void)
 /* 元素处理：按优先级依次调用 */
 void Element_Handle(void)
 {
-    /* S弯直穿只在所有高优先级元素均未接管时才可能覆盖中线。 */
-    S_Bend_Straight_Handle();
-
     if (ImageFlag.Zebra_Flag != 0)
         Element_Handle_Zebra();
     else if (s_cross_detected)

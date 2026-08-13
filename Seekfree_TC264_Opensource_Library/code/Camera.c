@@ -345,6 +345,33 @@ void Get_Border_And_SideType(uint8* p, uint8 type, int L, int H, JumpPointtypede
     }
 }
 
+#define BORDER_RECOVERY_INTERVAL 12  /* 局部丢线后的有限恢复区间，防止急弯中线冻结。 */
+
+/* 局部搜索全白时扩大一次窗口；恢复值只用于几何，不改写元素状态。 */
+static uint8 Border_Try_Recovery(uint8 *line, uint8 type, int previous_border,
+                                 JumpPointtypedef *raw_result, int *recovered_border)
+{
+    JumpPointtypedef recovered;
+    int interval_low;
+    int interval_high;
+
+    if (raw_result->type != 'W')
+        return 0U;
+
+    interval_low = previous_border - BORDER_RECOVERY_INTERVAL;
+    interval_high = previous_border + BORDER_RECOVERY_INTERVAL;
+    LimitL(interval_low);
+    LimitH(interval_high);
+
+    Get_Border_And_SideType(line, type, interval_low, interval_high, &recovered);
+    if (recovered.type == 'T')
+    {
+        *recovered_border = recovered.point;
+        return 1U;
+    }
+    return 0U;
+}
+
 /* 全图巡线：逐行检测左右边界并统计丢失与白色行 */
 void Get_AllLine(void)
 {
@@ -365,6 +392,10 @@ void Get_AllLine(void)
     for (row = SCAN_BASE_END_ROW - 1; row > ImageStatus.OFFLine; row--)
     {
         JumpPointtypedef JumpPoint[2];
+        int recovered_left_border = 0;
+        int recovered_right_border = 0;
+        uint8 left_recovered;
+        uint8 right_recovered;
         PicTemp = Pixle[row];
 
         IntervalLow  = ImageDeal[row + 1].RightBorder - ImageScanInterval;
@@ -373,6 +404,8 @@ void Get_AllLine(void)
         LimitH(IntervalHigh);
 
         Get_Border_And_SideType(PicTemp, 'R', IntervalLow, IntervalHigh, &JumpPoint[1]);
+        right_recovered = Border_Try_Recovery(PicTemp, 'R',
+            ImageDeal[row + 1].RightBorder, &JumpPoint[1], &recovered_right_border);
 
         IntervalLow  = ImageDeal[row + 1].LeftBorder - ImageScanInterval;
         IntervalHigh = ImageDeal[row + 1].LeftBorder + ImageScanInterval;
@@ -380,10 +413,13 @@ void Get_AllLine(void)
         LimitH(IntervalHigh);
 
         Get_Border_And_SideType(PicTemp, 'L', IntervalLow, IntervalHigh, &JumpPoint[0]);
+        left_recovered = Border_Try_Recovery(PicTemp, 'L',
+            ImageDeal[row + 1].LeftBorder, &JumpPoint[0], &recovered_left_border);
 
         if (JumpPoint[0].type == 'W')
         {
-            ImageDeal[row].LeftBorder = ImageDeal[row + 1].LeftBorder;
+            ImageDeal[row].LeftBorder = left_recovered
+                ? recovered_left_border : ImageDeal[row + 1].LeftBorder;
             ImageStatus.Miss_Left_lines++;
         }
         else
@@ -394,7 +430,8 @@ void Get_AllLine(void)
 
         if (JumpPoint[1].type == 'W')
         {
-            ImageDeal[row].RightBorder = ImageDeal[row + 1].RightBorder;
+            ImageDeal[row].RightBorder = right_recovered
+                ? recovered_right_border : ImageDeal[row + 1].RightBorder;
             ImageStatus.Miss_Right_lines++;
         }
         else

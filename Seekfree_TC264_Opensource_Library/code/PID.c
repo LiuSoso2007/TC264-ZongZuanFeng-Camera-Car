@@ -37,6 +37,8 @@ void PD_Update(float Kp, float Kd, float err)
         d_gain = Kd * (50.0f - s_pd_err0) / 50.0f;
     else if (s_pd_err0 < 0.0f && s_pd_err0 > -50.0f)
         d_gain = Kd * (50.0f + s_pd_err0) / 50.0f;
+    else if (s_pd_err0 == 0.0f)
+        d_gain = Kd;  /* S弯换向过零时保留D预判，避免舵机瞬间卸力回中。 */
     else
         d_gain = 0.0f;
 
@@ -58,7 +60,8 @@ void PD_Update(float Kp, float Kd, float err)
     if (s_pd_out > (float)SERVO_MAX_ANGLE) s_pd_out = (float)SERVO_MAX_ANGLE;
     if (s_pd_out < (float)SERVO_MIN_ANGLE) s_pd_out = (float)SERVO_MIN_ANGLE;
 
-    if (err >= -PD_ERR_DEAD_ZONE && err <= PD_ERR_DEAD_ZONE)
+    /* 仅在P、D都无修正时回中，过零帧允许受限的D预判继续作用。 */
+    if (err >= -PD_ERR_DEAD_ZONE && err <= PD_ERR_DEAD_ZONE && s_pd_d_offset == 0.0f)
         Servo_SetAngleDeg(SERVO_CENTER_ANGLE);
     else
         Servo_SetAngleDeg((uint8_t)s_pd_out);

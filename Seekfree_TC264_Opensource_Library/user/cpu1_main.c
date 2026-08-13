@@ -42,7 +42,7 @@ static int16_t  EncCount        = 0;
 
 /* PD鍙傛暟 */
 #define PD_KP          0.78f
-#define PD_KD          10.8f
+#define PD_KD          1.0f  /* 降低帧间Err跳变的随机微分冲击，保留快速入弯预判。 */
 
 /* 宸﹀彸鐢垫満PI鎺у埗鍣?*/
 static PI_t s_PI_Left, s_PI_Right;

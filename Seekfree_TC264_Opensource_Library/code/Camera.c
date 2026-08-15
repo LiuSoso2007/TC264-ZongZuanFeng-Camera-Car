@@ -1021,7 +1021,10 @@ static uint8 Ring_Find_Entry_Corner(uint8 direction, uint8 require_upper_stable,
                             || ImageDeal[row - 1].IsRightFind != 'T'
                             || ImageDeal[row - 2].IsRightFind != 'T'))
                     || Ring_Check_Border_Jump(direction, RING_JUMP_THRESHOLD,
-                                              row - 2, row, &upper_other_lost_count) > 0))
+                                              row - 2, row, &upper_other_lost_count) > 0
+                    /* 拐点行数超界时继续向上扫描，左右圆环分别限制。 */
+                    || (direction == 1U && row > 73)
+                    || (direction == 2U && row < 20)))
             {
                 prev_dist = curr_dist;
                 continue;

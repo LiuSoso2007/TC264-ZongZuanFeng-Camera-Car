@@ -944,13 +944,16 @@ static uint8 Ring_Find_Entry_Corner(uint8 direction, uint8 require_upper_stable,
                                     int *corner_row, int *corner_col)
 {
     int row;
+    int scan_min_row;
     int prev_dist = -1, curr_dist;
     int jump_col;
     int col;
     int upper_other_lost_count;
     uint8 in_black;
 
-    for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
+    /* ENTRY固定扫描59~3行，RECOVERY继续服从本帧巡线截止行。 */
+    scan_min_row = require_upper_stable ? (ImageStatus.OFFLine + 1) : 3;
+    for (row = SCAN_BASE_START_ROW; row >= scan_min_row; row--)
     {
         if (direction == 2U)
         {

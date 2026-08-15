@@ -5,44 +5,41 @@
 #include "Servo.h"
 
 /* ---- PD ---- */
-#define PD_DELTA_ERR_DEAD_ZONE  1.0f  /* 忽略中心线整数化造成的单像素差分抖动。 */
-#define PD_D_FADE_ERR           50.0f /* Err越接近该值，模糊D越接近零。 */
-#define PD_D_OFFSET_LIMIT       4.0f  /* D仅作瞬态修正，单次最多贡献正负4度。 */
-static float s_pd_last_err = 0.0f;
+#define PD_ERR_DEAD_ZONE 1.0f  /* Err死区边界，范围内舵机回中。 */
+#define SERVO_MIN_SIDE_WEIGHT  1.2f  /* 100方向基础权重，负向误差越大时再按比例增强。 */
+#define SERVO_MAX_SIDE_WEIGHT  1.2f  /* 175方向固定权重，以1为归一化基准。 */
+static float   s_pd_out = 0.0f, s_pd_offset = 0.0f;
+static float   s_pd_err0 = 0.0f, s_pd_err1 = 0.0f;
 
 void PD_Update(float Kp, float Kd, float err)
 {
-    float delta_err;
-    float abs_err;
-    float d_gain;
-    float d_offset;
-    float servo_out;
+    s_pd_err1 = s_pd_err0;
+    s_pd_err0 = err;
 
-    delta_err = err - s_pd_last_err;
-    s_pd_last_err = err;
-    if (delta_err > PD_DELTA_ERR_DEAD_ZONE)
-        delta_err -= PD_DELTA_ERR_DEAD_ZONE;
-    else if (delta_err < -PD_DELTA_ERR_DEAD_ZONE)
-        delta_err += PD_DELTA_ERR_DEAD_ZONE;
+    //以下是计算pd
+    if(s_pd_err0 > PD_ERR_DEAD_ZONE)
+        s_pd_offset = Kp * (s_pd_err0-PD_ERR_DEAD_ZONE) + (Kd - 0.1 *   s_pd_err0 ) * (s_pd_err0 - s_pd_err1);
+    else if(-s_pd_err0 > PD_ERR_DEAD_ZONE)
+        s_pd_offset = Kp * (s_pd_err0+PD_ERR_DEAD_ZONE) + (Kd - 0.1 * (-s_pd_err0)) * (s_pd_err0 - s_pd_err1);
     else
-        delta_err = 0.0f;
+        s_pd_offset = 0;
 
-    /* 直道附近增强D抑制高速摆动，进入弯道后平滑减弱D，避免阻碍持续打角。 */
-    abs_err = (err >= 0.0f) ? err : -err;
-    if (abs_err < PD_D_FADE_ERR)
-        d_gain = Kd * (PD_D_FADE_ERR - abs_err) / PD_D_FADE_ERR;
+    //以下是计算偏移
+    if (s_pd_offset < -1.0f)
+        s_pd_offset *= SERVO_MIN_SIDE_WEIGHT * (1+(-1-s_pd_offset)/30);  //左偏增大
+    else if(s_pd_offset > 1.0f)
+        s_pd_offset *= SERVO_MAX_SIDE_WEIGHT * (1+(-1+s_pd_offset)/40);   //右偏增大
     else
-        d_gain = 0.0f;
+        s_pd_offset *= SERVO_MAX_SIDE_WEIGHT;
 
-    d_offset = d_gain * delta_err;
-    if (d_offset > PD_D_OFFSET_LIMIT)  d_offset = PD_D_OFFSET_LIMIT;
-    if (d_offset < -PD_D_OFFSET_LIMIT) d_offset = -PD_D_OFFSET_LIMIT;
+    s_pd_out = (float)SERVO_CENTER_ANGLE + s_pd_offset;
+    if (s_pd_out > (float)SERVO_MAX_ANGLE) s_pd_out = (float)SERVO_MAX_ANGLE;
+    if (s_pd_out < (float)SERVO_MIN_ANGLE) s_pd_out = (float)SERVO_MIN_ANGLE;
 
-    /* P和模糊D统一使用同一套对称公式，机械差异只由最终安全限幅兜底。 */
-    servo_out = (float)SERVO_CENTER_ANGLE + Kp * err + d_offset;
-    if (servo_out > (float)SERVO_MAX_ANGLE) servo_out = (float)SERVO_MAX_ANGLE;
-    if (servo_out < (float)SERVO_MIN_ANGLE) servo_out = (float)SERVO_MIN_ANGLE;
-    Servo_SetAngleDeg((uint8_t)(servo_out + 0.5f));
+    if (err >= -PD_ERR_DEAD_ZONE && err <= PD_ERR_DEAD_ZONE)
+        Servo_SetAngleDeg(SERVO_CENTER_ANGLE);
+    else
+        Servo_SetAngleDeg((uint8_t)s_pd_out);
 }
 
 /* ---- PI ---- */

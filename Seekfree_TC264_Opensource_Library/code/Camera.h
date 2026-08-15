@@ -146,13 +146,13 @@ extern ImageStatustypedef ImageStatus;         // 图像状态全局变量
 #define FILL_EXIT2_OFFSET          6   // 环中补线偏移
 #define FILL_RECOVERY_OFFSET        0   // 恢复补线偏移
 
-#define RING_JUMP_THRESHOLD         2   // 断点判定: 连续跳变像素阈值
-#define RING_JUMP_SCAN_MIN_ROW     17   // 断点统计最小行(含)
-#define RING_JUMP_SCAN_MAX_ROW     50   // 断点统计最大行(含)
+#define RING_JUMP_THRESHOLD         1   // 断点判定: 连续跳变像素阈值
+#define RING_JUMP_SCAN_MIN_ROW     7   // 断点统计最小行(含)
+#define RING_JUMP_SCAN_MAX_ROW     40   // 断点统计最大行(含)
 #if (RING_JUMP_SCAN_MIN_ROW < 0) || (RING_JUMP_SCAN_MAX_ROW >= LCDH) || (RING_JUMP_SCAN_MIN_ROW > RING_JUMP_SCAN_MAX_ROW)
 #error "RING_JUMP_SCAN_ROW range is invalid"
 #endif
-#define RING_JUMP_MIN_COUNT         5   // 最小跳变次数
+#define RING_JUMP_MIN_COUNT         2   // 最小跳变次数
 #define RING_JUMP_OTHER_MAX         0   // 另一侧最大跳变次数
 #define RING_EXIT_POINT_HOLD_FRAMES 3U  // EXIT1/EXIT2单点短时丢失保持帧数
 #define RING_EXIT2_PASS_ROW         40   // EXIT2下移到该行后判定已经通过黄色点
@@ -168,7 +168,7 @@ extern ImageStatustypedef ImageStatus;         // 图像状态全局变量
 #define RING_STATE_RECOVERY   7    // 恢复: 跟踪出环拐点3
 
 /* ---- 圆环阶段帧计数 ---- */
-#define RING_CONFIRM_FRAMES       20U    // 确认阶段最小帧数
+#define RING_CONFIRM_FRAMES       2U    // 确认阶段最小帧数
 #define RING_EXIT_CONFIRM_FRAMES  10U    // 出环确认最小帧数
 #define RING_CONFIRM_MAX_FRAMES   300U   // 确认阶段超时帧数
 #define RING_ENTRY_MAX_FRAMES     2000U   // 入环阶段超时帧数

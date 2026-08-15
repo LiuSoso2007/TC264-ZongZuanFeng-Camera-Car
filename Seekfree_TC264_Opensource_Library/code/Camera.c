@@ -940,7 +940,7 @@ static int Ring_Check_Border_Jump(uint8 direction, int threshold, int min_row,
  * direction=2(右圆环): 从左边缘向右扫，找黑色区域右边缘(黑->白)，右边的跳变点作为拐点
  * 返回: 1=找到拐点, 0=未找到; 拐点坐标通过corner_row/corner_col输出
  */
-static uint8 Ring_Find_Entry_Corner(uint8 direction, uint8 require_upper_stable,
+static uint8 Ring_Find_Entry_Corner(uint8 direction,
                                     int *corner_row, int *corner_col)
 {
     int row;
@@ -951,8 +951,8 @@ static uint8 Ring_Find_Entry_Corner(uint8 direction, uint8 require_upper_stable,
     int upper_other_lost_count;
     uint8 in_black;
 
-    /* ENTRY固定扫描59~3行，RECOVERY继续服从本帧巡线截止行。 */
-    scan_min_row = require_upper_stable ? (ImageStatus.OFFLine + 1) : 3;
+    /* ENTRY固定扫描59~15行，RECOVERY继续服从本帧巡线截止行。 */
+    scan_min_row = ImageStatus.OFFLine + 1;
     for (row = SCAN_BASE_START_ROW; row >= scan_min_row; row--)
     {
         if (direction == 2U)
@@ -1010,8 +1010,7 @@ static uint8 Ring_Find_Entry_Corner(uint8 direction, uint8 require_upper_stable,
         if (prev_dist >= 0
             && (curr_dist - prev_dist > 10 || prev_dist - curr_dist > 10))
         {
-            if (require_upper_stable
-                && (row - 2 <= ImageStatus.OFFLine
+            if ((row - 2 <= ImageStatus.OFFLine
                     || (direction == 1U
                         && (ImageDeal[row].IsLeftFind != 'T'
                             || ImageDeal[row - 1].IsLeftFind != 'T'
@@ -1351,7 +1350,7 @@ static uint8 Ring_Find_Exit1_Corners(uint8 direction,
 
     prev_col = -1;
     increasing_seen = 0;
-    for (row = 55; row >= 27; row--)
+    for (row = 55; row >= 20; row--)
     {
         if (direction == 2U) col = ImageDeal[row].LeftBorder;
         else                 col = ImageDeal[row].RightBorder;
@@ -1766,19 +1765,19 @@ static void Ring_State_Update(void)
         {
             s_ring_entry_corner_row = valley_row;
             s_ring_entry_corner_col = valley_col;
-            /* APPROACH完整处理3帧，谷底下移或向远处突变后进入ENTRY。 */
-            if (s_ring_state_frames >= 3U
-                && (valley_row > 30
+            /* APPROACH完整处理1帧，谷底下移或向远处突变后进入ENTRY。 */
+            if (s_ring_state_frames >= 1U
+                && (valley_row > 33
                     || (s_ring_prev_valley_row >= 0
-                        && s_ring_prev_valley_row - valley_row > 10)))
+                        && s_ring_prev_valley_row - valley_row > 7)))
                 Ring_Set_State(RING_STATE_ENTRY);
         }
-        s_ring_prev_valley_row = valley_row;
+        if(valley_row) s_ring_prev_valley_row = valley_row;
         break;
 
     case RING_STATE_ENTRY:
         valley_row = -1;
-        if (Ring_Find_Entry_Corner(direction, 0U, &valley_row, &valley_col))
+        if (Ring_Find_Entry_Corner(direction, &valley_row, &valley_col))
         {
             s_ring_entry_corner_row = valley_row;
             s_ring_entry_corner_col = valley_col;
@@ -1921,7 +1920,7 @@ static void Ring_State_Update(void)
         valley_row = -1;
         valley_col = -1;
         /* 复用ENTRY横向扫描，并要求出环拐点上方两行连续。 */
-        if (Ring_Find_Entry_Corner(direction, 1U, &valley_row, &valley_col)
+        if (Ring_Find_Entry_Corner(direction, &valley_row, &valley_col)
             && valley_row <= 50
             && (s_ring_prev_recovery_valley_row < 0
                 || (valley_row - s_ring_prev_recovery_valley_row <= 15
@@ -1967,22 +1966,17 @@ uint8 Ring_Should_Hold_Err(void)
 }
 
 /* ---- 对侧贴边行数检查 ----
- * 检查10~42行的贴边/丢线，并在30~19行向上统计对侧边线异常变化的行。
- * 两类异常共用计数，超过允许行数后否决圆环初判。
- * direction=1: 右边线列数变大；direction=2: 左边线列数变小。
+ * 检查10~42行范围，边缘margin=8像素，贴边行>3则返回1
+ * direction=1: 检查右边线是否太多行挤到右边缘
+ * direction=2: 检查左边线是否太多行挤到左边缘
  */
-#define RING_TOO_MUCH_EDGE_GROW_BOTTOM_ROW 30
-#define RING_TOO_MUCH_EDGE_GROW_TOP_ROW    19
-#define RING_TOO_MUCH_EDGE_MAX_ROWS         3
 static uint8 Ring_OtherSide_Too_Much_Edge(uint8 direction)
 {
     int row;
     int edge_rows = 0;
-    int prev_col = 0;
-    uint8 prev_found = 0U;
     const int margin = 8;
 
-    for (row = 42; row >= 10; row--)
+    for (row = 30; row >= 10; row--)
     {
         if (direction == 1U)
         {
@@ -1997,43 +1991,14 @@ static uint8 Ring_OtherSide_Too_Much_Edge(uint8 direction)
                 edge_rows++;
         }
     }
-
-    for (row = RING_TOO_MUCH_EDGE_GROW_BOTTOM_ROW;
-         row >= RING_TOO_MUCH_EDGE_GROW_TOP_ROW;
-         row--)
-    {
-        int curr_col;
-        uint8 curr_found;
-
-        if (direction == 1U)
-        {
-            curr_found = (uint8)(ImageDeal[row].IsRightFind == 'T');
-            curr_col = ImageDeal[row].RightBorder;
-        }
-        else
-        {
-            curr_found = (uint8)(ImageDeal[row].IsLeftFind == 'T');
-            curr_col = ImageDeal[row].LeftBorder;
-        }
-
-        /* 仅比较相邻且都有效的边线，避免跨越丢线行产生假变化。 */
-        if (curr_found != 0U && prev_found != 0U
-            && ((direction == 1U && curr_col > prev_col)
-                || (direction == 2U && curr_col < prev_col)))
-            edge_rows++;
-
-        prev_col = curr_col;
-        prev_found = curr_found;
-    }
-
-    return (uint8)(edge_rows > RING_TOO_MUCH_EDGE_MAX_ROWS);
+    return (uint8)(edge_rows > 3);
 }
 
 /* 左圆环初判 */
 void Element_Judgment_Left_Rings(void)
 {
-    if (ImageStatus.Miss_Right_lines > 15
-        || ImageStatus.OFFLine > 16
+    if (ImageStatus.Miss_Right_lines > 30
+        || ImageStatus.OFFLine > 30
         || ImageFlag.image_element_rings)
         return;
 
@@ -2217,13 +2182,13 @@ void Element_Handle_Ramp(void)
 
 /* 十字弯道扫描参数 */
 #define CROSS_SCAN_BOTTOM_ROW       50
-#define CROSS_SCAN_TOP_ROW          17
+#define CROSS_SCAN_TOP_ROW          8
 #define CROSS_STABLE_MIN_ROWS        7     //同列行数
 #define CROSS_STABLE_COL_TOLERANCE   1
 #define CROSS_JUMP_MIN_COLS          3     //跳变确认列数
 #define CROSS_UPPER_CONFIRM_ROWS     2     //向上确认行数
 #define CROSS_CORNER_MAX_ROW_DIFF    10    //左右相隔行数
-#define CROSS_EXIT_DELAY_FRAMES      1U    //十字最后一次识别后继续屏蔽圆环初判的帧数
+#define CROSS_EXIT_DELAY_FRAMES      30U    //十字最后一次识别后继续屏蔽圆环初判的帧数
 
 #if (CROSS_SCAN_TOP_ROW < 0) || (CROSS_SCAN_BOTTOM_ROW >= LCDH) || (CROSS_SCAN_TOP_ROW >= CROSS_SCAN_BOTTOM_ROW)
 #error "CROSS_SCAN_ROW range is invalid"

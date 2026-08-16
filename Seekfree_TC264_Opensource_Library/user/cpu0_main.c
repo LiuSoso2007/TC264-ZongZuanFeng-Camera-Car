@@ -19,11 +19,11 @@ volatile uint8_t StopRequest = 0U;
 volatile uint8_t RingEntrySlowdown = 0U;
 
 /* 压缩图中行号越小前瞻越远，41比42中间稍近但更稳定。 */
-#define STEERING_LOOKAHEAD_ROW 38
+#define STEERING_LOOKAHEAD_ROW 27
 
 /* 文字仪表盘开关(轻量)，1=开 0=关。关闭后屏幕全黑，但会失去DMA同步延迟。 */
-#define IPS200_TEXT_DISPLAY_ENABLE 1
-#define IPS200_DISPLAY_IMAGE_ENABLE 1
+#define IPS200_TEXT_DISPLAY_ENABLE 0
+#define IPS200_DISPLAY_IMAGE_ENABLE 0
 
 
 #if IPS200_TEXT_DISPLAY_ENABLE

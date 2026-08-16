@@ -1010,20 +1010,7 @@ static uint8 Ring_Find_Entry_Corner(uint8 direction,
         if (prev_dist >= 0
             && (curr_dist - prev_dist > 10 || prev_dist - curr_dist > 10))
         {
-            if ((row - 2 <= ImageStatus.OFFLine
-                    || (direction == 1U
-                        && (ImageDeal[row].IsLeftFind != 'T'
-                            || ImageDeal[row - 1].IsLeftFind != 'T'
-                            || ImageDeal[row - 2].IsLeftFind != 'T'))
-                    || (direction == 2U
-                        && (ImageDeal[row].IsRightFind != 'T'
-                            || ImageDeal[row - 1].IsRightFind != 'T'
-                            || ImageDeal[row - 2].IsRightFind != 'T'))
-                    || Ring_Check_Border_Jump(direction, RING_JUMP_THRESHOLD,
-                                              row - 2, row, &upper_other_lost_count) > 0
-                    /* 拐点行数超界时继续向上扫描，左右圆环分别限制。 */
-                    || (direction == 1U && row > 73)
-                    || (direction == 2U && row < 20)))
+            if (row - 2 <= ImageStatus.OFFLine)
             {
                 prev_dist = curr_dist;
                 continue;
@@ -1116,12 +1103,12 @@ static int Ring_Find_Approach_Valley(uint8 direction, int *valley_col)
     if (direction == 1U)
     {
         row50_at_edge = (ImageDeal[50].IsLeftFind != 'T')
-                      || (ImageDeal[50].LeftBorder <= 10);
+                      || (ImageDeal[50].LeftBorder <= 3);
     }
     else
     {
         row50_at_edge = (ImageDeal[50].IsRightFind != 'T')
-                      || (ImageDeal[50].RightBorder >= LCDW - 11);
+                      || (ImageDeal[50].RightBorder >= LCDW - 4);
     }
 
     /* ENTRY: 入环阶段 - 确认拐角行有效后进入环中 */
@@ -1145,7 +1132,7 @@ static int Ring_Find_Approach_Valley(uint8 direction, int *valley_col)
                 curr_col = ImageDeal[row].RightBorder;
             }
 
-            int at_edge = (direction == 1U) ? (curr_col <= 10) : (curr_col >= LCDW - 11);
+            int at_edge = (direction == 1U) ? (curr_col <= 4) : (curr_col >= LCDW - 5);
 
             if (phase == 1U)
             {
@@ -1519,14 +1506,12 @@ static void Ring_Rebuild_Fill(uint8 direction)
     switch (ring_state)
     {
     case RING_STATE_CONFIRM:
+        /* CONFIRM采用与普通巡线/INSIDE一致的Center计算(左右边线中点)，
+           不再做单侧推算和fill_offset偏置，避免蓝线怪异和ERR放大。 */
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
         {
-            if (direction == 1U)
-                ImageDeal[row].Center = ImageSensorMid
-                                      - Half_Bend_Wide[row] * 2 / 3 - fill_offset / 2;
-            else
-                ImageDeal[row].Center = ImageDeal[row].LeftBorder
-                                      + Half_Bend_Wide[row] * 2 / 3 + fill_offset;
+            ImageDeal[row].Center = (ImageDeal[row].LeftBorder
+                                   + ImageDeal[row].RightBorder) / 2;
             LimitL(ImageDeal[row].Center);
             LimitH(ImageDeal[row].Center);
         }
@@ -1667,41 +1652,69 @@ static void Ring_Rebuild_Fill(uint8 direction)
         }
         break;
     case RING_STATE_EXIT2:
-        /* 状态6：EXIT1离开视野后，从图像底部继续连接EXIT2。 */
+        /* 状态6：EXIT1离开视野后，从屏幕角连接EXIT2拐点。 */
         if (s_ring_exit1_corner2_row >= 0)
         {
-            /* 底部锚在车道边界，使左环中心向左、右环中心向右。 */
+            int corner2_r = s_ring_exit1_corner2_row;
+            int corner2_c = s_ring_exit1_corner2_col;
             if (direction == 1U)
-                Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW,
-                                   ImageSensorMid + Half_Bend_Wide[SCAN_BASE_START_ROW] * 2 / 3,
-                                   s_ring_exit1_corner2_row, s_ring_exit1_corner2_col, 'R');
+            {
+                /* 左环从右下角(59, 93)连到corner2；写二值图真正的角列保证视觉不偏。 */
+                if (corner2_r >= 0)
+                {
+                    Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW, LCDW - 1,
+                                       corner2_r, corner2_c, 'R');
+                    if (Pixle[SCAN_BASE_START_ROW][LCDW - 1] != IMG_WHITE)
+                        Pixle[SCAN_BASE_START_ROW][LCDW - 1] = IMG_WHITE;
+                }
+            }
             else
-                Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW,
-                                   ImageSensorMid - Half_Bend_Wide[SCAN_BASE_START_ROW] * 2 / 3,
-                                   s_ring_exit1_corner2_row, s_ring_exit1_corner2_col, 'L');
+            {
+                /* 右环从左下角(59, 0)连到corner2；写二值图真正的角列保证视觉不偏。 */
+                if (corner2_r >= 0)
+                {
+                    Ring_DrawAndUpdate(direction, SCAN_BASE_START_ROW, 0,
+                                       corner2_r, corner2_c, 'L');
+                    if (Pixle[SCAN_BASE_START_ROW][0] != IMG_WHITE)
+                        Pixle[SCAN_BASE_START_ROW][0] = IMG_WHITE;
+                }
+            }
+            /* corner2上方继续用弯道半宽推center；corner2及以下行由画线已写入，不要再覆盖。 */
+            for (row = corner2_r - 1; row > ImageStatus.OFFLine; row--)
+            {
+                if (direction == 1U)
+                    ImageDeal[row].Center = ImageDeal[row].RightBorder
+                                          - Half_Bend_Wide[row] * 2 / 3 - fill_offset;
+                else
+                    ImageDeal[row].Center = ImageDeal[row].LeftBorder
+                                          + Half_Bend_Wide[row] * 2 / 3 + fill_offset;
+                LimitL(ImageDeal[row].Center);
+                LimitH(ImageDeal[row].Center);
+            }
         }
-        for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
+        else
         {
-            if (direction == 1U)
-                ImageDeal[row].Center = ImageDeal[row].RightBorder
-                                      - Half_Bend_Wide[row] * 2 / 3 - fill_offset;
-            else
-                ImageDeal[row].Center = ImageDeal[row].LeftBorder
-                                      + Half_Bend_Wide[row] * 2 / 3 + fill_offset;
-            LimitL(ImageDeal[row].Center);
-            LimitH(ImageDeal[row].Center);
+            /* corner2无效时兜底：全量推算。 */
+            for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
+            {
+                if (direction == 1U)
+                    ImageDeal[row].Center = ImageDeal[row].RightBorder
+                                          - Half_Bend_Wide[row] * 2 / 3 - fill_offset;
+                else
+                    ImageDeal[row].Center = ImageDeal[row].LeftBorder
+                                          + Half_Bend_Wide[row] * 2 / 3 + fill_offset;
+                LimitL(ImageDeal[row].Center);
+                LimitH(ImageDeal[row].Center);
+            }
         }
         break;
         case RING_STATE_INSIDE:
+        /* INSIDE采用与普通直道巡线一致的Center计算(左右边线中点)，
+           不再使用Half_Bend_Wide弯道推算和fill_offset偏置。 */
         for (row = SCAN_BASE_START_ROW; row > ImageStatus.OFFLine; row--)
         {
-            if (direction == 1U)
-                /* 左圆环使用右边线向左推算中心，与右圆环严格镜像。 */
-                ImageDeal[row].Center = ImageDeal[row].RightBorder
-                                      - Half_Bend_Wide[row] * 2 / 3 - fill_offset;
-            else
-                ImageDeal[row].Center = ImageDeal[row].LeftBorder
-                                      + Half_Bend_Wide[row] * 2 / 3 + fill_offset;
+            ImageDeal[row].Center = (ImageDeal[row].LeftBorder
+                                   + ImageDeal[row].RightBorder) / 2;
             LimitL(ImageDeal[row].Center);
             LimitH(ImageDeal[row].Center);
         }
@@ -1767,9 +1780,9 @@ static void Ring_State_Update(void)
             s_ring_entry_corner_col = valley_col;
             /* APPROACH完整处理1帧，谷底下移或向远处突变后进入ENTRY。 */
             if (s_ring_state_frames >= 1U
-                && (valley_row > 33
+                && (valley_row > 36
                     || (s_ring_prev_valley_row >= 0
-                        && s_ring_prev_valley_row - valley_row > 7)))
+                        && s_ring_prev_valley_row - valley_row > 10)))
                 Ring_Set_State(RING_STATE_ENTRY);
         }
         if(valley_row) s_ring_prev_valley_row = valley_row;
@@ -1966,7 +1979,7 @@ uint8 Ring_Should_Hold_Err(void)
 }
 
 /* ---- 对侧贴边行数检查 ----
- * 检查10~42行范围，边缘margin=8像素，贴边行>3则返回1
+ * 检查10~42行范围，边缘margin=3像素，贴边行>3则返回1
  * direction=1: 检查右边线是否太多行挤到右边缘
  * direction=2: 检查左边线是否太多行挤到左边缘
  */
@@ -1974,7 +1987,7 @@ static uint8 Ring_OtherSide_Too_Much_Edge(uint8 direction)
 {
     int row;
     int edge_rows = 0;
-    const int margin = 8;
+    const int margin = 3;
 
     for (row = 30; row >= 10; row--)
     {
@@ -1994,6 +2007,32 @@ static uint8 Ring_OtherSide_Too_Much_Edge(uint8 direction)
     return (uint8)(edge_rows > 3);
 }
 
+/* ---- 本侧丢线行数检查 ----
+ * 扫描行 min_row~max_row（含两端），统计本侧边线丢线行数。
+ * direction=1: 检查左边线(IsLeftFind!='T')行数
+ * direction=2: 检查右边线(IsRightFind!='T')行数
+ * 返回实际丢线行数（0~(max_row-min_row+1)）
+ */
+static int Ring_HomeSide_Lost_Count(uint8 direction, int min_row, int max_row)
+{
+    int row;
+    int lost = 0;
+    for (row = max_row; row >= min_row; row--)
+    {
+        if (direction == 1U)
+        {
+            if (ImageDeal[row].IsLeftFind != 'T') lost++;
+        }
+        else
+        {
+            if (ImageDeal[row].IsRightFind != 'T') lost++;
+        }
+    }
+    return lost;
+}
+
+
+
 /* 左圆环初判 */
 void Element_Judgment_Left_Rings(void)
 {
@@ -2005,7 +2044,9 @@ void Element_Judgment_Left_Rings(void)
     if (g_left_jump_count >= 3
         && g_right_jump_count + s_left_jump_other_lost_count <= RING_JUMP_OTHER_MAX
         && !Ring_OtherSide_Too_Much_Edge(1U)
-        && s_ring_exit_cooldown == 0U)
+        && s_ring_exit_cooldown == 0U
+        && Ring_HomeSide_Lost_Count(1U, RING_HOMESIDE_MIN_ROW, RING_HOMESIDE_MAX_ROW)
+           >= RING_HOMESIDE_LOST_THRESH)
     {
         g_ring_miss_cnt = ImageStatus.Miss_Left_lines;
         ImageFlag.image_element_rings = 1;
@@ -2024,7 +2065,9 @@ void Element_Judgment_Right_Rings(void)
     if (g_right_jump_count >= 3
         && g_left_jump_count + s_right_jump_other_lost_count <= RING_JUMP_OTHER_MAX
         && !Ring_OtherSide_Too_Much_Edge(2U)
-        && s_ring_exit_cooldown == 0U)
+        && s_ring_exit_cooldown == 0U
+        && Ring_HomeSide_Lost_Count(2U, RING_HOMESIDE_MIN_ROW, RING_HOMESIDE_MAX_ROW)
+           >= RING_HOMESIDE_LOST_THRESH)
     {
         g_ring_miss_cnt = ImageStatus.Miss_Right_lines;
         ImageFlag.image_element_rings = 2;
@@ -2188,7 +2231,7 @@ void Element_Handle_Ramp(void)
 #define CROSS_JUMP_MIN_COLS          3     //跳变确认列数
 #define CROSS_UPPER_CONFIRM_ROWS     2     //向上确认行数
 #define CROSS_CORNER_MAX_ROW_DIFF    10    //左右相隔行数
-#define CROSS_EXIT_DELAY_FRAMES      30U    //十字最后一次识别后继续屏蔽圆环初判的帧数
+#define CROSS_EXIT_DELAY_FRAMES      10U    //十字最后一次识别后继续屏蔽圆环初判的帧数
 
 #if (CROSS_SCAN_TOP_ROW < 0) || (CROSS_SCAN_BOTTOM_ROW >= LCDH) || (CROSS_SCAN_TOP_ROW >= CROSS_SCAN_BOTTOM_ROW)
 #error "CROSS_SCAN_ROW range is invalid"

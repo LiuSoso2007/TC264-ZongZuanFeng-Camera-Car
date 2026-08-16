@@ -26,23 +26,23 @@ volatile int16_t EncRight = 0;
 #pragma section all "cpu1_dsram"   /* CPU1私有变量放入DSRAM段 */
 
 /* CPU1本地参数（后续可用按键/IMU调整） */
-static int8_t   StraightSpeed = 50;
 static int16_t  EncCount        = 0;
 
 /* 进环保留速度百分比：60表示保留原速度60%，数值越大越快，越小越慢。 */
-#define RING_ENTRY_SPEED_PERCENT 60
+#define RING_ENTRY_SPEED_PERCENT 80
 #if RING_ENTRY_SPEED_PERCENT < 0 || RING_ENTRY_SPEED_PERCENT > 100
 #error "RING_ENTRY_SPEED_PERCENT must be between 0 and 100"
 #endif
 
 /* PI参数 */
 #define PI_KP          0.4f
-#define PI_KI          0.02f
-#define CURVE_SPEED    0
+#define PI_KI          0.04f
+#define INIT_SPEED     0
+#define STRAIGHT_SPEED 80
 
 /* PD参数 */
-#define PD_KP          0.90f
-#define PD_KD          0.8f
+#define PD_KP          1.0f
+#define PD_KD          0.13f
 
 /* 左右电机PI控制器 */
 static PI_t s_PI_Left, s_PI_Right;
@@ -55,8 +55,8 @@ int core1_main(void)
     interrupt_global_enable(0);
 
     int16_t  enc_left = 0, enc_right = 0;
-    int8_t   pwm_left,  pwm_right;
-    int16_t  motor_speed;
+    int8_t   motor_left,  motor_right;
+    int8_t   LeftSpeed = STRAIGHT_SPEED, RightSpeed = STRAIGHT_SPEED;
     float    position_err = 0.0f;
     float    new_position_err;
     uint8_t  ring_entry_slowdown = 0U;
@@ -68,8 +68,8 @@ int core1_main(void)
     Motor_Init();                        /* 电机双极性PWM(ATOM0) */
     Servo_Init();                        /* 舵机50Hz PWM(ATOM0) */
 
-    PI_Init(&s_PI_Left,  PI_KP, PI_KI, CURVE_SPEED);
-    PI_Init(&s_PI_Right, PI_KP, PI_KI, CURVE_SPEED);
+    PI_Init(&s_PI_Left,  PI_KP, PI_KI, INIT_SPEED);
+    PI_Init(&s_PI_Right, PI_KP, PI_KI, INIT_SPEED);
 
     Motor_SetLeftPWM(0);
     Motor_SetRightPWM(0);
@@ -125,8 +125,8 @@ int core1_main(void)
         /* CPU0识别到斑马线并锁定后，依次置零PWM和PI偏置，然后设置舵机中位停车。 */
         if (StopRequest != 0U)
         {
-            pwm_left = 0;
-            pwm_right = 0;
+            motor_left = 0;
+            motor_right = 0;
             s_PI_Left.TargetBias = 0;
             s_PI_Right.TargetBias = 0;
             Motor_SetLeftPWM(0);
@@ -136,21 +136,36 @@ int core1_main(void)
         }
 
         /* 速度PI闭环 */
-        pwm_left  = PI_Update(&s_PI_Left,  position_err, enc_left,  StraightSpeed);
-        pwm_right = PI_Update(&s_PI_Right, position_err, enc_right, StraightSpeed);
 
-        motor_speed = (int16_t)((float)StraightSpeed - 0.3f * (float)Err_abs);
-        /* 进入圆环时按保留比例降速 */
+        /* 左右轮差速：Err越大，对侧轮减速越多。
+           用浮点乘法避免整数除法使 (Err_abs-2)/50 在小Err时恒为0。 */
+        LeftSpeed  = STRAIGHT_SPEED;
+        RightSpeed = STRAIGHT_SPEED;
+        if (position_err >= 2.0f)
+            RightSpeed = (int16_t)((float)STRAIGHT_SPEED
+                                   * (1.0f - ((float)Err_abs - 2.0f) / 70.0f));
+        else if (position_err <= -2.0f)
+            LeftSpeed  = (int16_t)((float)STRAIGHT_SPEED
+                                   * (1.0f - ((float)Err_abs - 2.0f) / 70.0f));
+
+        /* 圆环减速：对速度值打折（原代码误用了上一帧motor_*，会使目标速度失真）。 */
         if (ring_entry_slowdown != 0U)
         {
-            motor_speed = (int16_t)(motor_speed * RING_ENTRY_SPEED_PERCENT / 100);
+            LeftSpeed  = (int16_t)((float)LeftSpeed  * (float)RING_ENTRY_SPEED_PERCENT / 100.0f);
+            RightSpeed = (int16_t)((float)RightSpeed * (float)RING_ENTRY_SPEED_PERCENT / 100.0f);
         }
 
-        /* 双向输出统一限制在-100~100，防止调参后越过电机PWM边界。 */
-        if (motor_speed > 100)  motor_speed = 100;
-        if (motor_speed < -100) motor_speed = -100;
-        Motor_SetLeftPWM((int8_t)motor_speed);
-        Motor_SetRightPWM((int8_t)motor_speed);
+        /* 左右轮独立PI更新，各用各的结构体，互不影响。 */
+        motor_left  = PI_Update_Left (&s_PI_Left,  position_err, enc_left,  LeftSpeed);
+        motor_right = PI_Update_Right(&s_PI_Right, position_err, enc_right, RightSpeed);
+
+        /* 双向输出统一限制在-100~100，左右轮对称。 */
+        if (motor_left  >  100) motor_left  =  100;
+        if (motor_left  < -100) motor_left  = -100;
+        if (motor_right >  100) motor_right =  100;
+        if (motor_right < -100) motor_right = -100;
+        Motor_SetLeftPWM ((int8_t)motor_left);
+        Motor_SetRightPWM((int8_t)motor_right);
 
         /* 每个图像Err只执行一次PD，避免10ms控制周期重复覆盖微分输出。 */
         if (has_new_err != 0U)

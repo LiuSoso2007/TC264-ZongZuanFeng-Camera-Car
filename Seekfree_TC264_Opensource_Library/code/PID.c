@@ -18,17 +18,17 @@ void PD_Update(float Kp, float Kd, float err)
 
     //以下是计算pd
     if(s_pd_err0 > PD_ERR_DEAD_ZONE)
-        s_pd_offset = Kp * (s_pd_err0-PD_ERR_DEAD_ZONE) + (Kd - 0.1 *   s_pd_err0 ) * (s_pd_err0 - s_pd_err1);
+        s_pd_offset = Kp * (s_pd_err0-PD_ERR_DEAD_ZONE) - Kd * (s_pd_err0 - s_pd_err1) * ((15-s_pd_err0)/15);
     else if(-s_pd_err0 > PD_ERR_DEAD_ZONE)
-        s_pd_offset = Kp * (s_pd_err0+PD_ERR_DEAD_ZONE) + (Kd - 0.1 * (-s_pd_err0)) * (s_pd_err0 - s_pd_err1);
+        s_pd_offset = Kp * (s_pd_err0+PD_ERR_DEAD_ZONE) - Kd * (s_pd_err0 - s_pd_err1) * ((20+s_pd_err0)/15);
     else
         s_pd_offset = 0;
 
     //以下是计算偏移
     if (s_pd_offset < -1.0f)
-        s_pd_offset *= SERVO_MIN_SIDE_WEIGHT * (1+(-1-s_pd_offset)/30);  //左偏增大
+        s_pd_offset *= SERVO_MIN_SIDE_WEIGHT * (1+0.5*(-1-s_pd_offset)/29);  //左偏增大
     else if(s_pd_offset > 1.0f)
-        s_pd_offset *= SERVO_MAX_SIDE_WEIGHT * (1+(-1+s_pd_offset)/40);   //右偏增大
+        s_pd_offset *= SERVO_MAX_SIDE_WEIGHT * (1+0.5*(-1+s_pd_offset)/35);   //右偏增大
     else
         s_pd_offset *= SERVO_MAX_SIDE_WEIGHT;
 
@@ -54,13 +54,10 @@ void PI_Init(PI_t *pi, float kp, float ki, int16_t min_speed)
     pi->TargetBias  = 0;
 }
 
-int8_t PI_Update(PI_t *pi, float pos_err, int16_t act_spd, int16_t str_spd)
+/* 左轮独立PI更新：每个控制器状态只从自己的pi结构体读写，无共享变量。 */
+int8_t PI_Update_Left(PI_t *pi, float pos_err, int16_t act_spd, int16_t str_spd)
 {
-    int16_t abs_err;
-    if (pos_err < 0)
-        abs_err = (int16_t)(-pos_err);
-    else
-        abs_err = (int16_t)pos_err;
+    int16_t abs_err = (pos_err < 0) ? (int16_t)(-pos_err) : (int16_t)pos_err;
     if (abs_err > 100) abs_err = 100;
 
     int16_t target;
@@ -68,7 +65,33 @@ int8_t PI_Update(PI_t *pi, float pos_err, int16_t act_spd, int16_t str_spd)
         target = str_spd;
     else
         target = pi->MinSpeed + (int16_t)((int32_t)(str_spd - pi->MinSpeed)
-                                          * (100 - abs_err) / 100);
+                                          * (200 - abs_err) / 200);
+    target += pi->TargetBias;
+    pi->TargetSpeed = target;
+
+    int16_t err = target - act_spd;
+    float   inc = pi->Kp * (float)(err - pi->LastSpdErr)
+                + pi->Ki * (float)err;
+    pi->Output += inc;
+    pi->LastSpdErr = err;
+
+    if (pi->Output > PI_OUT_MAX) pi->Output = PI_OUT_MAX;
+    if (pi->Output < PI_OUT_MIN) pi->Output = PI_OUT_MIN;
+    return (int8_t)pi->Output;
+}
+
+/* 右轮独立PI更新：每个控制器状态只从自己的pi结构体读写，无共享变量。 */
+int8_t PI_Update_Right(PI_t *pi, float pos_err, int16_t act_spd, int16_t str_spd)
+{
+    int16_t abs_err = (pos_err < 0) ? (int16_t)(-pos_err) : (int16_t)pos_err;
+    if (abs_err > 100) abs_err = 100;
+
+    int16_t target;
+    if (abs_err <= 2)
+        target = str_spd;
+    else
+        target = pi->MinSpeed + (int16_t)((int32_t)(str_spd - pi->MinSpeed)
+                                          * (200 - abs_err) / 200);
     target += pi->TargetBias;
     pi->TargetSpeed = target;
 

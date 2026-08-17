@@ -1,7 +1,7 @@
 /**
  * CPU1: 运动控制
  *
- * CPU0: 图像采集与处理，输出赛道偏差Err与元素标志
+ * CPU0: 图像采集与处理，通过邮箱发布赛道偏差和进环减速标志，并可发出停车请求
  * CPU1: 编码器、舵机PD、电机PI速度环，控制周期10ms
  * 控制定时器: CCU61_CH0 PIT 10ms（中断在isr.c中）
  */
@@ -25,10 +25,10 @@ volatile int16_t EncRight = 0;
 
 #pragma section all "cpu1_dsram"   /* CPU1私有变量放入DSRAM段 */
 
-/* CPU1本地参数（后续可用按键/IMU调整） */
+/* CPU1编码器采样分频计数器。 */
 static int16_t  EncCount        = 0;
 
-/* 进环保留速度百分比：60表示保留原速度60%，数值越大越快，越小越慢。 */
+/* 进环保留速度百分比：80表示保留原目标速度的80%，数值越大越快，越小越慢。 */
 #define RING_ENTRY_SPEED_PERCENT 80
 #if RING_ENTRY_SPEED_PERCENT < 0 || RING_ENTRY_SPEED_PERCENT > 100
 #error "RING_ENTRY_SPEED_PERCENT must be between 0 and 100"
@@ -122,7 +122,7 @@ int core1_main(void)
         if(position_err>0)Err_abs=position_err;
         if(position_err<0)Err_abs=-position_err;
 
-        /* CPU0识别到斑马线并锁定后，依次置零PWM和PI偏置，然后设置舵机中位停车。 */
+        /* CPU0锁存斑马线或底部全黑停车请求后，置零PWM和PI偏置，并将舵机回中。 */
         if (StopRequest != 0U)
         {
             motor_left = 0;
@@ -135,7 +135,7 @@ int core1_main(void)
             continue;
         }
 
-        /* 速度PI闭环 */
+        /* 根据赛道误差生成左右目标速度，再执行速度PI闭环。 */
 
         /* 左右轮差速：Err越大，对侧轮减速越多。
            用浮点乘法避免整数除法使 (Err_abs-2)/50 在小Err时恒为0。 */

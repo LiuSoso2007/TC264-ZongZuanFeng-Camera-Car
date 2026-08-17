@@ -575,8 +575,7 @@ void Straight_xie_judge(void)
     float S, Sum, Err, midd_k;
     int i;
 
-    if (ImageFlag.Zebra_Flag != 0 || ImageFlag.image_element_rings != 0
-        || ImageFlag.Ramp == 1)
+    if (ImageFlag.Zebra_Flag != 0 || ImageFlag.image_element_rings != 0)
         return;
 
     ImageFlag.straight_xie = 0;
@@ -2183,46 +2182,6 @@ void Element_Handle_Zebra(void)
     }
 }
 
-/* 坡道判定 */
-void Element_Judgment_Ramp(void)
-{
-        return;
-    int Ysite;
-    int i = 0;
-
-    if (ImageStatus.WhiteLine >= 3) return;
-
-    if (ImageStatus.OFFLine <= 5)
-    {
-        for (Ysite = ImageStatus.OFFLine + 1; Ysite < 7; Ysite++)
-        {
-            if (ImageDeal[Ysite].Wide > 18
-             && ImageDeal[Ysite].IsRightFind == 'T'
-             && ImageDeal[Ysite].IsLeftFind == 'T'
-             && ImageDeal[Ysite].LeftBorder < 40
-             && ImageDeal[Ysite].RightBorder > 55   /* TC264: >55(原>40) */
-             && Pixle[Ysite][ImageDeal[Ysite].Center] == 1
-             && Pixle[Ysite][ImageDeal[Ysite].Center - 2] == 1
-             && Pixle[Ysite][ImageDeal[Ysite].Center + 2] == 1
-             && ImageStatus.Miss_Left_lines < 7
-             && ImageStatus.Miss_Right_lines < 7)
-            {
-                i++;
-            }
-        }
-
-        if (i >= 3)
-        {
-            ImageFlag.Ramp = 1;
-        }
-    }
-}
-
-/* 坡道处理 */
-void Element_Handle_Ramp(void)
-{
-}
-
 /* 十字弯道扫描参数 */
 #define CROSS_SCAN_BOTTOM_ROW       50
 #define CROSS_SCAN_TOP_ROW          8
@@ -2520,36 +2479,32 @@ void Scan_Element(void)
         return;
 
     /* 无圆环时按斑马线、十字、圆环初判的顺序识别。 */
-    if (ImageFlag.Ramp == 0)
+    Element_Judgment_Zebra();
+    if (ImageFlag.Zebra_Flag != 0)
     {
-        Element_Judgment_Zebra();
-        if (ImageFlag.Zebra_Flag != 0)
-        {
-            return;
-        }
+        return;
+    }
 
-        Get_ExtensionLine();
-        if (s_cross_detected)
-        {
-            s_cross_exit_delay_frames = CROSS_EXIT_DELAY_FRAMES;
-            return;
-        }
+    Get_ExtensionLine();
+    if (s_cross_detected)
+    {
+        s_cross_exit_delay_frames = CROSS_EXIT_DELAY_FRAMES;
+        return;
+    }
 
-        /* 十字拐点离开视野后继续等待N帧，避免车体仍在十字时提前触发圆环减速。 */
-        if (s_cross_exit_delay_frames > 0U)
-        {
-            s_cross_exit_delay_frames--;
-            return;
-        }
+    /* 十字拐点离开视野后继续等待N帧，避免车体仍在十字时提前触发圆环减速。 */
+    if (s_cross_exit_delay_frames > 0U)
+    {
+        s_cross_exit_delay_frames--;
+        return;
+    }
 
-        if (ImageFlag.image_element_rings == 0)
-        {
-            Element_Judgment_Left_Rings();
-            Element_Judgment_Right_Rings();
-            /* 弯道沿用基础巡线中线，不再单独识别或覆盖Center。 */
-            Element_Judgment_Ramp();
-            Straight_long_judge();
-        }
+    if (ImageFlag.image_element_rings == 0)
+    {
+        Element_Judgment_Left_Rings();
+        Element_Judgment_Right_Rings();
+        /* 弯道沿用基础巡线中线，不再单独识别或覆盖Center。 */
+        Straight_long_judge();
     }
 
     if (ImageFlag.Bend_Road)
@@ -2576,8 +2531,6 @@ void Element_Handle(void)
         Element_Handle_Left_Rings();
     else if (ImageFlag.image_element_rings == 2)
         Element_Handle_Right_Rings();
-    else if (ImageFlag.Ramp != 0)
-        Element_Handle_Ramp();
     else
     {
         if (ImageFlag.straight_long)
@@ -2773,7 +2726,6 @@ float Obstacle_UpdateSteering(float normal_err)
     uint8 special_element_active;
 
     special_element_active = (uint8)(ImageFlag.Zebra_Flag != 0
-        || ImageFlag.Ramp != 0
         || ImageFlag.Bend_Road != 0
         || ImageFlag.image_element_rings != 0
         || ImageFlag.image_element_rings_flag != RING_STATE_IDLE
@@ -2886,7 +2838,6 @@ void Flag_init(void)
 {
     ImageFlag.Bend_Road              = 0;
     ImageFlag.Zebra_Flag             = 0;
-    ImageFlag.Ramp                   = 0;
     ImageFlag.straight_xie           = 0;
     ImageFlag.straight_long          = 0;
 }

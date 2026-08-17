@@ -195,7 +195,6 @@ typedef struct {
     int16 straight_long;                       /* 长直道标志 */
     int16 straight_xie;                        /* 斜入直道标志 */
     int16 Zebra_Flag;                          /* 斑马线: 0=无 1=左侧 2=右侧 */
-    int16 Ramp;                                /* 坡道: 0=无 1=检测到 */
 
 } ImageFlagtypedef;
 
@@ -233,8 +232,6 @@ uint8 Ring_Should_Hold_Err(void);                            // EXIT2跳变帧�
 float Obstacle_UpdateSteering(float normal_err);             // 纯视觉路障状态机与平滑绕行
 void  Element_Judgment_Zebra(void);                          // 斑马线识别
 void  Element_Handle_Zebra(void);                            // 斑马线处理
-void  Element_Judgment_Ramp(void);                           // 坡道识别
-void  Element_Handle_Ramp(void);                             // 坡道处理
 
 
 void  Get_ExtensionLine(void);                               // 十字补线

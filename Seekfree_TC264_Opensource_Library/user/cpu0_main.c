@@ -18,10 +18,10 @@ IfxCpu_mutexLock ErrMailboxLock   = 0U;
 volatile uint8_t StopRequest = 0U;
 volatile uint8_t RingEntrySlowdown = 0U;
 
-/* 压缩图中行号越小前瞻越远，41比42中间稍近但更稳定。 */
+/* 压缩图中行号越小前瞻越远；使用第27~29行平均值作为转向前瞻误差。 */
 #define STEERING_LOOKAHEAD_ROW 27
 
-/* 文字仪表盘开关(轻量)，1=开 0=关。关闭后屏幕全黑，但会失去DMA同步延迟。 */
+/* 文字仪表盘开关：1=初始化IPS200并显示文字，0=不初始化IPS200文字显示。 */
 #define IPS200_TEXT_DISPLAY_ENABLE 0
 #define IPS200_DISPLAY_IMAGE_ENABLE 0
 
@@ -30,8 +30,6 @@ volatile uint8_t RingEntrySlowdown = 0U;
 /* 摄像头50帧时每5帧刷新一次编码器数值，避免刷新拖慢主循环。 */
 #define ENCODER_DISPLAY_DIV 5U
 #endif
-/* 斑马线帧确认: 退出斑马线帧计数，确认后保持全局8帧后停止，以越过终点线。 */
-
 /* 斑马线停止延迟帧数: 检测到斑马线后延迟N帧后停车。
    斑马线同时充当终点线，延迟需略长以确保车体完全过线后再刹停。
    50fps，1帧=20ms，8帧 ≈ 160ms。 */

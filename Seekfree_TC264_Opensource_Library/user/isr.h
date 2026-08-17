@@ -7,7 +7,7 @@
  * isr.h --- 中断服务函数声明与共享变量
  *
  * 本文件声明:
- *   1. 跨核共享变量 (PID_Flag, Err)
+ *   1. PID定时标志及图像误差邮箱的共享声明
  *   2. 跨核共享回调 (Key_Tick)
  *   3. 来自逐飞设备库的回调函数引用 (extern callback_function)
  *
@@ -27,9 +27,9 @@
 extern volatile uint8_t PID_Flag;
 
 /*
- * Err - 图像偏差共享变量
- * 生产者: cpu0_main.c (CPU0 图像处理后)
- * 消费者: cpu1_main.c (CPU1 PD/电机控制)
+ * Err - 图像偏差邮箱中的数据字段
+ * 生产者: CPU0调用Shared_PublishErr()发布最新帧
+ * 消费者: CPU1调用Shared_TakeErr()取得最新帧
  * 含义: 赛车中心线偏离图像中线的像素偏差 (正=右偏, 负=左偏)
  */
 extern volatile float    Err;

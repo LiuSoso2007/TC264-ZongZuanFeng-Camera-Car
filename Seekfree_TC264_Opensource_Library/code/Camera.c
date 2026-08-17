@@ -2243,6 +2243,64 @@ void Element_Handle_Ramp(void)
 static uint8 s_cross_detected = 0U;  /* 当前帧左右拐点有效并已完成补线 */
 static uint16 s_cross_exit_delay_frames = 0U; /* 十字消失后剩余的圆环屏蔽帧数 */
 
+/* ---- 纯视觉路障参数 ----
+ * 行号越大越靠近车；70cm用于发现，约50cm进入绕行，30cm保持绕行。
+ * 砖按样图从左/右边缘伸入；剩余白色通道中心可为20cm车宽提供最大两侧净空。
+ * 所有阈值只作用于独立路障状态机，不改变正常巡线和其他元素参数。
+ */
+#define OBSTACLE_SCAN_MIN_ROW             6
+#define OBSTACLE_SCAN_MAX_ROW            54
+#define OBSTACLE_BASE_FIRST_ROW          55
+#define OBSTACLE_BASE_LAST_ROW           59
+#define OBSTACLE_ACTION_MIN_ROW           14
+#define OBSTACLE_WIDTH_DEFICIT_MIN        4.0f
+#define OBSTACLE_SIDE_MARGIN_MIN          2.0f
+#define OBSTACLE_MIN_STREAK_ROWS          3U
+#define OBSTACLE_CONFIRM_FRAMES           3U
+#define OBSTACLE_CLEAR_FRAMES             4U
+#define OBSTACLE_MIN_ERR_OFFSET           12.0f
+#define OBSTACLE_MAX_ABS_ERR              24.0f
+#define OBSTACLE_BYPASS_STEP              2.0f
+#define OBSTACLE_RECENTER_STEP            1.0f
+
+#define OBSTACLE_STATE_NORMAL             0U
+#define OBSTACLE_STATE_CONFIRM            1U
+#define OBSTACLE_STATE_BYPASS             2U
+#define OBSTACLE_STATE_RECENTER           3U
+#define OBSTACLE_SIDE_NONE                0
+#define OBSTACLE_SIDE_LEFT                1
+#define OBSTACLE_SIDE_RIGHT              -1
+
+#if (OBSTACLE_SCAN_MIN_ROW < 0) || (OBSTACLE_SCAN_MAX_ROW >= LCDH) || (OBSTACLE_SCAN_MIN_ROW >= OBSTACLE_SCAN_MAX_ROW)
+#error "OBSTACLE_SCAN_ROW range is invalid"
+#endif
+#if (OBSTACLE_BASE_FIRST_ROW <= OBSTACLE_SCAN_MAX_ROW) || (OBSTACLE_BASE_LAST_ROW >= LCDH)
+#error "OBSTACLE_BASE_ROW range is invalid"
+#endif
+#if (OBSTACLE_ACTION_MIN_ROW < OBSTACLE_SCAN_MIN_ROW) || (OBSTACLE_ACTION_MIN_ROW > OBSTACLE_SCAN_MAX_ROW)
+#error "OBSTACLE_ACTION_MIN_ROW is invalid"
+#endif
+#if (OBSTACLE_MIN_STREAK_ROWS == 0U) || (OBSTACLE_CONFIRM_FRAMES == 0U) || (OBSTACLE_CLEAR_FRAMES == 0U)
+#error "OBSTACLE frame thresholds must be non-zero"
+#endif
+
+typedef struct
+{
+    uint8 found;
+    int8 side;
+    int nearest_row;
+    float target_err;
+} ObstacleDetection;
+
+static uint8 s_obstacle_state = OBSTACLE_STATE_NORMAL;
+static uint8 s_obstacle_confirm_frames = 0U;
+static uint8 s_obstacle_miss_frames = 0U;
+static int8 s_obstacle_side = OBSTACLE_SIDE_NONE;
+static float s_obstacle_model_center = (float)ImageSensorMid;
+static float s_obstacle_model_scale = 1.0f;
+static float s_obstacle_target_err = 0.0f;
+static float s_obstacle_output_err = 0.0f;
+
 /* 候选点上方连续两行均无跳变，才确认候选点为十字拐点。 */
 static uint8 Cross_Upper_Rows_Have_No_Jump(int row, uint8 check_left)
 {
@@ -2522,6 +2580,302 @@ void Element_Handle(void)
         if (ImageFlag.straight_long)
             Straight_long_handle();
     }
+}
+
+/* 由车前方未受砖影响的近端赛道建立本帧道路宽度模型。 */
+static uint8 Obstacle_Build_Road_Model(float *center, float *scale)
+{
+    int row;
+    int valid_rows = 0;
+    float center_sum = 0.0f;
+    float actual_width_sum = 0.0f;
+    float expected_width_sum = 0.0f;
+
+    for (row = OBSTACLE_BASE_FIRST_ROW; row <= OBSTACLE_BASE_LAST_ROW; row++)
+    {
+        if (ImageDeal[row].LeftBorder < 1
+            || ImageDeal[row].RightBorder > LCDW - 2
+            || ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder <= 8)
+            continue;
+
+        center_sum += (float)ImageDeal[row].Center;
+        actual_width_sum += (float)(ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder);
+        expected_width_sum += 2.0f * (float)Half_Road_Wide[row];
+        valid_rows++;
+    }
+
+    if (valid_rows < 3 || expected_width_sum <= 0.0f)
+        return 0U;
+
+    *center = center_sum / (float)valid_rows;
+    *scale = actual_width_sum / expected_width_sum;
+    if (*scale < 0.70f || *scale > 1.30f)
+        return 0U;
+
+    return 1U;
+}
+
+/* 用单侧边界内缩和连续道路宽度亏损识别砖，弯道整体平移不会满足宽度亏损。 */
+static void Obstacle_Detect(float model_center, float model_scale,
+                            ObstacleDetection *detection)
+{
+    int row;
+    uint8 left_streak = 0U;
+    uint8 right_streak = 0U;
+    uint8 best_left_streak = 0U;
+    uint8 best_right_streak = 0U;
+    float left_center_sum = 0.0f;
+    float right_center_sum = 0.0f;
+    float best_left_center = model_center;
+    float best_right_center = model_center;
+    int best_left_row = -1;
+    int best_right_row = -1;
+
+    detection->found = 0U;
+    detection->side = OBSTACLE_SIDE_NONE;
+    detection->nearest_row = -1;
+    detection->target_err = 0.0f;
+
+    for (row = OBSTACLE_SCAN_MIN_ROW; row <= OBSTACLE_SCAN_MAX_ROW; row++)
+    {
+        float expected_half;
+        float left_intrusion;
+        float right_intrusion;
+        float width_deficit;
+        int8 row_side = OBSTACLE_SIDE_NONE;
+
+        if (row <= ImageStatus.OFFLine
+            || ImageDeal[row].IsLeftFind != 'T'
+            || ImageDeal[row].IsRightFind != 'T'
+            || ImageDeal[row].LeftBorder < 1
+            || ImageDeal[row].RightBorder > LCDW - 2
+            || ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder <= 8)
+        {
+            left_streak = 0U;
+            right_streak = 0U;
+            left_center_sum = 0.0f;
+            right_center_sum = 0.0f;
+            continue;
+        }
+
+        expected_half = (float)Half_Road_Wide[row] * model_scale;
+        left_intrusion = (float)ImageDeal[row].LeftBorder
+                       - (model_center - expected_half);
+        right_intrusion = (model_center + expected_half)
+                        - (float)ImageDeal[row].RightBorder;
+        width_deficit = left_intrusion + right_intrusion;
+
+        if (width_deficit >= OBSTACLE_WIDTH_DEFICIT_MIN)
+        {
+            if (left_intrusion >= OBSTACLE_WIDTH_DEFICIT_MIN
+                && left_intrusion >= right_intrusion + OBSTACLE_SIDE_MARGIN_MIN)
+                row_side = OBSTACLE_SIDE_LEFT;
+            else if (right_intrusion >= OBSTACLE_WIDTH_DEFICIT_MIN
+                     && right_intrusion >= left_intrusion + OBSTACLE_SIDE_MARGIN_MIN)
+                row_side = OBSTACLE_SIDE_RIGHT;
+        }
+
+        if (row_side == OBSTACLE_SIDE_LEFT)
+        {
+            left_streak++;
+            left_center_sum += (float)ImageDeal[row].Center;
+            right_streak = 0U;
+            right_center_sum = 0.0f;
+            if (left_streak >= best_left_streak)
+            {
+                best_left_streak = left_streak;
+                best_left_center = left_center_sum / (float)left_streak;
+                best_left_row = row;
+            }
+        }
+        else if (row_side == OBSTACLE_SIDE_RIGHT)
+        {
+            right_streak++;
+            right_center_sum += (float)ImageDeal[row].Center;
+            left_streak = 0U;
+            left_center_sum = 0.0f;
+            if (right_streak >= best_right_streak)
+            {
+                best_right_streak = right_streak;
+                best_right_center = right_center_sum / (float)right_streak;
+                best_right_row = row;
+            }
+        }
+        else
+        {
+            left_streak = 0U;
+            right_streak = 0U;
+            left_center_sum = 0.0f;
+            right_center_sum = 0.0f;
+        }
+    }
+
+    if (best_left_streak >= OBSTACLE_MIN_STREAK_ROWS
+        && best_left_streak > best_right_streak)
+    {
+        float minimum_target = model_center - (float)ImageSensorMid
+                             + OBSTACLE_MIN_ERR_OFFSET;
+        detection->found = 1U;
+        detection->side = OBSTACLE_SIDE_LEFT;
+        detection->nearest_row = best_left_row;
+        detection->target_err = best_left_center - (float)ImageSensorMid;
+        if (detection->target_err < minimum_target)
+            detection->target_err = minimum_target;
+    }
+    else if (best_right_streak >= OBSTACLE_MIN_STREAK_ROWS
+             && best_right_streak > best_left_streak)
+    {
+        float maximum_target = model_center - (float)ImageSensorMid
+                             - OBSTACLE_MIN_ERR_OFFSET;
+        detection->found = 1U;
+        detection->side = OBSTACLE_SIDE_RIGHT;
+        detection->nearest_row = best_right_row;
+        detection->target_err = best_right_center - (float)ImageSensorMid;
+        if (detection->target_err > maximum_target)
+            detection->target_err = maximum_target;
+    }
+
+    if (detection->target_err > OBSTACLE_MAX_ABS_ERR)
+        detection->target_err = OBSTACLE_MAX_ABS_ERR;
+    if (detection->target_err < -OBSTACLE_MAX_ABS_ERR)
+        detection->target_err = -OBSTACLE_MAX_ABS_ERR;
+}
+
+static float Obstacle_Slew(float current, float target, float step)
+{
+    if (target - current > step)
+        return current + step;
+    if (current - target > step)
+        return current - step;
+    return target;
+}
+
+static void Obstacle_Reset(float normal_err)
+{
+    s_obstacle_state = OBSTACLE_STATE_NORMAL;
+    s_obstacle_confirm_frames = 0U;
+    s_obstacle_miss_frames = 0U;
+    s_obstacle_side = OBSTACLE_SIDE_NONE;
+    s_obstacle_target_err = normal_err;
+    s_obstacle_output_err = normal_err;
+}
+
+/* 正常→确认→绕行→黑块连续消失→平滑回中→正常。 */
+float Obstacle_UpdateSteering(float normal_err)
+{
+    ObstacleDetection detection;
+    float model_center;
+    float model_scale;
+    uint8 model_valid;
+    uint8 special_element_active;
+
+    special_element_active = (uint8)(ImageFlag.Zebra_Flag != 0
+        || ImageFlag.Ramp != 0
+        || ImageFlag.Bend_Road != 0
+        || ImageFlag.image_element_rings != 0
+        || ImageFlag.image_element_rings_flag != RING_STATE_IDLE
+        || s_cross_detected != 0U
+        || s_cross_exit_delay_frames > 0U);
+
+    /* 已有元素始终保持原优先级，路障偏置不得跨元素残留。 */
+    if (special_element_active != 0U)
+    {
+        Obstacle_Reset(normal_err);
+        return normal_err;
+    }
+
+    if (s_obstacle_state == OBSTACLE_STATE_NORMAL
+        || s_obstacle_state == OBSTACLE_STATE_CONFIRM)
+    {
+        model_valid = Obstacle_Build_Road_Model(&model_center, &model_scale);
+        if (model_valid != 0U)
+            Obstacle_Detect(model_center, model_scale, &detection);
+        else
+            detection.found = 0U;
+
+        if (detection.found == 0U)
+        {
+            Obstacle_Reset(normal_err);
+            return normal_err;
+        }
+
+        if (s_obstacle_state == OBSTACLE_STATE_NORMAL
+            || detection.side != s_obstacle_side)
+        {
+            s_obstacle_state = OBSTACLE_STATE_CONFIRM;
+            s_obstacle_confirm_frames = 1U;
+            s_obstacle_side = detection.side;
+        }
+        else if (s_obstacle_confirm_frames < OBSTACLE_CONFIRM_FRAMES)
+        {
+            s_obstacle_confirm_frames++;
+        }
+
+        s_obstacle_miss_frames = 0U;
+        s_obstacle_model_center = model_center;
+        s_obstacle_model_scale = model_scale;
+        s_obstacle_target_err = detection.target_err;
+
+        if (s_obstacle_confirm_frames >= OBSTACLE_CONFIRM_FRAMES
+            && detection.nearest_row >= OBSTACLE_ACTION_MIN_ROW)
+        {
+            s_obstacle_state = OBSTACLE_STATE_BYPASS;
+            s_obstacle_output_err = normal_err;
+        }
+        else
+        {
+            return normal_err;
+        }
+    }
+
+    Obstacle_Detect(s_obstacle_model_center, s_obstacle_model_scale, &detection);
+
+    if (s_obstacle_state == OBSTACLE_STATE_BYPASS)
+    {
+        if (detection.found != 0U && detection.side == s_obstacle_side)
+        {
+            s_obstacle_miss_frames = 0U;
+            s_obstacle_target_err = detection.target_err;
+        }
+        else if (s_obstacle_miss_frames < OBSTACLE_CLEAR_FRAMES)
+        {
+            s_obstacle_miss_frames++;
+        }
+
+        if (s_obstacle_miss_frames >= OBSTACLE_CLEAR_FRAMES)
+        {
+            s_obstacle_state = OBSTACLE_STATE_RECENTER;
+        }
+        else
+        {
+            s_obstacle_output_err = Obstacle_Slew(
+                s_obstacle_output_err, s_obstacle_target_err, OBSTACLE_BYPASS_STEP);
+            return s_obstacle_output_err;
+        }
+    }
+
+    if (s_obstacle_state == OBSTACLE_STATE_RECENTER)
+    {
+        /* 回中期间若同侧黑块重新出现，立即恢复绕行，避免过早切回。 */
+        if (detection.found != 0U && detection.side == s_obstacle_side)
+        {
+            s_obstacle_state = OBSTACLE_STATE_BYPASS;
+            s_obstacle_miss_frames = 0U;
+            s_obstacle_target_err = detection.target_err;
+            s_obstacle_output_err = Obstacle_Slew(
+                s_obstacle_output_err, s_obstacle_target_err, OBSTACLE_BYPASS_STEP);
+            return s_obstacle_output_err;
+        }
+
+        s_obstacle_output_err = Obstacle_Slew(
+            s_obstacle_output_err, normal_err, OBSTACLE_RECENTER_STEP);
+        if (s_obstacle_output_err == normal_err)
+            Obstacle_Reset(normal_err);
+        return s_obstacle_output_err;
+    }
+
+    Obstacle_Reset(normal_err);
+    return normal_err;
 }
 
 /* 元素标志初始化 */

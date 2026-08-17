@@ -230,6 +230,7 @@ void  Element_Handle_Left_Rings(void);                       // 左圆环处理
 void  Element_Judgment_Right_Rings(void);                    // 右圆环识别
 void  Element_Handle_Right_Rings(void);                      // 右圆环处理
 uint8 Ring_Should_Hold_Err(void);                            // EXIT2跳变帧保持上一帧Err
+float Obstacle_UpdateSteering(float normal_err);             // 纯视觉路障状态机与平滑绕行
 void  Element_Judgment_Zebra(void);                          // 斑马线识别
 void  Element_Handle_Zebra(void);                            // 斑马线处理
 void  Element_Judgment_Ramp(void);                           // 坡道识别

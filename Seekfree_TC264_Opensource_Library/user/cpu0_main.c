@@ -158,6 +158,9 @@ int core0_main(void)
                     frame_err = 0.0f;
                 }
 
+                /* 路障只叠加临时视觉目标，正常巡线Err和PD参数保持原样。 */
+                frame_err = Obstacle_UpdateSteering(frame_err);
+
                 /* 一帧处理完成后原子覆盖邮箱，CPU1只消费一次最新Err。 */
                 Shared_PublishErr(frame_err, ring_entry_slowdown);
             }

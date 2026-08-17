@@ -40,6 +40,9 @@ static int16_t  EncCount        = 0;
 #define INIT_SPEED     0
 #define STRAIGHT_SPEED 80
 
+/* VOFA电机PI临时调参：1=固定双轮目标并忽略赛道停车/差速，0=恢复正常赛道控制。 */
+#define VOFA_PI_TUNING_MODE 1
+
 /* PD参数 */
 #define PD_KP          1.0f
 #define PD_KD          0.13f
@@ -61,9 +64,11 @@ int core1_main(void)
     int8_t   motor_left,  motor_right;
     int8_t   LeftSpeed = STRAIGHT_SPEED, RightSpeed = STRAIGHT_SPEED;
     float    position_err = 0.0f;
+#if !VOFA_PI_TUNING_MODE
     float    new_position_err;
     uint8_t  ring_entry_slowdown = 0U;
     uint8_t  new_ring_entry_slowdown;
+#endif
     uint8_t  encoder_updated;
 
     /* CPU1外设初始化 */
@@ -116,6 +121,12 @@ int core1_main(void)
         EncLeft  = enc_left;
         EncRight = enc_right;
 
+#if VOFA_PI_TUNING_MODE
+        /* 临时速度环调参：固定目标速度，屏蔽视觉差速、圆环减速和停车请求。 */
+        position_err = 0.0f;
+        LeftSpeed = STRAIGHT_SPEED;
+        RightSpeed = STRAIGHT_SPEED;
+#else
         /* 赛道误差：CPU0图像输出，无新帧时保持上一份快照 */
         uint8_t has_new_err = 0U;
         uint8_t Err_abs = 0U;
@@ -160,6 +171,7 @@ int core1_main(void)
             LeftSpeed  = (int16_t)((float)LeftSpeed  * (float)RING_ENTRY_SPEED_PERCENT / 100.0f);
             RightSpeed = (int16_t)((float)RightSpeed * (float)RING_ENTRY_SPEED_PERCENT / 100.0f);
         }
+#endif
 
         /* 左右轮独立PI更新，各用各的结构体，互不影响。 */
         motor_left  = PI_Update_Left (&s_PI_Left,  position_err, enc_left,  LeftSpeed);
@@ -183,11 +195,13 @@ int core1_main(void)
             debug_send_buffer((const uint8 *)s_vofa_frame, vofa_len);
         }
 
+#if !VOFA_PI_TUNING_MODE
         /* 每个图像Err只执行一次PD，避免10ms控制周期重复覆盖微分输出。 */
         if (has_new_err != 0U)
         {
             PD_Update(PD_KP, PD_KD, position_err);
         }
+#endif
 
     }
 }

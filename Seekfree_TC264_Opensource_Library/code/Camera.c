@@ -1023,6 +1023,69 @@ static uint8 Ring_Find_Entry_Corner(uint8 direction,
     return 0U;
 }
 
+/* RECOVERY阶段独立找点：从40行向上扫描到10行，左右圆环完全镜像。 */
+static uint8 Ring_Find_Recovery_Corner(uint8 direction,
+                                       int *corner_row, int *corner_col)
+{
+    int row, col;
+
+    *corner_row = -1;
+    *corner_col = -1;
+
+    for (row = RING_RECOVERY_SCAN_MAX_ROW;
+         row >= RING_RECOVERY_SCAN_MIN_ROW; row--)
+    {
+        if (direction == 2U)
+        {
+            /* 右环：左边缘为白时略过，从左向右取第一个白变黑点。 */
+            if (Pixle[row][0] == IMG_WHITE)
+                continue;
+
+            for (col = 1; col < LCDW; col++)
+            {
+                if (Pixle[row][col - 1] == IMG_WHITE
+                    && Pixle[row][col] == IMG_BLACK)
+                {
+                    if (col > RING_RECOVERY_CORNER_COL_LIMIT)
+                    {
+                        *corner_row = row;
+                        *corner_col = col;
+                        return 1U;
+                    }
+                    break;
+                }
+            }
+        }
+        else if (direction == 1U)
+        {
+            /* 左环：右边缘为白时略过，从右向左取第一个白变黑点。 */
+            if (Pixle[row][LCDW - 1] == IMG_WHITE)
+                continue;
+
+            for (col = LCDW - 2; col >= 0; col--)
+            {
+                if (Pixle[row][col + 1] == IMG_WHITE
+                    && Pixle[row][col] == IMG_BLACK)
+                {
+                    if (col < LCDW - 1 - RING_RECOVERY_CORNER_COL_LIMIT)
+                    {
+                        *corner_row = row;
+                        *corner_col = col;
+                        return 1U;
+                    }
+                    break;
+                }
+            }
+        }
+        else
+        {
+            return 0U;
+        }
+    }
+
+    return 0U;
+}
+
 /* ---- 统计相邻行边界断点数量 ---- */
 static int Ring_Check_Border_Jump(uint8 direction, int threshold, int min_row, int max_row,
                                   int *other_lost_count)
@@ -1924,8 +1987,8 @@ static void Ring_State_Update(void)
     case RING_STATE_RECOVERY:
         valley_row = -1;
         valley_col = -1;
-        /* 复用ENTRY横向扫描，并要求出环拐点上方两行连续。 */
-        if (Ring_Find_Entry_Corner(direction, &valley_row, &valley_col)
+        /* 使用RECOVERY独立找点，并限制相邻帧拐点行号突变。 */
+        if (Ring_Find_Recovery_Corner(direction, &valley_row, &valley_col)
             && valley_row <= 50
             && (s_ring_prev_recovery_valley_row < 0
                 || (valley_row - s_ring_prev_recovery_valley_row <= 15

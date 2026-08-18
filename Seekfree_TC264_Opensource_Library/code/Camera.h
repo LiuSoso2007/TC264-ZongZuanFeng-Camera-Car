@@ -159,9 +159,16 @@ extern ImageStatustypedef ImageStatus;         // 图像状态全局变量
 #define RING_JUMP_OTHER_MAX         0   // 另一侧最大跳变次数
 #define RING_EXIT_POINT_HOLD_FRAMES 1U  // EXIT1/EXIT2单点短时丢失保持帧数
 #define RING_EXIT2_PASS_ROW         15  // EXIT2拐点行号小于等于该值时进入状态7
-#define RING_RECOVERY_SCAN_MIN_ROW  3   //
-#define RING_RECOVERY_SCAN_MAX_ROW  59  //
-#define RING_RECOVERY_STREAK_MIN    10  // 恢复阶段同列的最小行数
+#define RING_RECOVERY_SCAN_MIN_ROW  10  // RECOVERY找点最小扫描行(含)
+#define RING_RECOVERY_SCAN_MAX_ROW  40  // RECOVERY找点最大扫描行(含)
+#define RING_RECOVERY_CORNER_COL_LIMIT 35 // 右环列号下限，左环按图像宽度镜像
+#if (RING_RECOVERY_SCAN_MIN_ROW < 0) \
+ || (RING_RECOVERY_SCAN_MAX_ROW >= LCDH) \
+ || (RING_RECOVERY_SCAN_MIN_ROW > RING_RECOVERY_SCAN_MAX_ROW) \
+ || (RING_RECOVERY_CORNER_COL_LIMIT <= 0) \
+ || (RING_RECOVERY_CORNER_COL_LIMIT >= LCDW - 1)
+#error "RING_RECOVERY scan range is invalid"
+#endif
 
 /* ---- 圆环状态机 ---- */
 #define RING_STATE_IDLE       0    // 空闲: 无环

@@ -2015,6 +2015,8 @@ static void Ring_State_Update(void)
         valley_col = -1;
         if (Ring_Find_Recovery_Corner(direction, &valley_row, &valley_col))
         {
+            s_ring_feature_count = 0U;
+
             /* 拐点到达图像近端或左右出口边缘时，结束阶段7。 */
             if (valley_row > RING_RECOVERY_EXIT_ROW
                 || (direction == 2U
@@ -2029,6 +2031,17 @@ static void Ring_State_Update(void)
             s_ring_recovery_valley_row = valley_row;
             s_ring_recovery_valley_col = valley_col;
             s_ring_prev_recovery_valley_row = valley_row;
+        }
+        else if (s_ring_prev_recovery_valley_row < 0)
+        {
+            /* 仅首次找点允许等待10帧，找到过拐点后单帧漏检不结束圆环。 */
+            if (s_ring_feature_count < RING_RECOVERY_ACQUIRE_MAX_FRAMES)
+                s_ring_feature_count++;
+            if (s_ring_feature_count >= RING_RECOVERY_ACQUIRE_MAX_FRAMES)
+            {
+                Ring_Clear_State();
+                break;
+            }
         }
         break;
 

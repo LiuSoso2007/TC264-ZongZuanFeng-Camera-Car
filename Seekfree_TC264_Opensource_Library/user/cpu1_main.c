@@ -44,6 +44,17 @@ static int16_t  EncCount = 0;
 #define PD_KP          1.0f
 #define PD_KD          0.13f
 
+/* 调参模式开关：1=固定目标速度并忽略视觉寻迹/差速/停车，用于悬空测速度上限；0=正常赛道模式。 */
+#define PID_TUNING_MODE 1
+/* 调参模式目标速度：编码器80ms累计脉冲数，不是PWM百分比；悬空测极速建议填比实际计数大很多的值，例如1000。 */
+#define PID_TUNING_SPEED 1000
+#if PID_TUNING_MODE < 0 || PID_TUNING_MODE > 1
+#error "PID_TUNING_MODE must be 0 or 1"
+#endif
+#if PID_TUNING_MODE && (PID_TUNING_SPEED < 1 || PID_TUNING_SPEED > 1000)
+#error "PID_TUNING_SPEED must be between 1 and 1000"
+#endif
+
 /* 左右电机PI控制器 */
 static PI_t s_PI_Left, s_PI_Right;
 
@@ -56,11 +67,13 @@ int core1_main(void)
 
     int16_t  enc_left = 0, enc_right = 0;
     int16_t  motor_left,  motor_right;
-    int8_t   LeftSpeed = STRAIGHT_SPEED, RightSpeed = STRAIGHT_SPEED;
+    int16_t  LeftSpeed = STRAIGHT_SPEED, RightSpeed = STRAIGHT_SPEED;
     float    position_err = 0.0f;
+#if !PID_TUNING_MODE
     float    new_position_err;
     uint8_t  ring_entry_slowdown = 0U;
     uint8_t  new_ring_entry_slowdown;
+#endif
 
     /* CPU1外设初始化 */
     Key_Init();                          /* 四键按键（功能预留） */
@@ -73,6 +86,10 @@ int core1_main(void)
 
     Motor_SetLeftPWM(0);
     Motor_SetRightPWM(0);
+#if PID_TUNING_MODE
+    /* 调参模式忽略视觉，舵机固定中位，避免旧Err造成乱打。 */
+    Servo_SetAngleDeg(SERVO_CENTER_ANGLE);
+#endif
 
     /* 按键扫描定时器：5ms（CPU1 PIT） */
     pit_ms_init(CCU60_CH1, 5);
@@ -110,6 +127,12 @@ int core1_main(void)
         EncLeft  = enc_left;
         EncRight = enc_right;
 
+#if PID_TUNING_MODE
+        /* 调参模式：固定双轮目标速度，忽略视觉差速、圆环减速和停车请求。 */
+        position_err = 0.0f;
+        LeftSpeed  = PID_TUNING_SPEED;
+        RightSpeed = PID_TUNING_SPEED;
+#else
         /* 赛道误差：CPU0图像输出，无新帧时保持上一份快照 */
         uint8_t has_new_err = 0U;
         uint8_t Err_abs = 0U;
@@ -154,6 +177,7 @@ int core1_main(void)
             LeftSpeed  = (int16_t)((float)LeftSpeed  * (float)RING_ENTRY_SPEED_PERCENT / 100.0f);
             RightSpeed = (int16_t)((float)RightSpeed * (float)RING_ENTRY_SPEED_PERCENT / 100.0f);
         }
+#endif
         /* 左右轮独立PI更新，各用各的结构体，互不影响。 */
         motor_left  = PI_Update_Left (&s_PI_Left,  position_err, enc_left,  LeftSpeed);
         motor_right = PI_Update_Right(&s_PI_Right, position_err, enc_right, RightSpeed);
@@ -166,11 +190,13 @@ int core1_main(void)
         Motor_SetLeftPWM ((int16_t)motor_left);
         Motor_SetRightPWM((int16_t)motor_right);
 
+#if !PID_TUNING_MODE
         /* 每个图像Err只执行一次PD，避免10ms控制周期重复覆盖微分输出。 */
         if (has_new_err != 0U)
         {
             PD_Update(PD_KP, PD_KD, position_err);
         }
+#endif
 
     }
 }

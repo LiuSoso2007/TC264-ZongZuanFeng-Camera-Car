@@ -55,7 +55,7 @@ void PI_Init(PI_t *pi, float kp, float ki, int16_t min_speed)
 }
 
 /* 左轮独立PI更新：每个控制器状态只从自己的pi结构体读写，无共享变量。 */
-int8_t PI_Update_Left(PI_t *pi, float pos_err, int16_t act_spd, int16_t str_spd)
+int16_t PI_Update_Left(PI_t *pi, float pos_err, int16_t act_spd, int16_t str_spd)
 {
     int16_t abs_err = (pos_err < 0) ? (int16_t)(-pos_err) : (int16_t)pos_err;
     if (abs_err > 100) abs_err = 100;
@@ -77,11 +77,11 @@ int8_t PI_Update_Left(PI_t *pi, float pos_err, int16_t act_spd, int16_t str_spd)
 
     if (pi->Output > PI_OUT_MAX) pi->Output = PI_OUT_MAX;
     if (pi->Output < PI_OUT_MIN) pi->Output = PI_OUT_MIN;
-    return (int8_t)pi->Output;
+    return (int16_t)pi->Output;
 }
 
 /* 右轮独立PI更新：每个控制器状态只从自己的pi结构体读写，无共享变量。 */
-int8_t PI_Update_Right(PI_t *pi, float pos_err, int16_t act_spd, int16_t str_spd)
+int16_t PI_Update_Right(PI_t *pi, float pos_err, int16_t act_spd, int16_t str_spd)
 {
     int16_t abs_err = (pos_err < 0) ? (int16_t)(-pos_err) : (int16_t)pos_err;
     if (abs_err > 100) abs_err = 100;
@@ -103,5 +103,5 @@ int8_t PI_Update_Right(PI_t *pi, float pos_err, int16_t act_spd, int16_t str_spd
 
     if (pi->Output > PI_OUT_MAX) pi->Output = PI_OUT_MAX;
     if (pi->Output < PI_OUT_MIN) pi->Output = PI_OUT_MIN;
-    return (int8_t)pi->Output;
+    return (int16_t)pi->Output;
 }

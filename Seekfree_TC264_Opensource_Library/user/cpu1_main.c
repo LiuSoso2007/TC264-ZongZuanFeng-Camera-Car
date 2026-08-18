@@ -55,7 +55,7 @@ int core1_main(void)
     interrupt_global_enable(0);
 
     int16_t  enc_left = 0, enc_right = 0;
-    int8_t   motor_left,  motor_right;
+    int16_t  motor_left,  motor_right;
     int8_t   LeftSpeed = STRAIGHT_SPEED, RightSpeed = STRAIGHT_SPEED;
     float    position_err = 0.0f;
     float    new_position_err;
@@ -158,13 +158,13 @@ int core1_main(void)
         motor_left  = PI_Update_Left (&s_PI_Left,  position_err, enc_left,  LeftSpeed);
         motor_right = PI_Update_Right(&s_PI_Right, position_err, enc_right, RightSpeed);
 
-        /* 双向输出统一限制在-100~100，左右轮对称。 */
-        if (motor_left  >  100) motor_left  =  100;
-        if (motor_left  < -100) motor_left  = -100;
-        if (motor_right >  100) motor_right =  100;
-        if (motor_right < -100) motor_right = -100;
-        Motor_SetLeftPWM ((int8_t)motor_left);
-        Motor_SetRightPWM((int8_t)motor_right);
+        /* 双向输出统一限制在-200~200，与PI限幅一致；Motor内部再按100%占空比饱和。 */
+        if (motor_left  >  200) motor_left  =  200;
+        if (motor_left  < -200) motor_left  = -200;
+        if (motor_right >  200) motor_right =  200;
+        if (motor_right < -200) motor_right = -200;
+        Motor_SetLeftPWM ((int16_t)motor_left);
+        Motor_SetRightPWM((int16_t)motor_right);
 
         /* 每个图像Err只执行一次PD，避免10ms控制周期重复覆盖微分输出。 */
         if (has_new_err != 0U)

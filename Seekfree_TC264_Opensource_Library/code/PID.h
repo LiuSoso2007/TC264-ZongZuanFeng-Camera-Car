@@ -3,8 +3,8 @@
 
 #include <stdint.h>
 
-#define PI_OUT_MIN    -100
-#define PI_OUT_MAX     100
+#define PI_OUT_MIN    -200
+#define PI_OUT_MAX     200
 
 /* PD位置式 -- 舵机 */
 void PD_Update(float Kp, float Kd, float err);
@@ -23,7 +23,7 @@ typedef struct {
 void PI_Init(PI_t *pi, float kp, float ki, int16_t min_speed);
 
 /* 左右轮独立的PI更新入口，语义一致，各自独立，便于单独加专属补偿/限幅。 */
-int8_t PI_Update_Left(PI_t *pi, float pos_err, int16_t act_spd, int16_t str_spd);
-int8_t PI_Update_Right(PI_t *pi, float pos_err, int16_t act_spd, int16_t str_spd);
+int16_t PI_Update_Left(PI_t *pi, float pos_err, int16_t act_spd, int16_t str_spd);
+int16_t PI_Update_Right(PI_t *pi, float pos_err, int16_t act_spd, int16_t str_spd);
 
 #endif

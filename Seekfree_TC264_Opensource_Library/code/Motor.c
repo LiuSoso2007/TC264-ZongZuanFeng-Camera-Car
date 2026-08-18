@@ -14,9 +14,10 @@
 #define MOTOR_PWM_FREQ    10000      /* 10kHz */
 #define MOTOR_DUTY_MAX    10000      /* = PWM_DUTY_MAX */
 
-uint32_t SpeedToDuty(int8_t speed)
+uint32_t SpeedToDuty(int16_t speed)
 {
     int32_t a = (speed >= 0) ? speed : -speed;
+    /* PI输出可到±200，但PWM占空比的物理上限仍是100%。 */
     if (a > 100) a = 100;
     return (uint32_t)((a * MOTOR_DUTY_MAX) / 100U);
 }
@@ -29,7 +30,7 @@ void Motor_Init(void)
     pwm_init(MOTOR_RIGHT_IN2, MOTOR_PWM_FREQ, 0);
 }
 
-void Motor_SetLeftPWM(int8_t Speed)
+void Motor_SetLeftPWM(int16_t Speed)
 {
     uint32_t duty = SpeedToDuty(Speed);
     /* 零速必须同时关闭两个桥臂，避免方向引脚残留导致电机继续转动。 */
@@ -47,7 +48,7 @@ void Motor_SetLeftPWM(int8_t Speed)
     }
 }
 
-void Motor_SetRightPWM(int8_t Speed)
+void Motor_SetRightPWM(int16_t Speed)
 {
     uint32_t duty = SpeedToDuty(Speed);
     /* 右电机接线极性相反，但零速同样必须将两个桥臂全部清零。 */

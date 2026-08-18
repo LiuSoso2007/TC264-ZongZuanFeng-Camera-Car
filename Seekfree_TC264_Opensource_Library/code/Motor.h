@@ -6,7 +6,7 @@
 /* 函数说明：Motor_Init。 */
 
 void Motor_Init(void);
-void Motor_SetLeftPWM(int8_t Speed);
-void Motor_SetRightPWM(int8_t Speed);
+void Motor_SetLeftPWM(int16_t Speed);
+void Motor_SetRightPWM(int16_t Speed);
 
 #endif

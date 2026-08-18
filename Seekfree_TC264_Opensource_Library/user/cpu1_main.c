@@ -26,17 +26,17 @@ volatile int16_t EncRight = 0;
 #pragma section all "cpu1_dsram"   /* CPU1私有变量放入DSRAM段 */
 
 /* CPU1编码器采样分频计数器。 */
-static int16_t  EncCount        = 0;
+static int16_t  EncCount = 0;
 
-/* 进环保留速度百分比：80表示保留原目标速度的80%，数值越大越快，越小越慢。 */
-#define RING_ENTRY_SPEED_PERCENT 80
+/* 进环保留速度百分比：90表示保留原目标速度的90%，数值越大越快，越小越慢。 */
+#define RING_ENTRY_SPEED_PERCENT 90
 #if RING_ENTRY_SPEED_PERCENT < 0 || RING_ENTRY_SPEED_PERCENT > 100
 #error "RING_ENTRY_SPEED_PERCENT must be between 0 and 100"
 #endif
 
 /* PI参数 */
-#define PI_KP          0.4f
-#define PI_KI          0.04f
+#define PI_KP          0.12f
+#define PI_KI          0.02f
 #define INIT_SPEED     0
 #define STRAIGHT_SPEED 80
 

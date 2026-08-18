@@ -25,14 +25,14 @@ volatile int16_t EncRight = 0;
 
 #pragma section all "cpu1_dsram"   /* CPU1私有变量放入DSRAM段 */
 
-/* CPU1编码器采样分频计数器。 */
-static int16_t  EncCount        = 0;
-
 /* 进环保留速度百分比：80表示保留原目标速度的80%，数值越大越快，越小越慢。 */
 #define RING_ENTRY_SPEED_PERCENT 80
 #if RING_ENTRY_SPEED_PERCENT < 0 || RING_ENTRY_SPEED_PERCENT > 100
 #error "RING_ENTRY_SPEED_PERCENT must be between 0 and 100"
 #endif
+
+/* 将10ms编码器脉冲折算为原80ms速度量纲，此值不是电机调速参数。 */
+#define ENCODER_10MS_TO_80MS_SCALE 8
 
 /* PI参数 */
 #define PI_KP          0.4f
@@ -69,8 +69,6 @@ int core1_main(void)
     uint8_t  ring_entry_slowdown = 0U;
     uint8_t  new_ring_entry_slowdown;
 #endif
-    uint8_t  encoder_updated;
-
     /* CPU1外设初始化 */
     Key_Init();                          /* 四键按键（功能预留） */
     Encoder_Init();                      /* 编码器：左TIM6/右TIM4 */
@@ -107,16 +105,9 @@ int core1_main(void)
         }
         PID_Flag = 0;
 
-        /* 编码器读取：每8个控制周期采样一次 */
-        encoder_updated = 0U;
-        EncCount ++;
-        if(EncCount >= 8)
-        {
-             EncCount = 0;
-             enc_left  = Encoder_Get_Left();
-             enc_right = Encoder_Get_Right();
-             encoder_updated = 1U;
-        }
+        /* 编码器每10ms读取一次，并折算为原80ms量纲，保持现有速度参数不变。 */
+        enc_left  = (int16_t)(Encoder_Get_Left()  * ENCODER_10MS_TO_80MS_SCALE);
+        enc_right = (int16_t)(Encoder_Get_Right() * ENCODER_10MS_TO_80MS_SCALE);
 
         EncLeft  = enc_left;
         EncRight = enc_right;
@@ -185,9 +176,7 @@ int core1_main(void)
         Motor_SetLeftPWM ((int8_t)motor_left);
         Motor_SetRightPWM((int8_t)motor_right);
 
-        /* 仅在新编码器样本到达时发送，避免串口输出占用10ms控制周期。
-           VOFA选择FireWater协议，通道顺序为左编码器、左目标、右编码器、右目标。 */
-        if (encoder_updated != 0U)
+        /* VOFA每10ms发送一次，通道顺序为左编码器、左目标、右编码器、右目标。 */
         {
             uint32 vofa_len = zf_sprintf(s_vofa_frame, (const int8 *)"%d,%d,%d,%d\r\n",
                                          (int32)enc_left, (int32)s_PI_Left.TargetSpeed,

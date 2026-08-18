@@ -156,6 +156,9 @@ int core0_main(void)
                     frame_err = 0.0f;
                 }
 
+                /* 圆环阶段6仅缩小视觉Err，不改变其他阶段和PD参数。 */
+                if (ImageFlag.image_element_rings_flag == RING_STATE_EXIT2)
+                    frame_err *= 0.4f;
                 /* 路障只叠加临时视觉目标，正常巡线Err和PD参数保持原样。 */
                 frame_err = Obstacle_UpdateSteering(frame_err);
 

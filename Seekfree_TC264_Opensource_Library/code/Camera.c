@@ -1075,7 +1075,7 @@ static uint8 Ring_Find_Recovery_Corner_On_Row(uint8 direction, int row,
     return 0U;
 }
 
-/* RECOVERY阶段从40行向上扫描到10行，并用紧邻上一行确认列连续性。 */
+/* RECOVERY阶段从50行向上扫描到10行，并用紧邻上一行确认列连续性。 */
 static uint8 Ring_Find_Recovery_Corner(uint8 direction,
                                        int *corner_row, int *corner_col)
 {
@@ -2013,34 +2013,22 @@ static void Ring_State_Update(void)
     case RING_STATE_RECOVERY:
         valley_row = -1;
         valley_col = -1;
-        /* 使用RECOVERY独立找点，并限制相邻帧拐点行号突变。 */
-        if (Ring_Find_Recovery_Corner(direction, &valley_row, &valley_col)
-            && valley_row <= 50
-            && (s_ring_prev_recovery_valley_row < 0
-                || (valley_row - s_ring_prev_recovery_valley_row <= 15
-                    && s_ring_prev_recovery_valley_row - valley_row <= 15)))
+        if (Ring_Find_Recovery_Corner(direction, &valley_row, &valley_col))
         {
-            s_ring_feature_count = 0U;
-            s_ring_recovery_valley_row = valley_row;
-            s_ring_recovery_valley_col = valley_col;
-            s_ring_prev_recovery_valley_row = valley_row;
-        }
-        else if (s_ring_prev_recovery_valley_row >= 0)
-        {
-            /* 已锁定的恢复拐点消失或突变，说明车辆已经离开恢复段。 */
-            Ring_Clear_State();
-            break;
-        }
-        else
-        {
-            /* 首次尚未锁定拐点时有限等待，避免出环补线被单帧漏检提前撤销。 */
-            if (s_ring_feature_count < RING_RECOVERY_ACQUIRE_MAX_FRAMES)
-                s_ring_feature_count++;
-            if (s_ring_feature_count >= RING_RECOVERY_ACQUIRE_MAX_FRAMES)
+            /* 拐点到达图像近端或左右出口边缘时，结束阶段7。 */
+            if (valley_row > RING_RECOVERY_EXIT_ROW
+                || (direction == 2U
+                    && valley_col >= RING_RECOVERY_RIGHT_EXIT_COL)
+                || (direction == 1U
+                    && valley_col <= RING_RECOVERY_LEFT_EXIT_COL))
             {
                 Ring_Clear_State();
                 break;
             }
+
+            s_ring_recovery_valley_row = valley_row;
+            s_ring_recovery_valley_col = valley_col;
+            s_ring_prev_recovery_valley_row = valley_row;
         }
         break;
 
@@ -2050,7 +2038,7 @@ static void Ring_State_Update(void)
     }
 }
 
-/* EXIT2切换帧及RECOVERY首次找点等待期沿用上一帧Err，避免舵机突变。 */
+/* EXIT2切换帧及RECOVERY首次找到拐点前沿用上一帧Err，避免舵机突变。 */
 /* 返回是否沿用上一帧Err */
 uint8 Ring_Should_Hold_Err(void)
 {

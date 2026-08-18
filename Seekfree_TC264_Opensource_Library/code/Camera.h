@@ -160,15 +160,24 @@ extern ImageStatustypedef ImageStatus;         // 图像状态全局变量
 #define RING_EXIT_POINT_HOLD_FRAMES 1U  // EXIT1/EXIT2单点短时丢失保持帧数
 #define RING_EXIT2_PASS_ROW         15  // EXIT2当前行号大于该值且比上一帧大时进入状态7
 #define RING_RECOVERY_SCAN_MIN_ROW  10  // RECOVERY找点最小扫描行(含)
-#define RING_RECOVERY_SCAN_MAX_ROW  40  // RECOVERY找点最大扫描行(含)
+#define RING_RECOVERY_SCAN_MAX_ROW  50  // RECOVERY找点最大扫描行(含)
 #define RING_RECOVERY_CORNER_COL_LIMIT 35 // 右环列号下限，左环按图像宽度镜像
 #define RING_RECOVERY_CORNER_MAX_COL_DIFF 1 // 相邻两行拐点最大列差
+#define RING_RECOVERY_EXIT_ROW      45  // 拐点行号大于该值时结束阶段7
+#define RING_RECOVERY_RIGHT_EXIT_COL 85 // 右环拐点列号达到该值时结束阶段7
+#define RING_RECOVERY_LEFT_EXIT_COL   8 // 左环拐点列号达到该值时结束阶段7
 #if (RING_RECOVERY_SCAN_MIN_ROW <= 0) \
  || (RING_RECOVERY_SCAN_MAX_ROW >= LCDH) \
  || (RING_RECOVERY_SCAN_MIN_ROW > RING_RECOVERY_SCAN_MAX_ROW) \
  || (RING_RECOVERY_CORNER_COL_LIMIT <= 0) \
  || (RING_RECOVERY_CORNER_COL_LIMIT >= LCDW - 1) \
- || (RING_RECOVERY_CORNER_MAX_COL_DIFF < 0)
+ || (RING_RECOVERY_CORNER_MAX_COL_DIFF < 0) \
+ || (RING_RECOVERY_EXIT_ROW < RING_RECOVERY_SCAN_MIN_ROW) \
+ || (RING_RECOVERY_EXIT_ROW >= RING_RECOVERY_SCAN_MAX_ROW) \
+ || (RING_RECOVERY_RIGHT_EXIT_COL <= RING_RECOVERY_CORNER_COL_LIMIT) \
+ || (RING_RECOVERY_RIGHT_EXIT_COL >= LCDW) \
+ || (RING_RECOVERY_LEFT_EXIT_COL < 0) \
+ || (RING_RECOVERY_LEFT_EXIT_COL >= LCDW - 1 - RING_RECOVERY_CORNER_COL_LIMIT)
 #error "RING_RECOVERY scan range is invalid"
 #endif
 
@@ -189,7 +198,6 @@ extern ImageStatustypedef ImageStatus;         // 图像状态全局变量
 #define RING_ENTRY_MAX_FRAMES     2000U   // 入环阶段超时帧数
 #define RING_INSIDE_MAX_FRAMES    2000U
 #define RING_EXIT1_MAX_FRAMES     45U
-#define RING_RECOVERY_ACQUIRE_MAX_FRAMES 10U // RECOVERY首次找点最多等待帧数
 
 void  Get_Border_And_SideType(uint8* p, uint8 type, int L, int H, JumpPointtypedef* Q);
                                                // 获取边界跳变点位置和类型

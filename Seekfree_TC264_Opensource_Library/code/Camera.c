@@ -1023,11 +1023,64 @@ static uint8 Ring_Find_Entry_Corner(uint8 direction,
     return 0U;
 }
 
-/* RECOVERY阶段独立找点：从40行向上扫描到10行，左右圆环完全镜像。 */
+/* 按RECOVERY规则在指定行查找第一个有效的白变黑点。 */
+static uint8 Ring_Find_Recovery_Corner_On_Row(uint8 direction, int row,
+                                              int *corner_col)
+{
+    int col;
+
+    *corner_col = -1;
+
+    if (direction == 2U)
+    {
+        /* 右环：左边缘为白时略过，从左向右取第一个白变黑点。 */
+        if (Pixle[row][0] == IMG_WHITE)
+            return 0U;
+
+        for (col = 1; col < LCDW; col++)
+        {
+            if (Pixle[row][col - 1] == IMG_WHITE
+                && Pixle[row][col] == IMG_BLACK)
+            {
+                if (col > RING_RECOVERY_CORNER_COL_LIMIT)
+                {
+                    *corner_col = col;
+                    return 1U;
+                }
+                return 0U;
+            }
+        }
+    }
+    else if (direction == 1U)
+    {
+        /* 左环：右边缘为白时略过，从右向左取第一个白变黑点。 */
+        if (Pixle[row][LCDW - 1] == IMG_WHITE)
+            return 0U;
+
+        for (col = LCDW - 2; col >= 0; col--)
+        {
+            if (Pixle[row][col + 1] == IMG_WHITE
+                && Pixle[row][col] == IMG_BLACK)
+            {
+                if (col < LCDW - 1 - RING_RECOVERY_CORNER_COL_LIMIT)
+                {
+                    *corner_col = col;
+                    return 1U;
+                }
+                return 0U;
+            }
+        }
+    }
+
+    return 0U;
+}
+
+/* RECOVERY阶段从40行向上扫描到10行，并用紧邻上一行确认列连续性。 */
 static uint8 Ring_Find_Recovery_Corner(uint8 direction,
                                        int *corner_row, int *corner_col)
 {
-    int row, col;
+    int row;
+    int current_col, upper_col;
 
     *corner_row = -1;
     *corner_col = -1;
@@ -1035,52 +1088,18 @@ static uint8 Ring_Find_Recovery_Corner(uint8 direction,
     for (row = RING_RECOVERY_SCAN_MAX_ROW;
          row >= RING_RECOVERY_SCAN_MIN_ROW; row--)
     {
-        if (direction == 2U)
-        {
-            /* 右环：左边缘为白时略过，从左向右取第一个白变黑点。 */
-            if (Pixle[row][0] == IMG_WHITE)
-                continue;
+        if (!Ring_Find_Recovery_Corner_On_Row(direction, row, &current_col))
+            continue;
 
-            for (col = 1; col < LCDW; col++)
-            {
-                if (Pixle[row][col - 1] == IMG_WHITE
-                    && Pixle[row][col] == IMG_BLACK)
-                {
-                    if (col > RING_RECOVERY_CORNER_COL_LIMIT)
-                    {
-                        *corner_row = row;
-                        *corner_col = col;
-                        return 1U;
-                    }
-                    break;
-                }
-            }
-        }
-        else if (direction == 1U)
-        {
-            /* 左环：右边缘为白时略过，从右向左取第一个白变黑点。 */
-            if (Pixle[row][LCDW - 1] == IMG_WHITE)
-                continue;
+        /* 上一行找不到拐点或两行列差超过1，都放弃当前候选继续向上。 */
+        if (!Ring_Find_Recovery_Corner_On_Row(direction, row - 1, &upper_col)
+            || upper_col - current_col > RING_RECOVERY_CORNER_MAX_COL_DIFF
+            || current_col - upper_col > RING_RECOVERY_CORNER_MAX_COL_DIFF)
+            continue;
 
-            for (col = LCDW - 2; col >= 0; col--)
-            {
-                if (Pixle[row][col + 1] == IMG_WHITE
-                    && Pixle[row][col] == IMG_BLACK)
-                {
-                    if (col < LCDW - 1 - RING_RECOVERY_CORNER_COL_LIMIT)
-                    {
-                        *corner_row = row;
-                        *corner_col = col;
-                        return 1U;
-                    }
-                    break;
-                }
-            }
-        }
-        else
-        {
-            return 0U;
-        }
+        *corner_row = row;
+        *corner_col = current_col;
+        return 1U;
     }
 
     return 0U;
@@ -1967,7 +1986,15 @@ static void Ring_State_Update(void)
     case RING_STATE_EXIT2:
     {
         int c1r, c1c, c2r, c2c;
+        uint8 exit2_row_increased = 0U;
         (void)Ring_Find_Exit1_Corners(direction, &c1r, &c1c, &c2r, &c2c);
+
+        /* 当前帧拐点行号大于15且比上一有效帧大，才进入状态7。 */
+        if (c2r > RING_EXIT2_PASS_ROW
+            && s_ring_exit1_corner2_row >= 0
+            && s_ring_exit2_miss_frames == 0U
+            && c2r > s_ring_exit1_corner2_row)
+            exit2_row_increased = 1U;
 
         Ring_Update_Exit_Point(c2r, c2c,
             &s_ring_exit1_corner2_row, &s_ring_exit1_corner2_col,
@@ -1978,8 +2005,7 @@ static void Ring_State_Update(void)
         g_bottom_black_width = (int)s_ring_exit2_miss_frames;
         g_ring_miss_cnt = (int)s_ring_state_frames;
 
-        /* 拐点2上移到第15行及以上时，完成EXIT2并进入状态7。 */
-        if (c2r >= 0 && c2r <= RING_EXIT2_PASS_ROW)
+        if (exit2_row_increased)
             Ring_Set_State(RING_STATE_RECOVERY);
         break;
     }

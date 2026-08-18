@@ -40,18 +40,12 @@ static int16_t  EncCount        = 0;
 #define INIT_SPEED     0
 #define STRAIGHT_SPEED 80
 
-/* VOFA电机PI临时调参：1=固定双轮目标并忽略赛道停车/差速，0=恢复正常赛道控制。 */
-#define VOFA_PI_TUNING_MODE 1
-
 /* PD参数 */
 #define PD_KP          1.0f
 #define PD_KD          0.13f
 
 /* 左右电机PI控制器 */
 static PI_t s_PI_Left, s_PI_Right;
-
-/* VOFA FireWater文本帧缓存：左编码器、左目标、右编码器、右目标。 */
-static int8 s_vofa_frame[48];
 
 /* CPU1入口函数 */
 int core1_main(void)
@@ -64,12 +58,9 @@ int core1_main(void)
     int8_t   motor_left,  motor_right;
     int8_t   LeftSpeed = STRAIGHT_SPEED, RightSpeed = STRAIGHT_SPEED;
     float    position_err = 0.0f;
-#if !VOFA_PI_TUNING_MODE
     float    new_position_err;
     uint8_t  ring_entry_slowdown = 0U;
     uint8_t  new_ring_entry_slowdown;
-#endif
-    uint8_t  encoder_updated;
 
     /* CPU1外设初始化 */
     Key_Init();                          /* 四键按键（功能预留） */
@@ -108,25 +99,17 @@ int core1_main(void)
         PID_Flag = 0;
 
         /* 编码器读取：每8个控制周期采样一次 */
-        encoder_updated = 0U;
         EncCount ++;
         if(EncCount >= 8)
         {
              EncCount = 0;
              enc_left  = Encoder_Get_Left();
              enc_right = Encoder_Get_Right();
-             encoder_updated = 1U;
         }
 
         EncLeft  = enc_left;
         EncRight = enc_right;
 
-#if VOFA_PI_TUNING_MODE
-        /* 临时速度环调参：固定目标速度，屏蔽视觉差速、圆环减速和停车请求。 */
-        position_err = 0.0f;
-        LeftSpeed = STRAIGHT_SPEED;
-        RightSpeed = STRAIGHT_SPEED;
-#else
         /* 赛道误差：CPU0图像输出，无新帧时保持上一份快照 */
         uint8_t has_new_err = 0U;
         uint8_t Err_abs = 0U;
@@ -171,8 +154,6 @@ int core1_main(void)
             LeftSpeed  = (int16_t)((float)LeftSpeed  * (float)RING_ENTRY_SPEED_PERCENT / 100.0f);
             RightSpeed = (int16_t)((float)RightSpeed * (float)RING_ENTRY_SPEED_PERCENT / 100.0f);
         }
-#endif
-
         /* 左右轮独立PI更新，各用各的结构体，互不影响。 */
         motor_left  = PI_Update_Left (&s_PI_Left,  position_err, enc_left,  LeftSpeed);
         motor_right = PI_Update_Right(&s_PI_Right, position_err, enc_right, RightSpeed);
@@ -185,23 +166,11 @@ int core1_main(void)
         Motor_SetLeftPWM ((int8_t)motor_left);
         Motor_SetRightPWM((int8_t)motor_right);
 
-        /* 仅在新编码器样本到达时发送，避免串口输出占用10ms控制周期。
-           VOFA选择FireWater协议，通道顺序为左编码器、左目标、右编码器、右目标。 */
-        if (encoder_updated != 0U)
-        {
-            uint32 vofa_len = zf_sprintf(s_vofa_frame, (const int8 *)"%d,%d,%d,%d\r\n",
-                                         (int32)enc_left, (int32)s_PI_Left.TargetSpeed,
-                                         (int32)enc_right, (int32)s_PI_Right.TargetSpeed);
-            debug_send_buffer((const uint8 *)s_vofa_frame, vofa_len);
-        }
-
-#if !VOFA_PI_TUNING_MODE
         /* 每个图像Err只执行一次PD，避免10ms控制周期重复覆盖微分输出。 */
         if (has_new_err != 0U)
         {
             PD_Update(PD_KP, PD_KD, position_err);
         }
-#endif
 
     }
 }

@@ -1904,15 +1904,7 @@ static void Ring_State_Update(void)
     case RING_STATE_EXIT2:
     {
         int c1r, c1c, c2r, c2c;
-        uint8 exit2_row_jump = 0U;
         (void)Ring_Find_Exit1_Corners(direction, &c1r, &c1c, &c2r, &c2c);
-
-        /* 相邻有效帧中，拐点2向图像底部突增超过2行即完成EXIT2。 */
-        if (c2r >= 0
-            && s_ring_exit1_corner2_row >= 0
-            && s_ring_exit2_miss_frames == 0U
-            && c2r - s_ring_exit1_corner2_row > 2)
-            exit2_row_jump = 1U;
 
         Ring_Update_Exit_Point(c2r, c2c,
             &s_ring_exit1_corner2_row, &s_ring_exit1_corner2_col,
@@ -1923,7 +1915,8 @@ static void Ring_State_Update(void)
         g_bottom_black_width = (int)s_ring_exit2_miss_frames;
         g_ring_miss_cnt = (int)s_ring_state_frames;
 
-        if (exit2_row_jump)
+        /* 拐点2上移到第15行及以上时，完成EXIT2并进入状态7。 */
+        if (c2r >= 0 && c2r <= RING_EXIT2_PASS_ROW)
             Ring_Set_State(RING_STATE_RECOVERY);
         break;
     }

@@ -158,7 +158,7 @@ extern ImageStatustypedef ImageStatus;         // 图像状态全局变量
 #define RING_JUMP_MIN_COUNT         2   // 最小跳变次数
 #define RING_JUMP_OTHER_MAX         0   // 另一侧最大跳变次数
 #define RING_EXIT_POINT_HOLD_FRAMES 1U  // EXIT1/EXIT2单点短时丢失保持帧数
-#define RING_EXIT2_PASS_ROW         40  // EXIT2下移到该行后判定已经通过黄色点
+#define RING_EXIT2_PASS_ROW         15  // EXIT2拐点行号小于等于该值时进入状态7
 #define RING_RECOVERY_SCAN_MIN_ROW  3   //
 #define RING_RECOVERY_SCAN_MAX_ROW  59  //
 #define RING_RECOVERY_STREAK_MIN    10  // 恢复阶段同列的最小行数

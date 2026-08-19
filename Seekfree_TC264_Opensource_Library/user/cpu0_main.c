@@ -109,25 +109,41 @@ int core0_main(void)
                 && ImageFlag.image_element_rings_flag >= RING_STATE_CONFIRM
                 && ImageFlag.image_element_rings_flag <= RING_STATE_ENTRY);
 
-            /* 斑马线检测延迟停车：收到N帧后让车辆通过终点线 */
+            /* 第一次斑马线正常通过，完整离开后再次识别才延迟停车。 */
             {
-                static uint8_t zebra_triggered = 0;  /* 是否已触发斑马线 */
-                static uint8_t zebra_delay_cnt = 0;  /* 检测后累计帧数 */
+                static uint8_t zebra_seen = 0;       /* 是否已经识别过第一条斑马线 */
+                static uint8_t zebra_active = 0;     /* 防止同一条斑马线被连续帧重复计数 */
+                static uint8_t zebra_triggered = 0;  /* 第二次识别后的停车延迟状态 */
+                static uint8_t zebra_delay_cnt = 0;  /* 第二次识别后累计帧数 */
 
-                if (ImageFlag.Zebra_Flag != 0 && zebra_triggered == 0
-                 && StopRequest == 0U)
+                if (ImageFlag.Zebra_Flag != 0)
                 {
-                    zebra_triggered = 1;     /* 锁存触发状态 */
-                    zebra_delay_cnt = 0;     /* 开始计数 */
+                    if (zebra_active == 0U)
+                    {
+                        zebra_active = 1U;
+                        if (zebra_seen == 0U)
+                        {
+                            zebra_seen = 1U;
+                        }
+                        else if (zebra_triggered == 0U && StopRequest == 0U)
+                        {
+                            zebra_triggered = 1U;
+                            zebra_delay_cnt = 0U;
+                        }
+                    }
+                }
+                else
+                {
+                    zebra_active = 0U;
                 }
 
-                if (zebra_triggered == 1)
+                if (zebra_triggered == 1U)
                 {
                     zebra_delay_cnt++;
                     if (zebra_delay_cnt >= ZEBRA_STOP_DELAY_FRAMES)
                     {
                         StopRequest = 1U;
-                        zebra_triggered = 0;
+                        zebra_triggered = 0U;
                     }
                 }
             }

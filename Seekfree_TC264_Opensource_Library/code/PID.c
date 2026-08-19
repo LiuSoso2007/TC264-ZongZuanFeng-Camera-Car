@@ -6,8 +6,8 @@
 
 /* ---- PD ---- */
 #define PD_ERR_DEAD_ZONE 1.0f  /* Err死区边界，范围内舵机回中。 */
-#define SERVO_MIN_SIDE_WEIGHT  1.2f  /* 100方向基础权重，负向误差越大时再按比例增强。 */
-#define SERVO_MAX_SIDE_WEIGHT  1.2f  /* 175方向固定权重，以1为归一化基准。 */
+#define SERVO_MIN_SIDE_WEIGHT  1.25f  /* 100方向基础权重，负向误差越大时再按比例增强。 */
+#define SERVO_MAX_SIDE_WEIGHT  1.25f  /* 175方向固定权重，以1为归一化基准。 */
 static float   s_pd_out = 0.0f, s_pd_offset = 0.0f;
 static float   s_pd_err0 = 0.0f, s_pd_err1 = 0.0f;
 
@@ -18,14 +18,14 @@ void PD_Update(float Kp, float Kd, float err)
 
     //以下是计算pd
     if(s_pd_err0 > PD_ERR_DEAD_ZONE)
-        s_pd_offset = Kp * (s_pd_err0-PD_ERR_DEAD_ZONE) - Kd * (s_pd_err0 - s_pd_err1) * ((15-s_pd_err0)/15);
+        s_pd_offset = Kp * (s_pd_err0-PD_ERR_DEAD_ZONE) - Kd * (s_pd_err0 - s_pd_err1) * ((10-s_pd_err0)/10);
     else if(-s_pd_err0 > PD_ERR_DEAD_ZONE)
-        s_pd_offset = Kp * (s_pd_err0+PD_ERR_DEAD_ZONE) - Kd * (s_pd_err0 - s_pd_err1) * ((20+s_pd_err0)/15);
+        s_pd_offset = Kp * (s_pd_err0+PD_ERR_DEAD_ZONE) - Kd * (s_pd_err0 - s_pd_err1) * ((10+s_pd_err0)/10);
     else
         s_pd_offset = 0;
 
     //以下是计算偏移
-    if (s_pd_offset < -1.0f)
+    if (s_pd_offset < -0.0f)
         s_pd_offset *= SERVO_MIN_SIDE_WEIGHT * (1+0.5*(-1-s_pd_offset)/29);  //左偏增大
     else if(s_pd_offset > 1.0f)
         s_pd_offset *= SERVO_MAX_SIDE_WEIGHT * (1+0.5*(-1+s_pd_offset)/35);   //右偏增大

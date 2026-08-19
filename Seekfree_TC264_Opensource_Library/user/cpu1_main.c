@@ -1,7 +1,7 @@
 /**
  * CPU1: 运动控制
  *
- * CPU0: 图像采集与处理，通过邮箱发布赛道偏差和进环减速标志，并可发出停车请求
+ * CPU0: 图像采集与处理，输出赛道偏差Err与元素标志
  * CPU1: 编码器、舵机PD、电机PI速度环，控制周期10ms
  * 控制定时器: CCU61_CH0 PIT 10ms（中断在isr.c中）
  */
@@ -28,38 +28,24 @@ volatile int16_t EncRight = 0;
 /* CPU1编码器采样分频计数器。 */
 static int16_t  EncCount = 0;
 
-/* 进环保留速度百分比：90表示保留原目标速度的90%，数值越大越快，越小越慢。 */
-#define RING_ENTRY_SPEED_PERCENT 90
+/* 进环保留速度百分比：70表示保留原速度70%，数值越大越快，越小越慢。 */
+#define RING_ENTRY_SPEED_PERCENT 70
 #if RING_ENTRY_SPEED_PERCENT < 0 || RING_ENTRY_SPEED_PERCENT > 100
 #error "RING_ENTRY_SPEED_PERCENT must be between 0 and 100"
 #endif
 
 /* PI参数 */
-#define PI_KP          0.12f
-#define PI_KI          0.02f
+#define PI_KP          0.35f
+#define PI_KI          0.030f
 #define INIT_SPEED     0
-#define STRAIGHT_SPEED 80
+#define STRAIGHT_SPEED 90 /* 直道速度90，悬空最大150 */
 
 /* PD参数 */
 #define PD_KP          1.0f
-#define PD_KD          0.13f
-
-/* 调参模式开关：1=固定目标速度并忽略视觉寻迹/差速/停车，用于悬空测速度上限；0=正常赛道模式。 */
-#define PID_TUNING_MODE 1
-/* 调参模式目标速度：编码器80ms累计脉冲数，不是PWM百分比；悬空测极速建议填比实际计数大很多的值，例如1000。 */
-#define PID_TUNING_SPEED 1000
-#if PID_TUNING_MODE < 0 || PID_TUNING_MODE > 1
-#error "PID_TUNING_MODE must be 0 or 1"
-#endif
-#if PID_TUNING_MODE && (PID_TUNING_SPEED < 1 || PID_TUNING_SPEED > 1000)
-#error "PID_TUNING_SPEED must be between 1 and 1000"
-#endif
+#define PD_KD          0.10f
 
 /* 左右电机PI控制器 */
 static PI_t s_PI_Left, s_PI_Right;
-
-/* VOFA FireWater文本帧缓存：左编码器、左目标、右编码器、右目标。 */
-static int8 s_vofa_frame[48];
 
 /* CPU1入口函数 */
 int core1_main(void)
@@ -72,12 +58,9 @@ int core1_main(void)
     int16_t  motor_left,  motor_right;
     int16_t  LeftSpeed = STRAIGHT_SPEED, RightSpeed = STRAIGHT_SPEED;
     float    position_err = 0.0f;
-    uint8_t  encoder_updated = 0U;
-#if !PID_TUNING_MODE
     float    new_position_err;
     uint8_t  ring_entry_slowdown = 0U;
     uint8_t  new_ring_entry_slowdown;
-#endif
 
     /* CPU1外设初始化 */
     Key_Init();                          /* 四键按键（功能预留） */
@@ -90,10 +73,6 @@ int core1_main(void)
 
     Motor_SetLeftPWM(0);
     Motor_SetRightPWM(0);
-#if PID_TUNING_MODE
-    /* 调参模式忽略视觉，舵机固定中位，避免旧Err造成乱打。 */
-    Servo_SetAngleDeg(SERVO_CENTER_ANGLE);
-#endif
 
     /* 按键扫描定时器：5ms（CPU1 PIT） */
     pit_ms_init(CCU60_CH1, 5);
@@ -119,26 +98,18 @@ int core1_main(void)
         }
         PID_Flag = 0;
 
-        /* 编码器读取：每8个控制周期采样一次，同时标记VOFA发送时机。 */
-        encoder_updated = 0U;
+        /* 编码器读取：每8个控制周期采样一次 */
         EncCount ++;
         if(EncCount >= 8)
         {
              EncCount = 0;
              enc_left  = Encoder_Get_Left();
              enc_right = Encoder_Get_Right();
-             encoder_updated = 1U;
         }
 
         EncLeft  = enc_left;
         EncRight = enc_right;
 
-#if PID_TUNING_MODE
-        /* 调参模式：固定双轮目标速度，忽略视觉差速、圆环减速和停车请求。 */
-        position_err = 0.0f;
-        LeftSpeed  = PID_TUNING_SPEED;
-        RightSpeed = PID_TUNING_SPEED;
-#else
         /* 赛道误差：CPU0图像输出，无新帧时保持上一份快照 */
         uint8_t has_new_err = 0U;
         uint8_t Err_abs = 0U;
@@ -151,7 +122,7 @@ int core1_main(void)
         if(position_err>0)Err_abs=position_err;
         if(position_err<0)Err_abs=-position_err;
 
-        /* CPU0锁存斑马线或底部全黑停车请求后，置零PWM和PI偏置，并将舵机回中。 */
+        /* CPU0识别到斑马线并锁定后，依次置零PWM和PI偏置，然后设置舵机中位停车。 */
         if (StopRequest != 0U)
         {
             motor_left = 0;
@@ -164,7 +135,7 @@ int core1_main(void)
             continue;
         }
 
-        /* 根据赛道误差生成左右目标速度，再执行速度PI闭环。 */
+        /* 速度PI闭环 */
 
         /* 左右轮差速：Err越大，对侧轮减速越多。
            用浮点乘法避免整数除法使 (Err_abs-2)/50 在小Err时恒为0。 */
@@ -183,7 +154,6 @@ int core1_main(void)
             LeftSpeed  = (int16_t)((float)LeftSpeed  * (float)RING_ENTRY_SPEED_PERCENT / 100.0f);
             RightSpeed = (int16_t)((float)RightSpeed * (float)RING_ENTRY_SPEED_PERCENT / 100.0f);
         }
-#endif
         /* 左右轮独立PI更新，各用各的结构体，互不影响。 */
         motor_left  = PI_Update_Left (&s_PI_Left,  position_err, enc_left,  LeftSpeed);
         motor_right = PI_Update_Right(&s_PI_Right, position_err, enc_right, RightSpeed);
@@ -196,23 +166,11 @@ int core1_main(void)
         Motor_SetLeftPWM ((int16_t)motor_left);
         Motor_SetRightPWM((int16_t)motor_right);
 
-        /* 仅在新编码器样本到达时发送，避免串口输出占用10ms控制周期。
-           VOFA选择FireWater协议，通道顺序为左编码器、左目标、右编码器、右目标。 */
-        if (encoder_updated != 0U)
-        {
-            uint32 vofa_len = zf_sprintf(s_vofa_frame, (const int8 *)"%d,%d,%d,%d\r\n",
-                                         (int32)enc_left, (int32)s_PI_Left.TargetSpeed,
-                                         (int32)enc_right, (int32)s_PI_Right.TargetSpeed);
-            debug_send_buffer((const uint8 *)s_vofa_frame, vofa_len);
-        }
-
-#if !PID_TUNING_MODE
         /* 每个图像Err只执行一次PD，避免10ms控制周期重复覆盖微分输出。 */
         if (has_new_err != 0U)
         {
             PD_Update(PD_KP, PD_KD, position_err);
         }
-#endif
 
     }
 }

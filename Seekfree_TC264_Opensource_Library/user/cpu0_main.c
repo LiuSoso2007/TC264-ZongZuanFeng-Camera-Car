@@ -18,8 +18,8 @@ IfxCpu_mutexLock ErrMailboxLock   = 0U;
 volatile uint8_t StopRequest = 0U;
 volatile uint8_t RingEntrySlowdown = 0U;
 
-/* 压缩图中行号越小前瞻越远；使用第27~29行平均值作为转向前瞻误差。 */
-#define STEERING_LOOKAHEAD_ROW 27
+/* 压缩图中使用第20~22行平均值，与PID90-23S版本保持一致。 */
+#define STEERING_LOOKAHEAD_ROW 20
 
 /* 文字仪表盘开关：1=初始化IPS200并显示文字，0=不初始化IPS200文字显示。 */
 #define IPS200_TEXT_DISPLAY_ENABLE 0

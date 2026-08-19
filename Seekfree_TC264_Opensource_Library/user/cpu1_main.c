@@ -58,8 +58,8 @@ static int16_t  EncCount = 0;
 /* 左右电机PI控制器 */
 static PI_t s_PI_Left, s_PI_Right;
 
-/* VOFA FireWater文本帧缓存：左编码器、左目标、左输出、右编码器、右目标、右输出。 */
-static int8 s_vofa_frame[64];
+/* VOFA FireWater文本帧缓存：左编码器、左目标、右编码器、右目标。 */
+static int8 s_vofa_frame[48];
 
 /* CPU1入口函数 */
 int core1_main(void)
@@ -197,12 +197,12 @@ int core1_main(void)
         Motor_SetRightPWM((int16_t)motor_right);
 
         /* 仅在新编码器样本到达时发送，避免串口输出占用10ms控制周期。
-           VOFA选择FireWater协议，通道顺序为左编码器、左目标、左输出、右编码器、右目标、右输出。 */
+           VOFA选择FireWater协议，通道顺序为左编码器、左目标、右编码器、右目标。 */
         if (encoder_updated != 0U)
         {
-            uint32 vofa_len = zf_sprintf(s_vofa_frame, (const int8 *)"%d,%d,%d,%d,%d,%d\r\n",
-                                         (int32)enc_left, (int32)s_PI_Left.TargetSpeed, (int32)motor_left,
-                                         (int32)enc_right, (int32)s_PI_Right.TargetSpeed, (int32)motor_right);
+            uint32 vofa_len = zf_sprintf(s_vofa_frame, (const int8 *)"%d,%d,%d,%d\r\n",
+                                         (int32)enc_left, (int32)s_PI_Left.TargetSpeed,
+                                         (int32)enc_right, (int32)s_PI_Right.TargetSpeed);
             debug_send_buffer((const uint8 *)s_vofa_frame, vofa_len);
         }
 

@@ -58,6 +58,9 @@ static int16_t  EncCount = 0;
 /* 左右电机PI控制器 */
 static PI_t s_PI_Left, s_PI_Right;
 
+/* VOFA FireWater文本帧缓存：左编码器、左目标、左输出、右编码器、右目标、右输出。 */
+static int8 s_vofa_frame[64];
+
 /* CPU1入口函数 */
 int core1_main(void)
 {
@@ -69,6 +72,7 @@ int core1_main(void)
     int16_t  motor_left,  motor_right;
     int16_t  LeftSpeed = STRAIGHT_SPEED, RightSpeed = STRAIGHT_SPEED;
     float    position_err = 0.0f;
+    uint8_t  encoder_updated = 0U;
 #if !PID_TUNING_MODE
     float    new_position_err;
     uint8_t  ring_entry_slowdown = 0U;
@@ -115,13 +119,15 @@ int core1_main(void)
         }
         PID_Flag = 0;
 
-        /* 编码器读取：每8个控制周期采样一次 */
+        /* 编码器读取：每8个控制周期采样一次，同时标记VOFA发送时机。 */
+        encoder_updated = 0U;
         EncCount ++;
         if(EncCount >= 8)
         {
              EncCount = 0;
              enc_left  = Encoder_Get_Left();
              enc_right = Encoder_Get_Right();
+             encoder_updated = 1U;
         }
 
         EncLeft  = enc_left;
@@ -189,6 +195,16 @@ int core1_main(void)
         if (motor_right < -200) motor_right = -200;
         Motor_SetLeftPWM ((int16_t)motor_left);
         Motor_SetRightPWM((int16_t)motor_right);
+
+        /* 仅在新编码器样本到达时发送，避免串口输出占用10ms控制周期。
+           VOFA选择FireWater协议，通道顺序为左编码器、左目标、左输出、右编码器、右目标、右输出。 */
+        if (encoder_updated != 0U)
+        {
+            uint32 vofa_len = zf_sprintf(s_vofa_frame, (const int8 *)"%d,%d,%d,%d,%d,%d\r\n",
+                                         (int32)enc_left, (int32)s_PI_Left.TargetSpeed, (int32)motor_left,
+                                         (int32)enc_right, (int32)s_PI_Right.TargetSpeed, (int32)motor_right);
+            debug_send_buffer((const uint8 *)s_vofa_frame, vofa_len);
+        }
 
 #if !PID_TUNING_MODE
         /* 每个图像Err只执行一次PD，避免10ms控制周期重复覆盖微分输出。 */

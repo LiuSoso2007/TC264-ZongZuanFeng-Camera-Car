@@ -17,7 +17,7 @@
 uint32_t SpeedToDuty(int16_t speed)
 {
     int32_t a = (speed >= 0) ? speed : -speed;
-    /* PI输出可到±200，但PWM占空比的物理上限仍是100%。 */
+    /* 编码器速度可超过100；这里的100仅代表PWM物理占空比上限。 */
     if (a > 100) a = 100;
     return (uint32_t)((a * MOTOR_DUTY_MAX) / 100U);
 }

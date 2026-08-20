@@ -158,9 +158,9 @@ int core1_main(void)
         motor_left  = PI_Update_Left (&s_PI_Left,  position_err, enc_left,  LeftSpeed);
         motor_right = PI_Update_Right(&s_PI_Right, position_err, enc_right, RightSpeed);
 
-        /* PID不再执行正负200软件限幅，电机驱动仍保留100%物理占空比保护。 */
-        Motor_SetLeftPWM ((int16_t)motor_left);
-        Motor_SetRightPWM((int16_t)motor_right);
+        /* 控制层不再限制正负100，驱动层仅保留100% PWM物理保护。 */
+        Motor_SetLeftPWM (motor_left);
+        Motor_SetRightPWM(motor_right);
 
         /* 每个图像Err只执行一次PD，避免10ms控制周期重复覆盖微分输出。 */
         if (has_new_err != 0U)

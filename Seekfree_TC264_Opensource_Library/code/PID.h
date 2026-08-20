@@ -19,7 +19,7 @@ typedef struct {
 
 void PI_Init(PI_t *pi, float kp, float ki, int16_t min_speed);
 
-/* 左右轮独立的PI更新入口，语义一致，各自独立，便于单独加专属补偿/限幅。 */
+/* 左右轮使用int16_t传递完整PI输出，避免编码器目标超过100时被int8_t截断。 */
 int16_t PI_Update_Left(PI_t *pi, float pos_err, int16_t act_spd, int16_t str_spd);
 int16_t PI_Update_Right(PI_t *pi, float pos_err, int16_t act_spd, int16_t str_spd);
 

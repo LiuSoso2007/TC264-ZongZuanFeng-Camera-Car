@@ -75,7 +75,7 @@ int16_t PI_Update_Left(PI_t *pi, float pos_err, int16_t act_spd, int16_t str_spd
     pi->Output += inc;
     pi->LastSpdErr = err;
 
-    /* 按实车调试要求移除正负200软件限幅，保留完整PI累计输出。 */
+    /* 不做正负100软件限幅，允许速度环为编码器目标150继续累计输出。 */
     return (int16_t)pi->Output;
 }
 
@@ -100,6 +100,6 @@ int16_t PI_Update_Right(PI_t *pi, float pos_err, int16_t act_spd, int16_t str_sp
     pi->Output += inc;
     pi->LastSpdErr = err;
 
-    /* 按实车调试要求移除正负200软件限幅，保留完整PI累计输出。 */
+    /* 不做正负100软件限幅，允许速度环为编码器目标150继续累计输出。 */
     return (int16_t)pi->Output;
 }

@@ -3,9 +3,6 @@
 
 #include <stdint.h>
 
-#define PI_OUT_MIN    -200
-#define PI_OUT_MAX     200
-
 /* PD位置式 -- 舵机 */
 void PD_Update(float Kp, float Kd, float err);
 

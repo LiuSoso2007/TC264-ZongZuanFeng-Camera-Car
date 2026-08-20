@@ -75,8 +75,7 @@ int16_t PI_Update_Left(PI_t *pi, float pos_err, int16_t act_spd, int16_t str_spd
     pi->Output += inc;
     pi->LastSpdErr = err;
 
-    if (pi->Output > PI_OUT_MAX) pi->Output = PI_OUT_MAX;
-    if (pi->Output < PI_OUT_MIN) pi->Output = PI_OUT_MIN;
+    /* 按实车调试要求移除正负200软件限幅，保留完整PI累计输出。 */
     return (int16_t)pi->Output;
 }
 
@@ -101,7 +100,6 @@ int16_t PI_Update_Right(PI_t *pi, float pos_err, int16_t act_spd, int16_t str_sp
     pi->Output += inc;
     pi->LastSpdErr = err;
 
-    if (pi->Output > PI_OUT_MAX) pi->Output = PI_OUT_MAX;
-    if (pi->Output < PI_OUT_MIN) pi->Output = PI_OUT_MIN;
+    /* 按实车调试要求移除正负200软件限幅，保留完整PI累计输出。 */
     return (int16_t)pi->Output;
 }

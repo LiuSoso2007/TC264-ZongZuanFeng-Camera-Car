@@ -158,11 +158,7 @@ int core1_main(void)
         motor_left  = PI_Update_Left (&s_PI_Left,  position_err, enc_left,  LeftSpeed);
         motor_right = PI_Update_Right(&s_PI_Right, position_err, enc_right, RightSpeed);
 
-        /* 双向输出统一限制在-200~200，与PI限幅一致；Motor内部再按100%占空比饱和。 */
-        if (motor_left  >  200) motor_left  =  200;
-        if (motor_left  < -200) motor_left  = -200;
-        if (motor_right >  200) motor_right =  200;
-        if (motor_right < -200) motor_right = -200;
+        /* PID不再执行正负200软件限幅，电机驱动仍保留100%物理占空比保护。 */
         Motor_SetLeftPWM ((int16_t)motor_left);
         Motor_SetRightPWM((int16_t)motor_right);
 

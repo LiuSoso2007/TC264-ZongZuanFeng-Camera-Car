@@ -43,6 +43,8 @@ void PD_Update(float Kp, float Kd, float err)
 }
 
 /* ---- PI ---- */
+#define PI_TARGET_SPEED_MAX 150  /* 编码器悬空满速约155，目标速度保守限制为正负150。 */
+
 void PI_Init(PI_t *pi, float kp, float ki, int16_t min_speed)
 {
     pi->Kp          = kp;
@@ -67,6 +69,8 @@ int16_t PI_Update_Left(PI_t *pi, float pos_err, int16_t act_spd, int16_t str_spd
         target = pi->MinSpeed + (int16_t)((int32_t)(str_spd - pi->MinSpeed)
                                           * (200 - abs_err) / 200);
     target += pi->TargetBias;
+    if (target > PI_TARGET_SPEED_MAX) target = PI_TARGET_SPEED_MAX;
+    if (target < -PI_TARGET_SPEED_MAX) target = -PI_TARGET_SPEED_MAX;
     pi->TargetSpeed = target;
 
     int16_t err = target - act_spd;
@@ -92,6 +96,8 @@ int16_t PI_Update_Right(PI_t *pi, float pos_err, int16_t act_spd, int16_t str_sp
         target = pi->MinSpeed + (int16_t)((int32_t)(str_spd - pi->MinSpeed)
                                           * (200 - abs_err) / 200);
     target += pi->TargetBias;
+    if (target > PI_TARGET_SPEED_MAX) target = PI_TARGET_SPEED_MAX;
+    if (target < -PI_TARGET_SPEED_MAX) target = -PI_TARGET_SPEED_MAX;
     pi->TargetSpeed = target;
 
     int16_t err = target - act_spd;

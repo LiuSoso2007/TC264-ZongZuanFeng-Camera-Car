@@ -2552,7 +2552,7 @@ void Get_ExtensionLine(void)
     s_cross_detected = 1U;
 }
 
-/* 元素扫描：判定斑马线、十字、圆环等 */
+/* 元素扫描：按优先级判定斑马线、十字、圆环和长直道。 */
 void Scan_Element(void)
 {
     s_cross_detected = 0U;

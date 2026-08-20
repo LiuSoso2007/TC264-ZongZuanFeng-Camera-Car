@@ -149,21 +149,21 @@ extern ImageStatustypedef ImageStatus;         // 图像状态全局变量
 #define RING_JUMP_THRESHOLD         1   // 断点判定: 连续跳变像素阈值
 #define RING_JUMP_SCAN_MIN_ROW     7    // 断点统计最小行(含)
 #define RING_JUMP_SCAN_MAX_ROW     40   // 断点统计最大行(含)
-#define RING_HOMESIDE_MIN_ROW      7    // 目标侧丢线统计最小行(含)
-#define RING_HOMESIDE_MAX_ROW      30   // 目标侧丢线统计最大行(含)
-#define RING_HOMESIDE_LOST_THRESH  17   // 目标侧丢线最少行数
+#define RING_HOMESIDE_MIN_ROW      10    // 目标侧丢线统计最小行(含)
+#define RING_HOMESIDE_MAX_ROW      35   // 目标侧丢线统计最大行(含)
+#define RING_HOMESIDE_LOST_THRESH  8   // 目标侧丢线最少行数
 #if (RING_JUMP_SCAN_MIN_ROW < 0) || (RING_JUMP_SCAN_MAX_ROW >= LCDH) || (RING_JUMP_SCAN_MIN_ROW > RING_JUMP_SCAN_MAX_ROW)
 #error "RING_JUMP_SCAN_ROW range is invalid"
 #endif
 #define RING_JUMP_MIN_COUNT         2   // 最小跳变次数
-#define RING_JUMP_OTHER_MAX         0   // 另一侧最大跳变次数
+#define RING_JUMP_OTHER_MAX         1   // 另一侧最大跳变次数
 #define RING_EXIT_POINT_HOLD_FRAMES 1U  // EXIT1/EXIT2单点短时丢失保持帧数
-#define RING_EXIT2_PASS_ROW         15  // EXIT2当前行号大于该值且比上一帧大时进入状态7
+#define RING_EXIT2_PASS_ROW         14  // EXIT2当前行号大于该值且比上一帧大时进入状态7
 #define RING_RECOVERY_SCAN_MIN_ROW  10  // RECOVERY找点最小扫描行(含)
 #define RING_RECOVERY_SCAN_MAX_ROW  50  // RECOVERY找点最大扫描行(含)
 #define RING_RECOVERY_CORNER_COL_LIMIT 35 // 右环列号下限，左环按图像宽度镜像
 #define RING_RECOVERY_CORNER_MAX_COL_DIFF 1 // 相邻两行拐点最大列差
-#define RING_RECOVERY_EXIT_ROW      45  // 拐点行号大于该值时结束阶段7
+#define RING_RECOVERY_EXIT_ROW      30  // 拐点行号大于该值时结束阶段7
 #define RING_RECOVERY_RIGHT_EXIT_COL 85 // 右环拐点列号达到该值时结束阶段7
 #define RING_RECOVERY_LEFT_EXIT_COL   8 // 左环拐点列号达到该值时结束阶段7
 #if (RING_RECOVERY_SCAN_MIN_ROW <= 0) \
@@ -192,8 +192,8 @@ extern ImageStatustypedef ImageStatus;         // 图像状态全局变量
 #define RING_STATE_RECOVERY   7    // 恢复: 跟踪出环拐点3
 
 /* ---- 圆环阶段帧计数 ---- */
-#define RING_CONFIRM_FRAMES       2U    // 确认阶段最小帧数
-#define RING_EXIT_CONFIRM_FRAMES  2U    // 出环确认最小帧数
+#define RING_CONFIRM_FRAMES       1U    // 确认阶段最小帧数
+#define RING_EXIT_CONFIRM_FRAMES  1U    // 出环确认最小帧数
 #define RING_CONFIRM_MAX_FRAMES   300U   // 确认阶段超时帧数
 #define RING_ENTRY_MAX_FRAMES     2000U   // 入环阶段超时帧数
 #define RING_INSIDE_MAX_FRAMES    2000U
@@ -213,7 +213,6 @@ typedef struct {
     int16 straight_long;                       /* 长直道标志 */
     int16 straight_xie;                        /* 斜入直道标志 */
     int16 Zebra_Flag;                          /* 斑马线: 0=无 1=左侧 2=右侧 */
-
 } ImageFlagtypedef;
 
 /* ---- 图像标志结构说明 ---- */
@@ -247,11 +246,8 @@ void  Element_Handle_Left_Rings(void);                       // 左圆环处理
 void  Element_Judgment_Right_Rings(void);                    // 右圆环识别
 void  Element_Handle_Right_Rings(void);                      // 右圆环处理
 uint8 Ring_Should_Hold_Err(void);                            // EXIT2跳变帧保持上一帧Err
-float Obstacle_UpdateSteering(float normal_err);             // 纯视觉路障状态机与平滑绕行
 void  Element_Judgment_Zebra(void);                          // 斑马线识别
 void  Element_Handle_Zebra(void);                            // 斑马线处理
-
-
 void  Get_ExtensionLine(void);                               // 十字补线
 void  Scan_Element(void);                                    // 元素扫描与判定
 void  Element_Handle(void);                                  // 元素处理与补线

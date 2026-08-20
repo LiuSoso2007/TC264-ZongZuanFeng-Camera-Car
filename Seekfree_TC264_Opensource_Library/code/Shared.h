@@ -11,13 +11,15 @@
  * 本文件定义 CPU0(图像处理) 和 CPU1(运动控制) 之间的数据接口。
  *
  * 当前共享变量:
- *   Err:         CPU0通过邮箱发布图像偏差，CPU1取出后用于PD舵机控制/电机差速
+ *   Err:         CPU0 图像偏差 → CPU1 用于 PD 舵机控制 / 电机差速
  *   StopRequest: CPU0 斑马线锁存 → CPU1 双电机停车
  *   RingEntrySlowdown: CPU0 圆环进环阶段 → CPU1 降低电机速度
  *   EncLeft/Right: CPU1 编码器采样 → CPU0 屏幕显示
  *
- * ImageStatus 和 ImageFlag 为 CPU0 的图像处理状态，定义在 Camera.h，
- * 当前不通过本文件跨核共享。
+ * 后续扩展 (CAMERA.h 中的 Image_Process 完善后):
+ *   ImageStatus: 图像状态 (Det_True 误差, OFFLine 丢线, 等)
+ *   ImageFlag:   图像标志 (Bend_Road 弯道,
+ *                Zebra_Flag 斑马线, Rings 圆环, RoadBlock 路障, Out_Road 断路)
  */
 
 extern volatile float Err;
@@ -28,7 +30,7 @@ extern volatile uint8_t RingEntrySlowdown;
 extern volatile int16_t EncLeft;
 extern volatile int16_t EncRight;
 
-/* CPU0覆盖最新帧控制量；Err和减速标志同锁发布，避免CPU1读到跨帧组合。 */
+/* CPU0覆盖最新帧控制量；Err和减速标志必须同锁发布，避免CPU1读到跨帧旧状态。 */
 static inline void Shared_PublishErr(float err, uint8_t ring_entry_slowdown)
 {
     while (IfxCpu_acquireMutex(&ErrMailboxLock) == FALSE)
@@ -41,7 +43,7 @@ static inline void Shared_PublishErr(float err, uint8_t ring_entry_slowdown)
     IfxCpu_releaseMutex(&ErrMailboxLock);
 }
 
-/* CPU1非阻塞获取最新帧快照；锁忙或无新帧时保留上一帧控制量，下个10ms周期重试。 */
+/* CPU1非阻塞获取最新帧快照；锁忙时保留上一帧控制量，下个10ms周期重试。 */
 static inline uint8_t Shared_TakeErr(float *err, uint8_t *ring_entry_slowdown)
 {
     uint8_t has_new_err = 0U;
@@ -61,5 +63,18 @@ static inline uint8_t Shared_TakeErr(float *err, uint8_t *ring_entry_slowdown)
     return has_new_err;
 }
 
+
+/*
+ * 图像状态 / 图像标志 (待CAMERA.h中Image_Process实现后启用):
+ *
+ *   ImageStatus.Det_True        - 当前误差 (int)
+ *   ImageStatus.OFFLine         - 丢线行数 (int16)
+ *
+ *   ImageFlag.Bend_Road          - 弯道类型 0=直道, 1=左弯, 2=右弯
+ *   ImageFlag.Zebra_Flag         - 斑马线标志
+ *   ImageFlag.RoadBlock_Flag     - 路障标志
+ *   ImageFlag.Out_Road           - 断路标志
+ *   ImageFlag.image_element_rings - 圆环标志
+ */
 
 #endif

@@ -18,22 +18,23 @@ IfxCpu_mutexLock ErrMailboxLock   = 0U;
 volatile uint8_t StopRequest = 0U;
 volatile uint8_t RingEntrySlowdown = 0U;
 
-/* 压缩图中使用第20~22行平均值，与PID90-23S版本保持一致。 */
+/* 压缩图中行号越小前瞻越远，41比42中间稍近但更稳定。 */
 #define STEERING_LOOKAHEAD_ROW 20
 
-/* 文字仪表盘开关：1=初始化IPS200并显示文字，0=不初始化IPS200文字显示。 */
+/* 文字仪表盘开关(轻量)，1=开 0=关。关闭后屏幕全黑，但会失去DMA同步延迟。 */
 #define IPS200_TEXT_DISPLAY_ENABLE 0
 #define IPS200_DISPLAY_IMAGE_ENABLE 0
-
 
 #if IPS200_TEXT_DISPLAY_ENABLE
 /* 摄像头50帧时每5帧刷新一次编码器数值，避免刷新拖慢主循环。 */
 #define ENCODER_DISPLAY_DIV 5U
 #endif
+/* 斑马线帧确认: 退出斑马线帧计数，确认后保持全局8帧后停止，以越过终点线。 */
+
 /* 斑马线停止延迟帧数: 检测到斑马线后延迟N帧后停车。
    斑马线同时充当终点线，延迟需略长以确保车体完全过线后再刹停。
    50fps，1帧=20ms，8帧 ≈ 160ms。 */
-#define ZEBRA_STOP_DELAY_FRAMES  8
+#define ZEBRA_STOP_DELAY_FRAMES  3
 /* 斑马线检测到第3次确认后延迟帧数 */
 
 /* 图像最底行全部为黑色时，判定车辆已经驶出白色赛道。 */
@@ -109,41 +110,25 @@ int core0_main(void)
                 && ImageFlag.image_element_rings_flag >= RING_STATE_CONFIRM
                 && ImageFlag.image_element_rings_flag <= RING_STATE_ENTRY);
 
-            /* 第一次斑马线正常通过，完整离开后再次识别才延迟停车。 */
+            /* 斑马线检测延迟停车：收到N帧后让车辆通过终点线 */
             {
-                static uint8_t zebra_seen = 0;       /* 是否已经识别过第一条斑马线 */
-                static uint8_t zebra_active = 0;     /* 防止同一条斑马线被连续帧重复计数 */
-                static uint8_t zebra_triggered = 0;  /* 第二次识别后的停车延迟状态 */
-                static uint8_t zebra_delay_cnt = 0;  /* 第二次识别后累计帧数 */
+                static uint8_t zebra_triggered = 0;  /* 是否已触发斑马线 */
+                static uint8_t zebra_delay_cnt = 0;  /* 检测后累计帧数 */
 
-                if (ImageFlag.Zebra_Flag != 0)
+                if (ImageFlag.Zebra_Flag != 0 && zebra_triggered == 0
+                 && StopRequest == 0U)
                 {
-                    if (zebra_active == 0U)
-                    {
-                        zebra_active = 1U;
-                        if (zebra_seen == 0U)
-                        {
-                            zebra_seen = 1U;
-                        }
-                        else if (zebra_triggered == 0U && StopRequest == 0U)
-                        {
-                            zebra_triggered = 1U;
-                            zebra_delay_cnt = 0U;
-                        }
-                    }
-                }
-                else
-                {
-                    zebra_active = 0U;
+                    zebra_triggered = 1;     /* 锁存触发状态 */
+                    zebra_delay_cnt = 0;     /* 开始计数 */
                 }
 
-                if (zebra_triggered == 1U)
+                if (zebra_triggered == 1)
                 {
                     zebra_delay_cnt++;
                     if (zebra_delay_cnt >= ZEBRA_STOP_DELAY_FRAMES)
                     {
                         StopRequest = 1U;
-                        zebra_triggered = 0U;
+                        zebra_triggered = 0;
                     }
                 }
             }
@@ -172,11 +157,15 @@ int core0_main(void)
                     frame_err = 0.0f;
                 }
 
-                /* 圆环阶段6仅缩小视觉Err，不改变其他阶段和PD参数。 */
+                /* 圆环阶段仅缩小视觉Err，不改变其他阶段和PD参数。 */
+                if (ImageFlag.image_element_rings_flag == RING_STATE_ENTRY)
+                   frame_err *= 0.95f;
+                if (ImageFlag.image_element_rings_flag == RING_STATE_INSIDE)
+                    frame_err *= 0.9f;
+                if (ImageFlag.image_element_rings_flag == RING_STATE_EXIT1)
+                    frame_err *= 0.9f;
                 if (ImageFlag.image_element_rings_flag == RING_STATE_EXIT2)
-                    frame_err *= 0.4f;
-                /* 路障只叠加临时视觉目标，正常巡线Err和PD参数保持原样。 */
-                frame_err = Obstacle_UpdateSteering(frame_err);
+                    frame_err *= 0.5f;
 
                 /* 一帧处理完成后原子覆盖邮箱，CPU1只消费一次最新Err。 */
                 Shared_PublishErr(frame_err, ring_entry_slowdown);

@@ -18,17 +18,17 @@ void PD_Update(float Kp, float Kd, float err)
 
     //以下是计算pd
     if(s_pd_err0 > PD_ERR_DEAD_ZONE)
-        s_pd_offset = Kp * (s_pd_err0-PD_ERR_DEAD_ZONE) - Kd * (s_pd_err0 - s_pd_err1) * ((10-s_pd_err0)/10);
+        s_pd_offset = Kp * (s_pd_err0-PD_ERR_DEAD_ZONE) + Kd * (s_pd_err0 - s_pd_err1) * ((25-s_pd_err0)/25);
     else if(-s_pd_err0 > PD_ERR_DEAD_ZONE)
-        s_pd_offset = Kp * (s_pd_err0+PD_ERR_DEAD_ZONE) - Kd * (s_pd_err0 - s_pd_err1) * ((10+s_pd_err0)/10);
+        s_pd_offset = Kp * (s_pd_err0+PD_ERR_DEAD_ZONE) + Kd * (s_pd_err0 - s_pd_err1) * ((25+s_pd_err0)/25);
     else
         s_pd_offset = 0;
 
     //以下是计算偏移
-    if (s_pd_offset < -0.0f)
-        s_pd_offset *= SERVO_MIN_SIDE_WEIGHT * (1+0.5*(-1-s_pd_offset)/29);  //左偏增大
+    if (s_pd_offset < -1.0f)
+        s_pd_offset *= SERVO_MIN_SIDE_WEIGHT * (1+0.5*(-1-s_pd_offset)/35);  //左偏增大
     else if(s_pd_offset > 1.0f)
-        s_pd_offset *= SERVO_MAX_SIDE_WEIGHT * (1+0.5*(-1+s_pd_offset)/35);   //右偏增大
+        s_pd_offset *= SERVO_MAX_SIDE_WEIGHT * (1+0.3*(-1+s_pd_offset)/50);   //右偏增大
     else
         s_pd_offset *= SERVO_MAX_SIDE_WEIGHT;
 

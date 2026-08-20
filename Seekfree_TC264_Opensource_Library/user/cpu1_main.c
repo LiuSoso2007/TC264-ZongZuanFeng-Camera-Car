@@ -25,24 +25,24 @@ volatile int16_t EncRight = 0;
 
 #pragma section all "cpu1_dsram"   /* CPU1私有变量放入DSRAM段 */
 
-/* CPU1编码器采样分频计数器。 */
-static int16_t  EncCount = 0;
+/* CPU1本地参数（后续可用按键/IMU调整） */
+static int16_t  EncCount        = 0;
 
-/* 进环保留速度百分比：70表示保留原速度70%，数值越大越快，越小越慢。 */
+/* 进环保留速度百分比：60表示保留原速度60%，数值越大越快，越小越慢。 */
 #define RING_ENTRY_SPEED_PERCENT 70
 #if RING_ENTRY_SPEED_PERCENT < 0 || RING_ENTRY_SPEED_PERCENT > 100
 #error "RING_ENTRY_SPEED_PERCENT must be between 0 and 100"
 #endif
 
 /* PI参数 */
-#define PI_KP          0.35f
-#define PI_KI          0.030f
+#define PI_KP          0.55f
+#define PI_KI          0.020f
 #define INIT_SPEED     0
-#define STRAIGHT_SPEED 90 /* 直道速度90，悬空最大150 */
+#define STRAIGHT_SPEED 100
 
 /* PD参数 */
 #define PD_KP          1.0f
-#define PD_KD          0.10f
+#define PD_KD          1.5f
 
 /* 左右电机PI控制器 */
 static PI_t s_PI_Left, s_PI_Right;
@@ -141,12 +141,12 @@ int core1_main(void)
            用浮点乘法避免整数除法使 (Err_abs-2)/50 在小Err时恒为0。 */
         LeftSpeed  = STRAIGHT_SPEED;
         RightSpeed = STRAIGHT_SPEED;
-        if (position_err >= 2.0f)
+        if (position_err >= 1.0f)
             RightSpeed = (int16_t)((float)STRAIGHT_SPEED
-                                   * (1.0f - ((float)Err_abs - 2.0f) / 70.0f));
-        else if (position_err <= -2.0f)
+                                   * (1.0f - ((float)Err_abs - 1.0f) / 75.0f));
+        else if (position_err <= -1.0f)
             LeftSpeed  = (int16_t)((float)STRAIGHT_SPEED
-                                   * (1.0f - ((float)Err_abs - 2.0f) / 70.0f));
+                                   * (1.0f - ((float)Err_abs - 1.0f) / 58.0f));
 
         /* 圆环减速：对速度值打折（原代码误用了上一帧motor_*，会使目标速度失真）。 */
         if (ring_entry_slowdown != 0U)
@@ -154,6 +154,7 @@ int core1_main(void)
             LeftSpeed  = (int16_t)((float)LeftSpeed  * (float)RING_ENTRY_SPEED_PERCENT / 100.0f);
             RightSpeed = (int16_t)((float)RightSpeed * (float)RING_ENTRY_SPEED_PERCENT / 100.0f);
         }
+
         /* 左右轮独立PI更新，各用各的结构体，互不影响。 */
         motor_left  = PI_Update_Left (&s_PI_Left,  position_err, enc_left,  LeftSpeed);
         motor_right = PI_Update_Right(&s_PI_Right, position_err, enc_right, RightSpeed);

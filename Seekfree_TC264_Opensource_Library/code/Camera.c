@@ -2193,7 +2193,6 @@ void Element_Judgment_Zebra(void)
     int Ysite, Xsite;
     int trans_count;        /* 当前行跳变计数 */
     int valid_rows = 0;
-    static int confirm_cnt = 0;
 
     /* 活动圆环已由Scan_Element提前返回，不会进入本判定。 */
     if (ImageFlag.Zebra_Flag != 0)
@@ -2214,18 +2213,9 @@ void Element_Judgment_Zebra(void)
 
     g_ZebraSum = valid_rows;
 
+    /* 单帧满足空间特征即确认；停车是否允许由出环锁存单独判断。 */
     if (valid_rows >= 5)
-    {
-        confirm_cnt++;
-        if (confirm_cnt >= 2)
-        {
-            ImageFlag.Zebra_Flag = 1;
-        }
-    }
-    else
-    {
-        confirm_cnt = 0;
-    }
+        ImageFlag.Zebra_Flag = 1;
 }
 
 /* 斑马线处理：检测状态+强制直道巡线 */

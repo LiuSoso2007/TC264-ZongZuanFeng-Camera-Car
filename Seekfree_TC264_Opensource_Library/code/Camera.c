@@ -4,7 +4,7 @@
 static uint16 s_ring_state_frames = 0U;
 static uint8 s_ring_confirm_count = 0U;
 static uint8 s_ring_feature_count = 0U;
-static uint8 s_ring_state7_latched = 0U;       /* 到达状态7后保持为1，开放后续斑马线识别。 */
+static uint8 s_ring_state7_latched = 0U;       /* 到达状态7后保持为1，开放后续斑马线停车。 */
 static uint8 s_ring_exit_loss_seen = 0U;     /* 出环时是否已观察到对侧丢线 */
 static int s_ring_entry_corner_row = -1;
 static int s_ring_entry_corner_col = -1;
@@ -670,7 +670,7 @@ static void Ring_Set_State(uint8 state)
     s_ring_feature_count = 0U;
 
     if (state == RING_STATE_RECOVERY)
-        s_ring_state7_latched = 1U;  /* 主状态结束后可清零，本锁存位不再复位。 */
+        s_ring_state7_latched = 1U;  /* 进入出环恢复阶段后，允许斑马线触发停车。 */
 
     if (state == RING_STATE_CONFIRM)
     {
@@ -2064,6 +2064,12 @@ uint8 Ring_Should_Hold_Err(void)
             || s_ring_prev_recovery_valley_row < 0));
 }
 
+/* 返回车辆是否已进入过出环恢复阶段，仅用于开放斑马线停车。 */
+uint8 Ring_Has_Exited_Once(void)
+{
+    return s_ring_state7_latched;
+}
+
 /* ---- 对侧贴边行数检查 ----
  * 检查10~42行范围，边缘margin=3像素，贴边行>3则返回1
  * direction=1: 检查右边线是否太多行挤到右边缘
@@ -2188,13 +2194,6 @@ void Element_Judgment_Zebra(void)
     int trans_count;        /* 当前行跳变计数 */
     int valid_rows = 0;
     static int confirm_cnt = 0;
-
-    if (s_ring_state7_latched == 0U)
-    {
-        confirm_cnt = 0;
-        g_ZebraSum = 0;
-        return;
-    }
 
     /* 活动圆环已由Scan_Element提前返回，不会进入本判定。 */
     if (ImageFlag.Zebra_Flag != 0)

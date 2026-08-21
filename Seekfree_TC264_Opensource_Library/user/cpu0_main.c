@@ -29,13 +29,8 @@ volatile uint8_t RingEntrySlowdown = 0U;
 /* 摄像头50帧时每5帧刷新一次编码器数值，避免刷新拖慢主循环。 */
 #define ENCODER_DISPLAY_DIV 5U
 #endif
-/* 斑马线帧确认: 退出斑马线帧计数，确认后保持全局8帧后停止，以越过终点线。 */
-
-/* 斑马线停止延迟帧数: 检测到斑马线后延迟N帧后停车。
-   斑马线同时充当终点线，延迟需略长以确保车体完全过线后再刹停。
-   50fps，1帧=20ms，8帧 ≈ 160ms。 */
+/* 出环后识别到终点斑马线，累计N个处理帧后再停车。 */
 #define ZEBRA_STOP_DELAY_FRAMES  3
-/* 斑马线检测到第3次确认后延迟帧数 */
 
 /* 图像最底行全部为黑色时，判定车辆已经驶出白色赛道。 */
 static uint8_t Bottom_Row_All_Black(void)
@@ -110,12 +105,13 @@ int core0_main(void)
                 && ImageFlag.image_element_rings_flag >= RING_STATE_CONFIRM
                 && ImageFlag.image_element_rings_flag <= RING_STATE_ENTRY);
 
-            /* 斑马线检测延迟停车：收到N帧后让车辆通过终点线 */
+            /* 发车斑马线只稳定方向；出环后再识别到斑马线才延迟停车。 */
             {
                 static uint8_t zebra_triggered = 0;  /* 是否已触发斑马线 */
                 static uint8_t zebra_delay_cnt = 0;  /* 检测后累计帧数 */
 
-                if (ImageFlag.Zebra_Flag != 0 && zebra_triggered == 0
+                if (ImageFlag.Zebra_Flag != 0 && Ring_Has_Exited_Once() != 0U
+                 && zebra_triggered == 0
                  && StopRequest == 0U)
                 {
                     zebra_triggered = 1;     /* 锁存触发状态 */
@@ -158,8 +154,10 @@ int core0_main(void)
                 }
 
                 /* 圆环阶段仅缩小视觉Err，不改变其他阶段和PD参数。 */
+                if (ImageFlag.Zebra_Flag != 0)
+                    frame_err *= 0;
                 if (ImageFlag.image_element_rings_flag == RING_STATE_ENTRY)
-                   frame_err *= 0.95f;
+                    frame_err *= 0.95f;
                 if (ImageFlag.image_element_rings_flag == RING_STATE_INSIDE)
                     frame_err *= 0.9f;
                 if (ImageFlag.image_element_rings_flag == RING_STATE_EXIT1)

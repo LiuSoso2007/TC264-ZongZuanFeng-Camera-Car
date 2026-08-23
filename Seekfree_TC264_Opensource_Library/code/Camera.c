@@ -2268,7 +2268,7 @@ void Element_Handle_Zebra(void)
 /* 十字弯道扫描参数 */
 #define CROSS_SCAN_BOTTOM_ROW       53
 #define CROSS_SCAN_TOP_ROW          9
-#define CROSS_STABLE_MIN_ROWS        7     //同列行数
+#define CROSS_STABLE_MIN_ROWS        5     //拐点前连续稳定的最少行数
 #define CROSS_STABLE_COL_TOLERANCE   1
 #define CROSS_JUMP_MIN_COLS          3     //跳变确认列数
 #define CROSS_UPPER_CONFIRM_ROWS     1     //向上确认行数
